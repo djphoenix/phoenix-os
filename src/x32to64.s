@@ -3,7 +3,9 @@ use32
 section '.text'
 extrn main
 public _start
+public _data_start
 public __main
+extrn grub_data
 _start:
 	jmp multiboot_entry
 
@@ -15,6 +17,11 @@ multiboot_header:
 
 multiboot_entry:
 	cli
+	
+	cmp eax, 0x2BADB002
+	jne .NoMultiboot
+
+	mov [grub_data], ebx
 
 	mov dx, 0x3D4
 	mov al, 0xA
@@ -100,6 +107,10 @@ multiboot_entry:
 	lgdt [GDT64.Pointer]
 	jmp (GDT64.Code - GDT64):x64_entry
 
+.NoMultiboot:
+	mov eax, aNoMultiboot
+	jmp error
+
 .NoCPUID:
 	mov eax, aNoCPUID
 	jmp error
@@ -132,6 +143,8 @@ __main: ; Fix for Windows builds
 	ret
 
 section '.data'
+_data_start:
+aNoMultiboot: db "This kernel can boot only from multiboot-compatible bootloader", 0
 aNoLongMode: db "Your CPU are not support x86_64 mode", 0
 aNoCPUID: db "Your CPU are not support CPUID instruction", 0
 	align 4
