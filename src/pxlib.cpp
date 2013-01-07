@@ -9,7 +9,12 @@ void print(const char* str){
   while(c = str[i++]){
 	if(c == 0) return;
 	if(c == 10) display += 160 - (((_uint64)display - 0xB8000) % 160);
-	else {
+	else if(c == 9) {
+		do{
+			display[0] = ' ';
+			display+=2;
+		} while((_uint64)display % 8 != 0);
+	} else {
 	  display[0] = c;
 	  display+=2;
 	}
