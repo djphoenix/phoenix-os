@@ -3,7 +3,6 @@ use32
 section '.text'
 extrn main
 public _start
-public _data_start
 public __main
 extrn grub_data
 _start:
@@ -143,7 +142,6 @@ __main: ; Fix for Windows builds
 	ret
 
 section '.data'
-_data_start:
 aNoMultiboot: db "This kernel can boot only from multiboot-compatible bootloader", 0
 aNoLongMode: db "Your CPU are not support x86_64 mode", 0
 aNoCPUID: db "Your CPU are not support CPUID instruction", 0
