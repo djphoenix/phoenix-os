@@ -1,5 +1,9 @@
 #ifndef MEMORY_H
 #define MEMORY_H
+typedef void* PML4E, **PPML4E;
+typedef PPML4E PDPE, *PPDPE;
+typedef PPDPE PDE, *PPDE;
+typedef PPDE PTE, *PPTE;
 typedef struct {
 	long flags;
 	long mem_lower, mem_upper;
