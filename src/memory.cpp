@@ -1,20 +1,6 @@
 #include "pxlib.h"
 PGRUB grub_data;
 PPTE pagetable = (PPTE)0x1000;
-void l2h(const _int64 i, char* s){
-	for(int c = 0; c < sizeof(i)/2; c++){
-		char b = (i >> ((sizeof(i)-c-1)*8)) & 0xFF;
-		s[c*2+1] = ((b & 0xF) > 9) ? ('A' + (b & 0xF) - 10) : ('0' + (b & 0xF));
-		b >>= 4;
-		s[c*2  ] = ((b & 0xF) > 9) ? ('A' + (b & 0xF) - 10) : ('0' + (b & 0xF));
-	}
-	for(int c = sizeof(i)/2; c < sizeof(i); c++){
-		char b = (i >> ((sizeof(i)-c-1)*8)) & 0xFF;
-		s[c*2+2] = ((b & 0xF) > 9) ? ('A' + (b & 0xF) - 10) : ('0' + (b & 0xF));
-		b >>= 4;
-		s[c*2+1] = ((b & 0xF) > 9) ? ('A' + (b & 0xF) - 10) : ('0' + (b & 0xF));
-	}
-}
 PPML4E get_page(void* base_addr){
 	base_addr = (void*)((_int64)base_addr & 0xFFFFFFFFFFFFF000);
 	for(short i = 0; i < 512; i++){
