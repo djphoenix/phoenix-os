@@ -30,6 +30,34 @@ void print(const char* str){
 	}
 }
 
+void printb(char i)
+{
+	char c[3];
+	c[1] = (i & 0xF) > 9 ? 'A' + (i & 0xF) - 10 : '0' + (i & 0xF);
+	i = i >> 4;
+	c[0] = (i & 0xF) > 9 ? 'A' + (i & 0xF) - 10 : '0' + (i & 0xF);
+	c[2] = 0;
+	print(c);
+}
+
+void prints(short i)
+{
+	printb((i >> 8) & 0xFF);
+	printb(i & 0xFF);
+}
+
+void printl(int i)
+{
+	prints((i >> 16) & 0xFFFF);
+	prints(i & 0xFFFF);
+}
+
+void printq(_int64 i)
+{
+	printl((i >> 32) & 0xFFFFFFFF);
+	printl(i & 0xFFFFFFFF);
+}
+
 char __inline inportb(short port){
 	char c; asm("inb %w1, %b0":"=a"(c):"d"(port)); return c;
 }
