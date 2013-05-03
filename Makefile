@@ -19,4 +19,4 @@ obj/x32to64.o : src/x32to64.s obj
 clean:
 	rm -rf obj
 obj:
-	mkdir obj
+	mkdir -p obj
