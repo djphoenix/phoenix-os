@@ -3,4 +3,5 @@
 int main(){
 	clrscr();
 	memory_init();
+	memmap();
 }

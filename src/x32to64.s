@@ -81,7 +81,7 @@ multiboot_entry:
 	mov DWORD [edi+18h], 0x7003	; Set the double word at the destination index to 0x7003.
 	add edi, 0x1000				; Add 0x1000 to the destination index.
 
-	mov ebx, 0x00000003			; Set the B-register to 0x00000003.
+	mov ebx, 0x00000007			; Set the B-register to 0x00000003.
 	mov ecx, 2048				; Set the C-register to 512.
 
 .SetEntry:

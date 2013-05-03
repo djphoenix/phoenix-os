@@ -18,7 +18,18 @@ typedef struct {
 	void *apm_table;
 	void *vbe_control_info, *vbe_mode_info, *vbe_mode, *vbe_interface_seg, *vbe_interface_off, *vbe_interface_len;
 } GRUB, *PGRUB;
+typedef struct {
+	void* addr;
+	_int64 size;
+} ALLOC, *PALLOC;
+typedef struct {
+	ALLOC allocs[255];
+	void* next;
+	_int64 reserved;
+} ALLOCTABLE, *PALLOCTABLE;
 extern PGRUB grub_data;
+extern void memmap();
 extern void memory_init();
+extern void* malloc(_int64 size, int align = 4);
 #include "pxlib.h"
 #endif
