@@ -1,6 +1,7 @@
 #include "pxlib.h"
 
-int main(){
+int main()
+{
 	clrscr();
 	memory_init();
 	memmap();
