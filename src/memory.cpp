@@ -29,7 +29,6 @@ PPML4E get_page(void* base_addr)
 }
 void memory_init()
 {
-	print("Initializing memory...\n");
 	_int64 kernel = 0, stack = 0, data = 0, data_top = 0, bss = 0, bss_top = 0;
 	asm("movq $_start, %q0":"=a"(kernel));
 	asm("movq $__data_start__, %q0":"=a"(data));
@@ -139,9 +138,9 @@ void* malloc(_int64 size, int align)
 	if(allocs == 0) {
 		allocs = (PALLOCTABLE)palloc(1);
 	}
-	PALLOC a = 0; PALLOCTABLE t = allocs;
+	PALLOCTABLE t = allocs;
 	int ai;
-	while(a == 0){
+	while(true){
 		ai = -1;
 		for(int i = 0; i < 255; i++)
 			if(t->allocs[i].addr == 0) {ai = i; break;}
@@ -175,7 +174,6 @@ void* malloc(_int64 size, int align)
 					((ns<=as) and (ne>ae))		// alloc inside NA
 				) {ns=ae; f=1; break;}
 			}
-			break;
 			if(f!=0) break;
 			if(t2->next == 0) break;
 			t2 = (PALLOCTABLE)t2->next;
