@@ -1,6 +1,7 @@
 #include "pxlib.h"
 PGRUB grub_data;
 PPTE pagetable = (PPTE)0x1000;
+PALLOCTABLE allocs = 0;
 PPML4E get_page(void* base_addr)
 {
 	base_addr = (void*)((_int64)base_addr & 0xFFFFFFFFFFFFF000);
@@ -112,7 +113,95 @@ void memmap()
 		m++;
 	}
 }
+void* palloc(char sys)
+{
+	void *addr; PPML4E page;
+	_int64 i=0;
+	while(i<0xFFFFFFFFFFFFF){
+		i++;
+		addr = (void*)(i*0x1000);
+		page = get_page(addr);
+		if((page != 0) && (*(_int64*)page & 1) == 1) {continue;}
+		break;
+	}
+	PDE pde = (PDE)((_int64)pagetable[(i >> 27) & 0x1FF] & 0xFFFFFFFFFFFFF000);
+	PDPE pdpe = (PDPE)((_int64)pde[(i >> 18) & 0x1FF] & 0xFFFFFFFFFFFFF000);
+	page = (PPML4E)((_int64)pdpe[(i >> 9) & 0x1FF] & 0xFFFFFFFFFFFFF000);
+	page[i & 0x1FF] = (void*)((i * 0x1000) | (sys == 0 ? 7 : 3));
+	for(i=0; i<0x200; i++)
+		((_int64*)addr)[i] = 0;
+	return addr;
+}
 void* malloc(_int64 size, int align)
 {
-	return (void*)size;
+	if(size == 0) return (void*)0;
+	// Finding memory slot for alloc record
+	if(allocs == 0) {
+		allocs = (PALLOCTABLE)palloc(1);
+	}
+	PALLOC a = 0; PALLOCTABLE t = allocs;
+	int ai;
+	while(a == 0){
+		ai = -1;
+		for(int i = 0; i < 255; i++)
+			if(t->allocs[i].addr == 0) {ai = i; break;}
+		if(ai == -1) {
+			if(t->next == 0) {
+				t->next = (PALLOCTABLE)palloc(1);
+			}
+			t = (PALLOCTABLE)t->next;
+		} else break;
+	}
+	_uint64 ns = 0x1000, ne; char f;
+	while(1){
+		if(ns%align != 0) ns = ns + align - (ns%align);
+		ne = ns + size;
+		f=0;
+		int ps = ns >> 12, pe = (ne >> 12) + (((ne & 0xFFF) !=0) ? 1 : 0);
+		for(int i=ps; i < pe; i++){
+			PPML4E pdata = get_page((void*)((_uint64)i << 12));
+			if((pdata!=0)&&((*(_int64*)pdata & 1)==1)&&((*(_int64*)pdata & 4)==0)){f=1;ns=(i+1) << 12;}
+		}
+		if(f!=0) continue;
+		PALLOCTABLE t2 = allocs;
+		while(1){
+			for(int i=0;i<255;i++){
+				if(t2->allocs[i].addr == 0) continue;
+				_uint64 as = (_uint64)t2->allocs[i].addr, ae = as+(_uint64)t2->allocs[i].size;
+				if(
+					((ns>=as) and (ns<ae)) or	// NA starts in alloc
+					((ne>=as) and (ne<ae)) or	// NA ends in alloc
+					((ns>=as) and (ne<ae)) or	// NA inside alloc
+					((ns<=as) and (ne>ae))		// alloc inside NA
+				) {ns=ae; f=1; break;}
+			}
+			break;
+			if(f!=0) break;
+			if(t2->next == 0) break;
+			t2 = (PALLOCTABLE)t2->next;
+		}
+		if(f==0) break;
+	}
+	int ps = ns >> 12, pe = (ne >> 12) + (((ne & 0xFFF) !=0) ? 1 : 0);
+	for(int i=ps; i < pe; i++){
+		PDE pde = (PDE)((_int64)pagetable[(i >> 27) & 0x1FF] & 0xFFFFFFFFFFFFF000);
+		if(pde==0) {
+			pagetable[(i >> 27) & 0x1FF] = (PPDE)((_uint64)palloc(1) | 3);
+			pde = (PDE)((_int64)pagetable[(i >> 27) & 0x1FF] & 0xFFFFFFFFFFFFF000);
+		}
+		PDPE pdpe = (PDPE)((_int64)pde[(i >> 18) & 0x1FF] & 0xFFFFFFFFFFFFF000);
+		if(pdpe==0) {
+			pde[(i >> 18) & 0x1FF] = (PDPE)((_uint64)palloc(1) | 3);
+			pdpe = (PDPE)((_int64)pde[(i >> 18) & 0x1FF] & 0xFFFFFFFFFFFFF000);
+		}
+		PPML4E page = (PPML4E)((_int64)pdpe[(i >> 9) & 0x1FF] & 0xFFFFFFFFFFFFF000);
+		if(page==0) {
+			pdpe[(i >> 9) & 0x1FF] = (PPML4E)((_uint64)palloc(1) | 3);
+			page = (PPML4E)((_int64)pdpe[(i >> 9) & 0x1FF] & 0xFFFFFFFFFFFFF000);
+		}
+		page[i & 0x1FF] = (void*)((i * 0x1000) | 7);
+	}
+	t->allocs[ai].addr = (void*) ns;
+	t->allocs[ai].size = size;
+	return (void*) ns;
 }

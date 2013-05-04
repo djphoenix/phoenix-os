@@ -30,6 +30,7 @@ typedef struct {
 extern PGRUB grub_data;
 extern void memmap();
 extern void memory_init();
+extern void* palloc(char sys = 0);
 extern void* malloc(_int64 size, int align = 4);
 #include "pxlib.h"
 #endif
