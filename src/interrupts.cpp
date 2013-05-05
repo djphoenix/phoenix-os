@@ -7,16 +7,34 @@ _interrupt_handler:\n\
 push %rax\n\
 mov 8(%esp), %ax\n\
 push %rcx\n\
+movq %rsp, %rcx\n\
+addq $18, %rcx\n\
 push %rdx\n\
 push %rbx\n\
 push %rbp\n\
 push %rsi\n\
 push %rdi\n\
+push %r8\n\
+push %r9\n\
+push %r10\n\
+push %r11\n\
+push %r12\n\
+push %r13\n\
+push %r14\n\
+push %r15\n\
 \
 call interrupt_handler\n\
 movb $0x20, %al\n\
 outb %al, $0x20\n\
 \
+popq %r15\n\
+popq %r14\n\
+popq %r13\n\
+popq %r12\n\
+popq %r11\n\
+popq %r10\n\
+popq %r9\n\
+popq %r8\n\
 popq %rdi\n\
 popq %rsi\n\
 popq %rbp\n\
@@ -32,10 +50,10 @@ interrupt_handler:\
 ");
 void interrupt_handler(){
 	unsigned char al; asm("mov %%al, %b0":"=b"(al));
+	_int64 *rsp; asm("mov %%rsp, %q0":"=q"(rsp));
 	if(al<0x20){
 		print("int "); printb(al); print("h\n");
-		_int64 *rsp; asm("mov %%rsp, %q0":"=q"(rsp)); rsp=(_int64*)((_int64)rsp+2);
-		for(int i=9;i<19;i++)
+		for(int i=0;i<10;i++)
 			{printq(rsp[i]); print("\n");}
 		for(;;);
 	} else {
