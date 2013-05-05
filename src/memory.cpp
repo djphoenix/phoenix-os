@@ -29,8 +29,8 @@ PPML4E get_page(void* base_addr)
 }
 void memory_init()
 {
-	_int64 kernel = 0, stack = 0, data = 0, data_top = 0, bss = 0, bss_top = 0;
-	asm("movq $_start, %q0":"=a"(kernel));
+	_int64 kernel = 0, stack = 0, stack_top = 0, data = 0, data_top = 0, bss = 0, bss_top = 0;
+	asm("movq $_start, %q0":"=a"(kernel)); stack = kernel - 0x4000; stack_top = kernel;
 	asm("movq $__data_start__, %q0":"=a"(data));
 	asm("movq $__rt_psrelocs_end, %q0":"=a"(data_top)); data_top = (data_top & 0xFFFFF000) + 0x1000;
 	asm("movq $__bss_start__, %q0":"=a"(bss));
@@ -41,6 +41,8 @@ void memory_init()
 	for(_int64 addr = 0x0A0000; addr < 0x0C8000; addr += 0x1000) // Video data & VGA BIOS
 		(*(_int64*)(get_page((void*)addr))) &= ~4;
 	for(_int64 addr = 0x0F0000; addr < 0x100000; addr += 0x1000) // BIOS Code
+		(*(_int64*)(get_page((void*)addr))) &= ~4;
+	for(_int64 addr = stack; addr < stack_top; addr += 0x1000) // PXOS Stack
 		(*(_int64*)(get_page((void*)addr))) &= ~4;
 	for(_int64 addr = kernel; addr < data_top; addr += 0x1000) // PXOS Code & Data
 		(*(_int64*)(get_page((void*)addr))) &= ~4;

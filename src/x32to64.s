@@ -155,7 +155,7 @@ GDT64:
 	dd 00209800h
 .Data:
 	dd 0
-	dd 00009000h
+	dd 00009200h
 .Pointer:
 	dw $ - GDT64 - 1
 	dq GDT64
