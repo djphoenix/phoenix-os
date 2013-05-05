@@ -14,8 +14,10 @@ int main()
 	memory_init();
 	interrupts_init();
 	_uint64 start, end;
+	short c=0;
 	for(;;){
-		print("255 allocs of 16 bytes");
+		c++;
+		print("Stage ");prints(c);print(": 255 allocs of 16 bytes");
 		start = rdtsc();
 		for(int i=0; i<255; i++) malloc(0x10);
 		end = rdtsc();
