@@ -2,6 +2,13 @@
 #define INTERRUPTS_H
 #include "pxlib.h"
 typedef struct {
+	char mov_al;
+	char al;
+	char push;
+	long addr;
+	char ret;
+} __attribute__ ((packed)) HCODE, *PHCODE;
+typedef struct {
 	short offset_low;
 	short selector;
 	char zero;

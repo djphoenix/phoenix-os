@@ -1,54 +1,74 @@
 #include "interrupts.h"
 PIDT idt = 0;
-asm("\
+PHCODE handlers = 0;
+asm volatile("\
 _interrupt_handler:\n\
-movq $0xB8000, %rax\n\
-movb $'A', (%rax)\n\
-jmp _interrupt_handler\n\
-push %ax\n\
-push %cx\n\
-push %dx\n\
-push %bx\n\
-push %sp\n\
-push %bp\n\
-push %si\n\
-push %di\n\
+\
+push %rax\n\
+push %rcx\n\
+push %rdx\n\
+push %rbx\n\
+push %rbp\n\
+push %rsi\n\
+push %rdi\n\
+\
 call interrupt_handler\n\
-popw %di\n\
-popw %si\n\
-popw %bp\n\
-popw %bx\n\
-popw %bx\n\
-popw %dx\n\
-popw %cx\n\
-popw %ax\n\
+movb $0x20, %al\n\
+outb %al, $0x20\n\
+\
+popq %rdi\n\
+popq %rsi\n\
+popq %rbp\n\
+popq %rbx\n\
+popq %rdx\n\
+popq %rcx\n\
+popq %rax\n\
+\
 iretq\n\
+.align 16\n\
 interrupt_handler:\
 ");
 void interrupt_handler(){
+	unsigned char al; asm("mov %%al, %b0":"=b"(al));
+	if(al<0x20){
+		print("int "); printb(al); print("h\n");
+		_int64 *rsp; asm("mov %%rsp, %q0":"=q"(rsp));
+		for(int i=9;i<19;i++)
+			printq(rsp[i]); print("\n");
+		for(;;);
+	} else {
+		if(al == 0x21) { // Keyboard
+			print("int "); printb(al); print("h");
+			print(" - "); printb(inportb(0x60)); print("h");
+			outportb(0x61, inportb(0x61) | 1);
+			print("\n");
+		}
+	}
 }
 void interrupts_init()
 {
-	print("Initializing interrupts...");
+	print("Initializing interrupts...\n");
 	idt = (PIDT)malloc(sizeof(IDT));
 	idt->rec.limit = sizeof(idt->ints) -1;
 	idt->rec.addr = &idt->ints[0];
+	handlers = (PHCODE)malloc(sizeof(HCODE)*256);
 	void* addr;
 	asm("mov $_interrupt_handler,%q0":"=a"(addr));
 	for(int i=0; i<256; i++){
+		handlers[i].mov_al = 0xB0;
+		handlers[i].al = i & 0xFF;
+		handlers[i].push = 0x68;
+		handlers[i].addr = (_int64)addr;
+		handlers[i].ret = 0xC3;
+		
 		idt->ints[i].zero = 0;
 		idt->ints[i].reserved = 0;
 		idt->ints[i].selector = 8;
-		idt->ints[i].type = 0x0E;	// P[7]=0, DPL[65]=0, S[4]=0, Type[3210] = E
-		idt->ints[i].offset_low = ((_int64)addr >> 0) & 0xFFFF;
-		idt->ints[i].offset_middle = ((_int64)addr >> 16) & 0xFFFF;
-		idt->ints[i].offset_high = ((_int64)addr >> 32) & 0xFFFFFFFF;
+		idt->ints[i].type = 0x8E;	// P[7]=1, DPL[65]=0, S[4]=0, Type[3210] = E
+		idt->ints[i].offset_low = ((_int64)(&handlers[i]) >> 0) & 0xFFFF;
+		idt->ints[i].offset_middle = ((_int64)(&handlers[i]) >> 16) & 0xFFFF;
+		idt->ints[i].offset_high = ((_int64)(&handlers[i]) >> 32) & 0xFFFFFFFF;
 	}
- print("\n");
-	printl(*(_int64*)((_int64)(&idt->ints[0])+12)); print("\n");
-	printl(*(_int64*)((_int64)(&idt->ints[0])+8)); print("\n");
-	printl(*(_int64*)((_int64)(&idt->ints[0])+4)); print("\n");
-	printl(*(_int64*)(&idt->ints[0])); print("\n");
 
 	outportb(0x20, 0x11);
 	outportb(0xA0, 0x11);
@@ -58,7 +78,7 @@ void interrupts_init()
 	outportb(0xA1, 0x02);
 	outportb(0x21, 0x01);
 	outportb(0xA1, 0x01);
-	outportb(0x21, 0x0);
-	outportb(0xA1, 0x0);
+	outportb(0x21, 0xFC);
+	outportb(0xA1, 0xFF);
 	asm volatile( "lidtq %0\nsti"::"m"(idt->rec));
 }
