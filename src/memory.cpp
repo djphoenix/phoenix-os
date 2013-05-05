@@ -136,24 +136,8 @@ void* palloc(char sys)
 void* malloc(_int64 size, int align)
 {
 	if(size == 0) return (void*)0;
-	// Finding memory slot for alloc record
-	if(allocs == 0) {
-		allocs = (PALLOCTABLE)palloc(1);
-	}
-	PALLOCTABLE t = allocs;
-	int ai;
-	while(true){
-		ai = -1;
-		for(int i = 0; i < 255; i++)
-			if(t->allocs[i].addr == 0) {ai = i; break;}
-		if(ai == -1) {
-			if(t->next == 0) {
-				t->next = (PALLOCTABLE)palloc(1);
-			}
-			t = (PALLOCTABLE)t->next;
-		} else break;
-	}
 	_uint64 ns = 0x1000, ne; char f;
+	PALLOCTABLE t;
 	while(1){
 		if(ns%align != 0) ns = ns + align - (ns%align);
 		ne = ns + size;
@@ -164,11 +148,12 @@ void* malloc(_int64 size, int align)
 			if((pdata!=0)&&((*(_int64*)pdata & 1)==1)&&((*(_int64*)pdata & 4)==0)){f=1;ns=(i+1) << 12;}
 		}
 		if(f!=0) continue;
-		PALLOCTABLE t2 = allocs;
+		t = allocs;
+		if(t == 0) break;
 		while(1){
 			for(int i=0;i<255;i++){
-				if(t2->allocs[i].addr == 0) continue;
-				_uint64 as = (_uint64)t2->allocs[i].addr, ae = as+(_uint64)t2->allocs[i].size;
+				if(t->allocs[i].addr == 0) continue;
+				_uint64 as = (_uint64)t->allocs[i].addr, ae = as+(_uint64)t->allocs[i].size;
 				if(
 					((ns>=as) and (ns<ae)) or	// NA starts in alloc
 					((ne>=as) and (ne<ae)) or	// NA ends in alloc
@@ -177,8 +162,8 @@ void* malloc(_int64 size, int align)
 				) {ns=ae; f=1; break;}
 			}
 			if(f!=0) break;
-			if(t2->next == 0) break;
-			t2 = (PALLOCTABLE)t2->next;
+			if(t->next == 0) break;
+			t = (PALLOCTABLE)t->next;
 		}
 		if(f==0) break;
 	}
@@ -200,6 +185,23 @@ void* malloc(_int64 size, int align)
 			page = (PPML4E)((_int64)pdpe[(i >> 9) & 0x1FF] & 0xFFFFFFFFFFFFF000);
 		}
 		page[i & 0x1FF] = (void*)((i * 0x1000) | 7);
+	}
+	// Finding memory slot for alloc record
+	if(allocs == 0) {
+		allocs = (PALLOCTABLE)palloc(1);
+	}
+	t = allocs;
+	int ai;
+	while(true){
+		ai = -1;
+		for(int i = 0; i < 255; i++)
+			if(t->allocs[i].addr == 0) {ai = i; break;}
+		if(ai == -1) {
+			if(t->next == 0) {
+				t->next = (PALLOCTABLE)palloc(1);
+			}
+			t = (PALLOCTABLE)t->next;
+		} else break;
 	}
 	t->allocs[ai].addr = (void*) ns;
 	t->allocs[ai].size = size;
