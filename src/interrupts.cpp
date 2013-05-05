@@ -5,6 +5,7 @@ asm volatile("\
 _interrupt_handler:\n\
 \
 push %rax\n\
+mov 8(%esp), %ax\n\
 push %rcx\n\
 push %rdx\n\
 push %rbx\n\
@@ -24,6 +25,7 @@ popq %rdx\n\
 popq %rcx\n\
 popq %rax\n\
 \
+add $2, %esp\n\
 iretq\n\
 .align 16\n\
 interrupt_handler:\
@@ -32,9 +34,9 @@ void interrupt_handler(){
 	unsigned char al; asm("mov %%al, %b0":"=b"(al));
 	if(al<0x20){
 		print("int "); printb(al); print("h\n");
-		_int64 *rsp; asm("mov %%rsp, %q0":"=q"(rsp));
+		_int64 *rsp; asm("mov %%rsp, %q0":"=q"(rsp)); rsp=(_int64*)((_int64)rsp+2);
 		for(int i=9;i<19;i++)
-			printq(rsp[i]); print("\n");
+			{printq(rsp[i]); print("\n");}
 		for(;;);
 	} else {
 		if(al == 0x21) { // Keyboard
@@ -47,7 +49,6 @@ void interrupt_handler(){
 }
 void interrupts_init()
 {
-	print("Initializing interrupts...\n");
 	idt = (PIDT)malloc(sizeof(IDT));
 	idt->rec.limit = sizeof(idt->ints) -1;
 	idt->rec.addr = &idt->ints[0];
@@ -55,8 +56,8 @@ void interrupts_init()
 	void* addr;
 	asm("mov $_interrupt_handler,%q0":"=a"(addr));
 	for(int i=0; i<256; i++){
-		handlers[i].mov_al = 0xB0;
-		handlers[i].al = i & 0xFF;
+		handlers[i].push_w = 0x6866;
+		handlers[i].intr = i & 0xFF;
 		handlers[i].push = 0x68;
 		handlers[i].addr = (_int64)addr;
 		handlers[i].ret = 0xC3;

@@ -2,8 +2,8 @@
 #define INTERRUPTS_H
 #include "pxlib.h"
 typedef struct {
-	char mov_al;
-	char al;
+	short push_w;
+	short intr;
 	char push;
 	long addr;
 	char ret;
