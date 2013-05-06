@@ -40,6 +40,8 @@ void memory_init()
 	(*(_int64*)(get_page((void*)0x00000000))) &= 0xFFFFFFFFFFFFFFF0; // BIOS Data
 	for(_int64 addr = 0x0A0000; addr < 0x0C8000; addr += 0x1000) // Video data & VGA BIOS
 		(*(_int64*)(get_page((void*)addr))) &= ~4;
+	for(_int64 addr = 0x0C8000; addr < 0x0EF000; addr += 0x1000) // Reserved for many systems
+		(*(_int64*)(get_page((void*)addr))) &= ~4;
 	for(_int64 addr = 0x0F0000; addr < 0x100000; addr += 0x1000) // BIOS Code
 		(*(_int64*)(get_page((void*)addr))) &= ~4;
 	for(_int64 addr = stack; addr < stack_top; addr += 0x1000) // PXOS Stack
@@ -101,9 +103,9 @@ void memmap()
 		cl = 15;
 		if(c & 1) {
 			if(c & 4){
-				c = 'U'; cl = 0xA0;
+				c = 'U'; cl = 0x20;
 			} else {
-				c = 'S'; cl = 0xC0;
+				c = 'S'; cl = 0x40;
 			}
 		} else {
 			c = 'E'; cl = 7;
@@ -145,7 +147,12 @@ void* malloc(_int64 size, int align)
 		int ps = ns >> 12, pe = (ne >> 12) + (((ne & 0xFFF) !=0) ? 1 : 0);
 		for(int i=ps; i < pe; i++){
 			PPML4E pdata = get_page((void*)((_uint64)i << 12));
-			if((pdata!=0)&&((*(_int64*)pdata & 1)==1)&&((*(_int64*)pdata & 4)==0)){f=1;ns=(i+1) << 12;}
+			if((pdata!=0)&&((*(_int64*)pdata & 1)==1)&&((*(_int64*)pdata & 4)==0)){
+				ns=(i+1) << 12;
+				if(ns%align != 0) ns = ns + align - (ns%align);
+				ne = ns + size;
+				f=1;
+			}
 		}
 		if(f!=0) continue;
 		t = allocs;
@@ -159,7 +166,12 @@ void* malloc(_int64 size, int align)
 					((ne>=as) and (ne<ae)) or	// NA ends in alloc
 					((ns>=as) and (ne<ae)) or	// NA inside alloc
 					((ns<=as) and (ne>ae))		// alloc inside NA
-				) {ns=ae; f=1; break;}
+				) {
+					ns=ae;
+					if(ns%align != 0) ns = ns + align - (ns%align);
+					ne = ns + size;
+					f=1;
+				}
 			}
 			if(f!=0) break;
 			if(t->next == 0) break;
@@ -187,9 +199,8 @@ void* malloc(_int64 size, int align)
 		page[i & 0x1FF] = (void*)((i * 0x1000) | 7);
 	}
 	// Finding memory slot for alloc record
-	if(allocs == 0) {
+	if(allocs == 0)
 		allocs = (PALLOCTABLE)palloc(1);
-	}
 	t = allocs;
 	int ai;
 	while(true){
@@ -197,9 +208,8 @@ void* malloc(_int64 size, int align)
 		for(int i = 0; i < 255; i++)
 			if(t->allocs[i].addr == 0) {ai = i; break;}
 		if(ai == -1) {
-			if(t->next == 0) {
+			if(t->next == 0)
 				t->next = (PALLOCTABLE)palloc(1);
-			}
 			t = (PALLOCTABLE)t->next;
 		} else break;
 	}
