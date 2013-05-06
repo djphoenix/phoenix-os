@@ -1,6 +1,7 @@
 #include "interrupts.h"
 PIDT idt = 0;
 PHCODE handlers = 0;
+INTERRUPT32 interrupts32[256];
 asm volatile("\
 _interrupt_handler:\n\
 \
@@ -97,7 +98,7 @@ void interrupts_init()
 	outportb(0xA1, 0x02);
 	outportb(0x21, 0x01);
 	outportb(0xA1, 0x01);
-	outportb(0x21, 0xFC);
-	outportb(0xA1, 0xFF);
+	outportb(0x21, 0);
+	outportb(0xA1, 0);
 	asm volatile( "lidtq %0\nsti"::"m"(idt->rec));
 }

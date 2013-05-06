@@ -30,12 +30,33 @@ PPML4E get_page(void* base_addr)
 void memory_init()
 {
 	_int64 kernel = 0, stack = 0, stack_top = 0, data = 0, data_top = 0, bss = 0, bss_top = 0;
-	asm("movq $_start, %q0":"=a"(kernel)); stack = kernel - 0x4000; stack_top = kernel;
+	asm("movq $_start, %q0":"=a"(kernel)); stack = kernel - 0x10000; stack_top = kernel;
 	asm("movq $__data_start__, %q0":"=a"(data));
 	asm("movq $__rt_psrelocs_end, %q0":"=a"(data_top)); data_top = (data_top & 0xFFFFF000) + 0x1000;
 	asm("movq $__bss_start__, %q0":"=a"(bss));
 	asm("movq $__bss_end__, %q0":"=a"(bss_top)); bss_top = (bss_top & 0xFFFFF000) + 0x1000;
-	
+	// Buffering BIOS interrupts
+	for(int i=0; i<256; i++){
+		PINTERRUPT32 intr = (PINTERRUPT32)(((_int64)i & 0xFF)*sizeof(INTERRUPT32));
+		interrupts32[i] = *intr;
+	}
+	// Buffering grub data
+	GRUB gd = *grub_data;
+	char cmdline[256], bl_name[256]; long cmdlinel = 0, blnamel = 0;
+	if(((gd.flags & 4) == 4) && (gd.pcmdline != 0)){
+		char* c = (char*)(((_int64)gd.pcmdline) & 0xFFFFFFFF);
+		int i = 0;
+		while((c[i] != 0)&&(i<255)) cmdline[i++] = c[i];
+		cmdline[i] = 0;
+		cmdlinel = i+1;
+	}
+	if(((gd.flags & 512) == 512) && (gd.pboot_loader_name != 0)){
+		char* c = (char*)(((_int64)gd.pboot_loader_name) & 0xFFFFFFFF);
+		int i = 0;
+		while((c[i] != 0)&&(i<255)) bl_name[i++] = c[i];
+		bl_name[i] = 0;
+		blnamel = i+1;
+	}
 	// Initialization of pagetables
 	(*(_int64*)(get_page((void*)0x00000000))) &= 0xFFFFFFFFFFFFFFF0; // BIOS Data
 	for(_int64 addr = 0x0A0000; addr < 0x0C8000; addr += 0x1000) // Video data & VGA BIOS
@@ -90,6 +111,26 @@ void memory_init()
 				}
 			}
 		}
+	}
+	grub_data = (PGRUB)malloc(sizeof(GRUB));
+	*grub_data = gd;
+	if(cmdlinel > 0) {
+		char* c = (char*)malloc(cmdlinel);
+		grub_data->pcmdline = (long)((_int64)c & 0xFFFFFFFF);
+		for(int i=0; i<cmdlinel; i++){
+			c[i] = cmdline[i];
+		}
+	} else {
+		grub_data->pcmdline = 0;
+	}
+	if(blnamel > 0) {
+		char* c = (char*)malloc(blnamel);
+		grub_data->pboot_loader_name = (long)((_int64)c & 0xFFFFFFFF);
+		for(int i=0; i<blnamel; i++){
+			c[i] = bl_name[i];
+		}
+	} else {
+		grub_data->pboot_loader_name = 0;
 	}
 }
 void memmap()

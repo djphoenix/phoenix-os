@@ -1,5 +1,7 @@
 #ifndef MEMORY_H
 #define MEMORY_H
+#include "pxlib.h"
+#include "interrupts.h"
 typedef void* PML4E, **PPML4E;
 typedef PPML4E PDPE, *PPDPE;
 typedef PPDPE PDE, *PPDE;
@@ -8,16 +10,17 @@ typedef struct {
 	long flags;
 	long mem_lower, mem_upper;
 	long boot_device;
-	char *cmdline;
+	long pcmdline;
 	long mods_count; void *mods_addr;
 	long syms[3];
 	long mmap_length; void *mmap_addr;
 	long drives_length; void *drives_addr;
-	void *config_table;
-	char *boot_loader_name;
-	void *apm_table;
-	void *vbe_control_info, *vbe_mode_info, *vbe_mode, *vbe_interface_seg, *vbe_interface_off, *vbe_interface_len;
+	long pconfig_table;
+	long pboot_loader_name;
+	long papm_table;
+	long pvbe_control_info, pvbe_mode_info, pvbe_mode, pvbe_interface_seg, pvbe_interface_off, pvbe_interface_len;
 } GRUB, *PGRUB;
+
 typedef struct {
 	void* addr;
 	_int64 size;
@@ -32,5 +35,4 @@ extern void memmap();
 extern void memory_init();
 extern void* palloc(char sys = 0);
 extern void* malloc(_int64 size, int align = 4);
-#include "pxlib.h"
 #endif

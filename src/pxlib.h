@@ -15,6 +15,8 @@ uint __inline inportl(short port){ uint c; asm("inl %w1, %d0":"=a"(c):"d"(port))
 void __inline outportb(short port, char c){ asm("outb %b0, %w1"::"a"(c),"d"(port)); }
 void __inline outports(short port, short c){ asm("outw %w0, %w1"::"a"(c),"d"(port)); }
 void __inline outportl(short port, uint c){ asm("outl %d0, %w1"::"a"(c),"d"(port)); }
+_uint64 __inline rdtsc() { unsigned long eax, edx; asm("rdtsc":"=a"(eax),"=d"(edx)); _uint64 ret; ret = edx; ret <<= 32; ret |= eax; return ret; }
 #include "memory.h"
 #include "interrupts.h"
+#include "multiboot_info.h"
 #endif

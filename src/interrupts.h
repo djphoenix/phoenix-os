@@ -14,16 +14,24 @@ typedef struct {
 	char zero;
 	char type;
 	short offset_middle;
+} INTERRUPT32, *PINTERRUPT32;
+typedef struct {
+	short offset_low;
+	short selector;
+	char zero;
+	char type;
+	short offset_middle;
 	long offset_high;
 	long reserved;
-} INTERRUPT, *PINTERRUPT;
+} INTERRUPT64, *PINTERRUPT64;
 typedef struct {
 	short limit;
 	void* addr;
 } __attribute__ ((packed)) IDTR, *PIDTR;
 typedef struct {
-	INTERRUPT ints[256];
+	INTERRUPT64 ints[256];
 	IDTR rec;
 } IDT, *PIDT;
+extern INTERRUPT32 interrupts32[256];
 extern void interrupts_init();
 #endif
