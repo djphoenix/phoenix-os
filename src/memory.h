@@ -7,14 +7,19 @@ typedef PPML4E PDPE, *PPDPE;
 typedef PPDPE PDE, *PPDE;
 typedef PPDE PTE, *PPTE;
 typedef struct {
+	long start;
+	long end;
+} GRUBMODULE, *PGRUBMODULE;
+
+typedef struct {
 	long flags;
 	long mem_lower, mem_upper;
 	long boot_device;
 	long pcmdline;
-	long mods_count; void *mods_addr;
+	long mods_count; long pmods_addr;
 	long syms[3];
-	long mmap_length; void *mmap_addr;
-	long drives_length; void *drives_addr;
+	long mmap_length; long pmmap_addr;
+	long drives_length; long pdrives_addr;
 	long pconfig_table;
 	long pboot_loader_name;
 	long papm_table;
@@ -35,4 +40,5 @@ extern void memmap();
 extern void memory_init();
 extern void* palloc(char sys = 0);
 extern void* malloc(_int64 size, int align = 4);
+extern void mfree(void* addr);
 #endif

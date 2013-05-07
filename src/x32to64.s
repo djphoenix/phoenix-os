@@ -22,28 +22,18 @@ multiboot_entry:
 
 	mov [grub_data], ebx
 	
-	; Moving command line to 0x100000
-	mov eax, ebx
-	mov eax, [eax]
-	test eax, 4 ; Test for cmdline flag
-	jz .nocmdline
-	mov eax, ebx
-	mov eax, [eax+16]
-	test eax, eax ; Cmdline pointer is 0
-	jz .nocmdline
-	mov dword [ebx+16], 0x100000
+	; Moving first 512K to 0x100000
+	xor eax, eax
 	mov ebx, 0x100000
-.cmdloop:
-	mov cl, [eax]
-	mov [ebx], cl
-	cmp cl, 0
-	jz .nocmdline
-	inc eax
-	inc ebx
-	jmp .cmdloop
 	
-.nocmdline:
-
+.mvloop:
+	mov ecx, [eax]
+	mov [ebx], ecx
+	add eax, 4
+	add ebx, 4
+	cmp eax, 0x80000
+	jne .mvloop
+	
 	mov dx, 0x3D4
 	mov al, 0xA
 	out dx, al

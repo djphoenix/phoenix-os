@@ -53,17 +53,10 @@ void interrupt_handler(){
 	unsigned char al; asm("mov %%al, %b0":"=b"(al));
 	_int64 *rsp; asm("mov %%rsp, %q0":"=q"(rsp));
 	if(al<0x20){
-		print("int "); printb(al); print("h\n");
+		print("Kernel fault #"); printb(al); print("h\nStack print:\n");
 		for(int i=0;i<10;i++)
 			{printq(rsp[i]); print("\n");}
 		for(;;);
-	} else {
-		if(al == 0x21) { // Keyboard
-			print("int "); printb(al); print("h");
-			print(" - "); printb(inportb(0x60)); print("h");
-			outportb(0x61, inportb(0x61) | 1);
-			print("\n");
-		}
 	}
 }
 void interrupts_init()

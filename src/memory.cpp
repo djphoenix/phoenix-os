@@ -2,6 +2,7 @@
 PGRUB grub_data;
 PPTE pagetable = (PPTE)0x1000;
 PALLOCTABLE allocs = 0;
+void* first_free = (void*)0x1000;
 PPML4E get_page(void* base_addr)
 {
 	base_addr = (void*)((_int64)base_addr & 0xFFFFFFFFFFFFF000);
@@ -41,22 +42,45 @@ void memory_init()
 		interrupts32[i] = *intr;
 	}
 	// Buffering grub data
-	GRUB gd = *grub_data;
+	kernel_data.flags = grub_data->flags;
+	kernel_data.mem_lower = grub_data->mem_lower;
+	kernel_data.mem_upper = grub_data->mem_upper;
+	kernel_data.boot_device = grub_data->boot_device;
+	kernel_data.boot_device = grub_data->boot_device;
+	kernel_data.mods = (PMODULE)((_int64)grub_data->pmods_addr & 0xFFFFFFFF);
+	if((_int64)kernel_data.mods < 0x100000)
+		kernel_data.mods = (PMODULE)((_int64)kernel_data.mods + 0x100000);
+	kernel_data.mmap_length = grub_data->mmap_length;
+	kernel_data.mmap_addr = (void*)((_int64)grub_data->pmmap_addr & 0xFFFFFFFF);
+	if((_int64)kernel_data.mmap_addr < 0x100000)
+		kernel_data.mmap_addr = (void*)((_int64)kernel_data.mmap_addr + 0x100000);
+	
 	char cmdline[256], bl_name[256]; long cmdlinel = 0, blnamel = 0;
-	if(((gd.flags & 4) == 4) && (gd.pcmdline != 0)){
-		char* c = (char*)(((_int64)gd.pcmdline) & 0xFFFFFFFF);
+	if(((kernel_data.flags & 4) == 4) && (grub_data->pcmdline != 0)){
+		char* c = (char*)((_int64)grub_data->pcmdline & 0xFFFFFFFF);
+		if((_int64)c < 0x100000)
+			c = (char*)((_int64)c + 0x100000);
 		int i = 0;
 		while((c[i] != 0)&&(i<255)) cmdline[i++] = c[i];
 		cmdline[i] = 0;
 		cmdlinel = i+1;
 	}
-	if(((gd.flags & 512) == 512) && (gd.pboot_loader_name != 0)){
-		char* c = (char*)(((_int64)gd.pboot_loader_name) & 0xFFFFFFFF);
-		int i = 0;
-		while((c[i] != 0)&&(i<255)) bl_name[i++] = c[i];
-		bl_name[i] = 0;
-		blnamel = i+1;
+	GRUBMODULE modules[256];
+	modules[grub_data->mods_count].start = 0;
+	if(((kernel_data.flags & 8) == 8) && (grub_data->mods_count != 0) && (kernel_data.mods != 0)){
+		PGRUBMODULE c = (PGRUBMODULE)kernel_data.mods;
+		for(int i = 0; i < grub_data->mods_count; i++){
+			modules[i].start = c->start;
+			modules[i].end = c->end;
+
+			(*(_int64*)(get_page((void*)((_int64)modules[i].start & 0xFFFFF000)))) &= ~4; // Set module pages as system
+			for(_int64 addr = modules[i].start & 0xFFFFF000; addr < modules[i].end & 0xFFFFF000; addr += 0x1000)
+				(*(_int64*)(get_page((void*)addr))) &= ~4;
+
+			c = (PGRUBMODULE)((_int64)c + 16);
+		}
 	}
+
 	// Initialization of pagetables
 	(*(_int64*)(get_page((void*)0x00000000))) &= 0xFFFFFFFFFFFFFFF0; // BIOS Data
 	for(_int64 addr = 0x0A0000; addr < 0x0C8000; addr += 0x1000) // Video data & VGA BIOS
@@ -71,7 +95,7 @@ void memory_init()
 		(*(_int64*)(get_page((void*)addr))) &= ~4;
 	for(_int64 addr = bss; addr < bss_top; addr += 0x1000) // PXOS BSS
 		(*(_int64*)(get_page((void*)addr))) &= ~4;
-	
+
 	(*(_int64*)(get_page((void*)pagetable))) &= ~4; // Setting pagetable pages as system
 	for(short i = 0; i < 512; i++) {
 		PPDE pde = pagetable[i];
@@ -112,25 +136,25 @@ void memory_init()
 			}
 		}
 	}
-	grub_data = (PGRUB)malloc(sizeof(GRUB));
-	*grub_data = gd;
 	if(cmdlinel > 0) {
-		char* c = (char*)malloc(cmdlinel);
-		grub_data->pcmdline = (long)((_int64)c & 0xFFFFFFFF);
+		kernel_data.cmdline = (char*)malloc(cmdlinel);
 		for(int i=0; i<cmdlinel; i++){
-			c[i] = cmdline[i];
+			kernel_data.cmdline[i] = cmdline[i];
 		}
 	} else {
-		grub_data->pcmdline = 0;
+		kernel_data.cmdline = 0;
 	}
-	if(blnamel > 0) {
-		char* c = (char*)malloc(blnamel);
-		grub_data->pboot_loader_name = (long)((_int64)c & 0xFFFFFFFF);
-		for(int i=0; i<blnamel; i++){
-			c[i] = bl_name[i];
+	if((kernel_data.flags & 8) == 8){
+		PMODULE mod = kernel_data.mods = (PMODULE)malloc(sizeof(MODULE));
+		int i=0;
+		while(modules[i].start != 0){
+			mod->start = (void*)((_int64)modules[i].start & 0xFFFFFFFF);
+			mod->end = (void*)((_int64)modules[i].end & 0xFFFFFFFF);
+			i++;
+			if(modules[i].start != 0)
+				mod = (PMODULE)(mod->next = (void*)malloc(sizeof(MODULE)));
 		}
-	} else {
-		grub_data->pboot_loader_name = 0;
+		mod->next = (void*)0;
 	}
 }
 void memmap()
@@ -179,7 +203,7 @@ void* palloc(char sys)
 void* malloc(_int64 size, int align)
 {
 	if(size == 0) return (void*)0;
-	_uint64 ns = 0x1000, ne; char f;
+	_uint64 ns = (_uint64)first_free, ne; char f;
 	PALLOCTABLE t;
 	while(1){
 		if(ns%align != 0) ns = ns + align - (ns%align);
@@ -202,6 +226,8 @@ void* malloc(_int64 size, int align)
 			for(int i=0;i<255;i++){
 				if(t->allocs[i].addr == 0) continue;
 				_uint64 as = (_uint64)t->allocs[i].addr, ae = as+(_uint64)t->allocs[i].size;
+				if(ne < as) continue;
+				if(ae < ns) continue;
 				if(
 					((ns>=as) and (ns<ae)) or	// NA starts in alloc
 					((ne>=as) and (ne<ae)) or	// NA ends in alloc
@@ -256,5 +282,24 @@ void* malloc(_int64 size, int align)
 	}
 	t->allocs[ai].addr = (void*) ns;
 	t->allocs[ai].size = size;
+	if(((_uint64)first_free < ns) && (align == 4)){
+		first_free = (void*) (ns + size);
+	}
 	return (void*) ns;
+}
+void mfree(void* addr)
+{
+	PALLOCTABLE t = allocs;
+	while(true){
+		for(int i = 0; i < 255; i++)
+			if(t->allocs[i].addr == addr) {
+				t->allocs[i].addr = 0;
+				t->allocs[i].size = 0;
+				if((_uint64)addr < (_uint64)first_free)
+					first_free = addr;
+				return;
+			}
+		if(t->next == 0) return;
+		t = (PALLOCTABLE)t->next;
+	}
 }
