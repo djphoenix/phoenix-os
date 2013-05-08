@@ -39,6 +39,6 @@ extern PGRUB grub_data;
 extern void memmap();
 extern void memory_init();
 extern void* palloc(char sys = 0);
-extern void* malloc(_int64 size, int align = 4);
+extern void* malloc(_uint64 size, int align = 4);
 extern void mfree(void* addr);
 #endif
