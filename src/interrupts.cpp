@@ -51,10 +51,10 @@ interrupt_handler:\
 ");
 void interrupt_handler(){
 	unsigned char al; asm("mov %%al, %b0":"=b"(al));
-	_int64 *rsp; asm("mov %%rsp, %q0":"=q"(rsp));
+	_int64 *rsp; asm("mov %%rcx, %q0":"=q"(rsp));
 	if(al<0x20){
-		print("Kernel fault #"); printb(al); print("h\nStack print:\n");
-		for(int i=0;i<10;i++)
+		print("\nKernel fault #"); printb(al); print("h\nStack print:\n");
+		for(int i=0;i<7;i++)
 			{printq(rsp[i]); print("\n");}
 		for(;;);
 	}
