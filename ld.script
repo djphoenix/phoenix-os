@@ -1,0 +1,50 @@
+OUTPUT_FORMAT(pei-x86-64)
+SECTIONS
+{
+  . = SIZEOF_HEADERS;
+  . = ALIGN(__section_alignment__);
+  .text  __image_base__ + ( __section_alignment__ < 0x1000 ? . : __section_alignment__ ) :
+  {
+     *(.init)
+    *(.text)
+    *(SORT(.text$*))
+     *(.text.*)
+     *(.gnu.linkonce.t.*)
+    . = ALIGN(8);
+     ___CTOR_LIST__ = .; __CTOR_LIST__ = . ;
+			LONG (-1); LONG (-1);*(.ctors); *(.ctor); *(SORT(.ctors.*));  LONG (0); LONG (0);
+     ___DTOR_LIST__ = .; __DTOR_LIST__ = . ;
+			LONG (-1); LONG (-1); *(.dtors); *(.dtor); *(SORT(.dtors.*));  LONG (0); LONG (0);
+     *(.fini)
+    PROVIDE (etext = .);
+     *(.gcc_except_table)
+  }
+  .data BLOCK(__section_alignment__) :
+  {
+    __data_start__ = . ;
+    *(.data)
+    *(SORT(.data$*))
+    __data_end__ = . ;
+  }
+  .rdata BLOCK(__section_alignment__) :
+  {
+    __rdata_start__ = . ;
+    *(.rdata)
+             *(SORT(.rdata$*))
+    __rdata_end__ = . ;
+  }
+  .bss BLOCK(__section_alignment__) :
+  {
+    __bss_start__ = . ;
+    *(.bss)
+    *(COMMON)
+    __bss_end__ = . ;
+  }
+  .modules BLOCK(__section_alignment__) :
+  {
+    __modules_start__ = . ;
+    *(.modules)
+             *(SORT(.modules$*))
+    __modules_end__ = . ;
+  }
+}
