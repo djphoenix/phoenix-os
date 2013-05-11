@@ -16,6 +16,7 @@ typedef struct {
 	PMODULE mods;
 	long mmap_length; void *mmap_addr;
 	char* boot_loader_name;
+	_uint64 kernel, stack, stack_top, data, data_top, bss, bss_top, modules, modules_top;
 } GRUBDATA, *PGRUBDATA;
 
 extern GRUBDATA kernel_data;

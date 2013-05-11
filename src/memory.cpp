@@ -1,8 +1,8 @@
 #include "pxlib.h"
 PGRUB grub_data;
-PPTE pagetable = (PPTE)0x1000;
+PPTE pagetable = (PPTE)0x10000;
 PALLOCTABLE allocs = 0;
-void* first_free = (void*)0x1000;
+void* first_free = (void*)0x10000;
 _uint64 last_page = 1;
 PPML4E get_page(void* base_addr)
 {
@@ -17,14 +17,13 @@ PPML4E get_page(void* base_addr)
 }
 void memory_init()
 {
-	_uint64 kernel = 0, stack = 0, stack_top = 0, data = 0, data_top = 0, bss = 0, bss_top = 0, moduless = 0, moduless_top = 0;
-	asm("movq $_start, %q0":"=a"(kernel)); stack = kernel - 0x10000; stack_top = kernel;
-	asm("movq $__data_start__, %q0":"=a"(data));
-	asm("movq $__rdata_end__, %q0":"=a"(data_top)); data_top = (data_top & 0xFFFFF000) + 0x1000;
-	asm("movq $__bss_start__, %q0":"=a"(bss));
-	asm("movq $__bss_end__, %q0":"=a"(bss_top)); bss_top = (bss_top & 0xFFFFF000) + 0x1000;
-	asm("movq $__modules_start__, %q0":"=a"(moduless));
-	asm("movq $__modules_end__, %q0":"=a"(moduless_top)); moduless_top = (moduless_top & 0xFFFFF000) + 0x1000;
+	asm("movq $_start, %q0":"=a"(kernel_data.kernel)); kernel_data.stack = 0x1000; kernel_data.stack_top = 0x10000;
+	asm("movq $__data_start__, %q0":"=a"(kernel_data.data));
+	asm("movq $__rdata_end__, %q0":"=a"(kernel_data.data_top));
+	asm("movq $__bss_start__, %q0":"=a"(kernel_data.bss));
+	asm("movq $__bss_end__, %q0":"=a"(kernel_data.bss_top));
+	asm("movq $__modules_start__, %q0":"=a"(kernel_data.modules));
+	asm("movq $__modules_end__, %q0":"=a"(kernel_data.modules_top));
 	// Buffering BIOS interrupts
 	for(int i=0; i<256; i++){
 		PINTERRUPT32 intr = (PINTERRUPT32)(((_uint64)i & 0xFF)*sizeof(INTERRUPT32));
@@ -78,13 +77,13 @@ void memory_init()
 		(*(_uint64*)(get_page((void*)addr))) &= ~4;
 	for(_uint64 addr = 0x0F0000; addr < 0x100000; addr += 0x1000) // BIOS Code
 		(*(_uint64*)(get_page((void*)addr))) &= ~4;
-	for(_uint64 addr = stack; addr < stack_top; addr += 0x1000) // PXOS Stack
+	for(_uint64 addr = kernel_data.stack; addr < (kernel_data.stack_top & 0xFFFFFFFFFFFFF000) + 0x1000; addr += 0x1000) // PXOS Stack
 		(*(_uint64*)(get_page((void*)addr))) &= ~4;
-	for(_uint64 addr = kernel; addr < data_top; addr += 0x1000) // PXOS Code & Data
+	for(_uint64 addr = kernel_data.kernel; addr < (kernel_data.data_top & 0xFFFFFFFFFFFFF000) + 0x1000; addr += 0x1000) // PXOS Code & Data
 		(*(_uint64*)(get_page((void*)addr))) &= ~4;
-	for(_uint64 addr = moduless; addr < moduless_top; addr += 0x1000) // PXOS Modules
+	for(_uint64 addr = kernel_data.modules; addr < (kernel_data.modules_top & 0xFFFFFFFFFFFFF000) + 0x1000; addr += 0x1000) // PXOS Modules
 		(*(_uint64*)(get_page((void*)addr))) &= ~4;
-	for(_uint64 addr = bss; addr < bss_top; addr += 0x1000) // PXOS BSS
+	for(_uint64 addr = kernel_data.bss; addr < (kernel_data.bss_top & 0xFFFFFFFFFFFFF000) + 0x1000; addr += 0x1000) // PXOS BSS
 		(*(_uint64*)(get_page((void*)addr))) &= ~4;
 
 	(*(_uint64*)(get_page((void*)pagetable))) &= ~4; // Setting pagetable pages as system

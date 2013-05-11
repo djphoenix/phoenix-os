@@ -48,6 +48,7 @@ multiboot_entry:
 	add eax, 4
 	cmp eax, 0xB8FA0
 	jnz ._clr_loop
+	mov esp, 0x10000
 
 	pushfd						; Store the FLAGS-register.
 	pop eax						; Restore the A-register.
@@ -76,25 +77,25 @@ multiboot_entry:
 	and eax, 0x7FFFFFFF			; Clear the PG-bit, which is bit 31.
 	mov cr0, eax				; Set control register 0 to the A-register.
 
-	mov edi, 0x1000				; Set the destination index to 0x1000.
+	mov edi, 0x10000			; Set the destination index to 0x10000.
 	mov cr3, edi				; Set control register 3 to the destination index.
 	xor eax, eax				; Nullify the A-register.
 	mov ecx, 7168				; Set the C-register to 7168.
 	rep stosd					; Clear the memory.
 	mov edi, cr3				; Set the destination index to control register 3.
 
-	mov DWORD [edi], 0x2003		; Set the double word at the destination index to 0x2003.
+	mov DWORD [edi], 0x11003		; Set the double word at the destination index to 0x2003.
 	add edi, 0x1000				; Add 0x1000 to the destination index.
-	mov DWORD [edi], 0x3003		; Set the double word at the destination index to 0x3003.
+	mov DWORD [edi], 0x12003		; Set the double word at the destination index to 0x3003.
 	add edi, 0x1000				; Add 0x1000 to the destination index.
-	mov DWORD [edi+00h], 0x4003	; Set the double word at the destination index to 0x4003.
-	mov DWORD [edi+08h], 0x5003	; Set the double word at the destination index to 0x5003.
-	mov DWORD [edi+10h], 0x6003	; Set the double word at the destination index to 0x6003.
-	mov DWORD [edi+18h], 0x7003	; Set the double word at the destination index to 0x7003.
+	mov DWORD [edi+00h], 0x13003	; Set the double word at the destination index to 0x4003.
+	mov DWORD [edi+08h], 0x14003	; Set the double word at the destination index to 0x5003.
+	mov DWORD [edi+10h], 0x15003	; Set the double word at the destination index to 0x6003.
+	mov DWORD [edi+18h], 0x16003	; Set the double word at the destination index to 0x7003.
 	add edi, 0x1000				; Add 0x1000 to the destination index.
 
-	mov ebx, 0x00000007			; Set the B-register to 0x00000003.
-	mov ecx, 2048				; Set the C-register to 512.
+	mov ebx, 0x00000007			; Set the B-register to 0x00000007.
+	mov ecx, 2048				; Set the C-register to 2048.
 
 .SetEntry:
 	mov DWORD [edi], ebx		; Set the double word at the destination index to the B-register.
@@ -142,9 +143,7 @@ error:
 	jnz .loop
 	jmp x64_entry.loop
 
-
 x64_entry:
-	mov esp, _start
 	call main
 .loop:
 	hlt
