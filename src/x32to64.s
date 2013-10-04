@@ -1,6 +1,22 @@
+;    PhoeniX OS 32-bit mode bootup process
+;    Copyright (C) 2013  PhoeniX
+;
+;    This program is free software: you can redistribute it and/or modify
+;    it under the terms of the GNU General Public License as published by
+;    the Free Software Foundation, either version 3 of the License, or
+;    (at your option) any later version.
+;
+;    This program is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;    GNU General Public License for more details.
+;
+;    You should have received a copy of the GNU General Public License
+;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 format elf64
 use32
-section '.text'
+section '.text32'
 extrn main
 public _start
 public __main
@@ -48,7 +64,8 @@ multiboot_entry:
 	add eax, 4
 	cmp eax, 0xB8FA0
 	jnz ._clr_loop
-	mov esp, 0x10000
+	
+	mov esp, 0x2000
 
 	pushfd						; Store the FLAGS-register.
 	pop eax						; Restore the A-register.
@@ -77,21 +94,21 @@ multiboot_entry:
 	and eax, 0x7FFFFFFF			; Clear the PG-bit, which is bit 31.
 	mov cr0, eax				; Set control register 0 to the A-register.
 
-	mov edi, 0x10000			; Set the destination index to 0x10000.
+	mov edi, 0x20000			; Set the destination index to 0x10000.
 	mov cr3, edi				; Set control register 3 to the destination index.
 	xor eax, eax				; Nullify the A-register.
 	mov ecx, 7168				; Set the C-register to 7168.
 	rep stosd					; Clear the memory.
 	mov edi, cr3				; Set the destination index to control register 3.
 
-	mov DWORD [edi], 0x11003		; Set the double word at the destination index to 0x2003.
+	mov DWORD [edi], 0x21003		; Set the double word at the destination index to 0x2003.
 	add edi, 0x1000				; Add 0x1000 to the destination index.
-	mov DWORD [edi], 0x12003		; Set the double word at the destination index to 0x3003.
+	mov DWORD [edi], 0x22003		; Set the double word at the destination index to 0x3003.
 	add edi, 0x1000				; Add 0x1000 to the destination index.
-	mov DWORD [edi+00h], 0x13003	; Set the double word at the destination index to 0x4003.
-	mov DWORD [edi+08h], 0x14003	; Set the double word at the destination index to 0x5003.
-	mov DWORD [edi+10h], 0x15003	; Set the double word at the destination index to 0x6003.
-	mov DWORD [edi+18h], 0x16003	; Set the double word at the destination index to 0x7003.
+	mov DWORD [edi+00h], 0x23003	; Set the double word at the destination index to 0x4003.
+	mov DWORD [edi+08h], 0x24003	; Set the double word at the destination index to 0x5003.
+	mov DWORD [edi+10h], 0x25003	; Set the double word at the destination index to 0x6003.
+	mov DWORD [edi+18h], 0x26003	; Set the double word at the destination index to 0x7003.
 	add edi, 0x1000				; Add 0x1000 to the destination index.
 
 	mov ebx, 0x00000007			; Set the B-register to 0x00000007.

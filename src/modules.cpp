@@ -1,42 +1,20 @@
+//    PhoeniX OS Modules subsystem
+//    Copyright (C) 2013  PhoeniX
+//
+//    This program is free software: you can redistribute it and/or modify
+//    it under the terms of the GNU General Public License as published by
+//    the Free Software Foundation, either version 3 of the License, or
+//    (at your option) any later version.
+//
+//    This program is distributed in the hope that it will be useful,
+//    but WITHOUT ANY WARRANTY; without even the implied warranty of
+//    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//    GNU General Public License for more details.
+//
+//    You should have received a copy of the GNU General Public License
+//    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 #include "modules.h"
-typedef struct {
-	struct {
-		long EI_MAG;
-		char EI_CLASS;
-		char EI_DATA;
-		char EI_VERSION;
-		char EI_OSABI;
-		char EI_ABIVERSION;
-		char EI_PAD;
-		char reserved[6];
-	} e_ident;
-	unsigned short e_type; /* Object file type */
-	unsigned short e_machine; /* Machine type */
-	unsigned long e_version; /* Object file version */
-	void* e_entry; /* Entry point address */
-	_uint64 e_phoff; /* Program header offset */
-	_uint64 e_shoff; /* Section header offset */
-	unsigned long e_flags; /* Processor-specific flags */
-	unsigned short e_ehsize; /* ELF header size */
-	unsigned short e_phentsize; /* Size of program header entry */
-	unsigned short e_phnum; /* Number of program header entries */
-	unsigned short e_shentsize; /* Size of section header entry */
-	unsigned short e_shnum; /* Number of section header entries */
-	unsigned short e_shstrndx; /* Section name string table index */
-} ELF64HDR, *PELF64HDR;
-typedef struct
-{
-	unsigned long sh_name;
-	unsigned long sh_type;
-	_uint64 sh_flags;
-	_uint64 sh_addr;
-	_uint64 sh_offset;
-	_uint64 sh_size;
-	unsigned long sh_link;
-	unsigned long sh_info;
-	_uint64 sh_addralign;
-	_uint64 sh_entsize;
-} ELF64SECT, *PELF64SECT;
 PMODULEINFO load_module_elf(void* addr)
 {
 	// Parsing ELF
@@ -55,22 +33,24 @@ PMODULEINFO load_module_elf(void* addr)
 	printq((_uint64)addr); print(" - "); print("ELF\n");
 	
 	PELF64SECT sect = (PELF64SECT)((_uint64)addr + e_hdr->e_shoff);
-	print("#\tST\tSA\t\t\tSO\t\t\tSS\t\t\tSN\n");
-	for(int i = 0; i < e_hdr->e_shnum; i++){
-		printb(i);
-		print("\t");
-		printb(sect[i].sh_type);
-		print("\t");
-		printl(sect[i].sh_addr);
-		print("\t");
-		printl(sect[i].sh_offset);
-		print("\t");
-		printl(sect[i].sh_size);
-		print("\t");
-		print((char*)((_uint64)addr + sect[e_hdr->e_shstrndx].sh_offset + sect[i].sh_name));
-		print("\n");
+	PMODULEINFO mod = (PMODULEINFO)malloc(sizeof(MODULEINFO));
+	mod->section_count = 0;
+	for(int i = 0; i < e_hdr->e_shnum; i++)
+		if((sect[i].sh_type == 1)||(sect[i].sh_type == 8))
+			mod->section_count++;
+	mod->sections = (PSECTION)malloc(mod->section_count*sizeof(SECTION));
+	int i = 0, s = 0;
+	return mod;
+	while(i < mod->section_count){
+		if((sect[s].sh_type == 1)||(sect[s].sh_type == 8)){
+			mod->sections[i].offset = (void*)((_uint64)addr + sect[s].sh_offset);
+			mod->sections[i].size = sect[s].sh_size;
+			mod->sections[i].name = strcpy((char*)((_uint64)addr + sect[e_hdr->e_shstrndx].sh_offset + sect[s].sh_name));
+			i++;
+		}
+		s++;
 	}
-	return (PMODULEINFO)0;
+	return mod;
 }
 void* load_module(void* addr)
 {
@@ -82,6 +62,10 @@ void* load_module(void* addr)
 		print("Unrecognized\n");
 	}
 	return (void*)0;
+}
+void process_loop()
+{
+	for(;;) asm("hlt");
 }
 void modules_init()
 {
@@ -101,4 +85,5 @@ void modules_init()
 			mod = (PMODULE)mod->next;
 		}
 	}
+	print("Modules loaded\n");
 }

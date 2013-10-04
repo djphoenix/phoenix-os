@@ -1,3 +1,19 @@
+//    PhoeniX OS Memory subsystem
+//    Copyright (C) 2013  PhoeniX
+//
+//    This program is free software: you can redistribute it and/or modify
+//    it under the terms of the GNU General Public License as published by
+//    the Free Software Foundation, either version 3 of the License, or
+//    (at your option) any later version.
+//
+//    This program is distributed in the hope that it will be useful,
+//    but WITHOUT ANY WARRANTY; without even the implied warranty of
+//    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//    GNU General Public License for more details.
+//
+//    You should have received a copy of the GNU General Public License
+//    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 #ifndef MEMORY_H
 #define MEMORY_H
 #include "pxlib.h"
@@ -38,7 +54,9 @@ typedef struct {
 extern PGRUB grub_data;
 extern void memmap();
 extern void memory_init();
+extern void* salloc(void* mem);
 extern void* palloc(char sys = 0);
 extern void* malloc(_uint64 size, int align = 4);
 extern void mfree(void* addr);
+extern void memcpy(char *dest, char *src, _uint64 count);
 #endif

@@ -1,3 +1,19 @@
+//    PhoeniX OS Core library functions
+//    Copyright (C) 2013  PhoeniX
+//
+//    This program is free software: you can redistribute it and/or modify
+//    it under the terms of the GNU General Public License as published by
+//    the Free Software Foundation, either version 3 of the License, or
+//    (at your option) any later version.
+//
+//    This program is distributed in the hope that it will be useful,
+//    but WITHOUT ANY WARRANTY; without even the implied warranty of
+//    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//    GNU General Public License for more details.
+//
+//    You should have received a copy of the GNU General Public License
+//    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 #include "pxlib.h"
 char* display = (char*)0xB8000;
 void clrscr()
@@ -59,4 +75,20 @@ void printq(_int64 i)
 {
 	printl((i >> 32) & 0xFFFFFFFF);
 	printl(i & 0xFFFFFFFF);
+}
+
+_uint64 strlen(char* c)
+{
+	for(_uint64 i = 0;; i++)
+		if(c[i] == 0) return i;
+}
+
+char* strcpy(char* c)
+{
+	char* r = (char*)malloc(strlen(c)+1);
+	for(_uint64 i = 0; i < strlen(c); i++){
+		r[i] = c[i];
+	}
+	r[strlen(c)] = 0;
+	return r;
 }

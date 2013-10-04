@@ -1,8 +1,24 @@
+//    PhoeniX OS Memory subsystem
+//    Copyright (C) 2013  PhoeniX
+//
+//    This program is free software: you can redistribute it and/or modify
+//    it under the terms of the GNU General Public License as published by
+//    the Free Software Foundation, either version 3 of the License, or
+//    (at your option) any later version.
+//
+//    This program is distributed in the hope that it will be useful,
+//    but WITHOUT ANY WARRANTY; without even the implied warranty of
+//    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//    GNU General Public License for more details.
+//
+//    You should have received a copy of the GNU General Public License
+//    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 #include "pxlib.h"
 PGRUB grub_data;
-PPTE pagetable = (PPTE)0x10000;
+PPTE pagetable = (PPTE)0x20000;
 PALLOCTABLE allocs = 0;
-void* first_free = (void*)0x10000;
+void* first_free = (void*)0x2000;
 _uint64 last_page = 1;
 PPML4E get_page(void* base_addr)
 {
@@ -17,7 +33,7 @@ PPML4E get_page(void* base_addr)
 }
 void memory_init()
 {
-	asm("movq $_start, %q0":"=a"(kernel_data.kernel)); kernel_data.stack = 0x1000; kernel_data.stack_top = 0x10000;
+	asm("movq $_start, %q0":"=a"(kernel_data.kernel)); kernel_data.stack = 0x1000; kernel_data.stack_top = 0x2000;
 	asm("movq $__data_start__, %q0":"=a"(kernel_data.data));
 	asm("movq $__rdata_end__, %q0":"=a"(kernel_data.data_top));
 	asm("movq $__bss_start__, %q0":"=a"(kernel_data.bss));
@@ -73,7 +89,7 @@ void memory_init()
 	(*(_uint64*)(get_page((void*)0x00000000))) &= 0xFFFFFFFFFFFFFFF0; // BIOS Data
 	for(_uint64 addr = 0x0A0000; addr < 0x0C8000; addr += 0x1000) // Video data & VGA BIOS
 		(*(_uint64*)(get_page((void*)addr))) &= ~4;
-	for(_uint64 addr = 0x0C8000; addr < 0x0EF000; addr += 0x1000) // Reserved for many systems
+	for(_uint64 addr = 0x0C8000; addr < 0x0F0000; addr += 0x1000) // Reserved for many systems
 		(*(_uint64*)(get_page((void*)addr))) &= ~4;
 	for(_uint64 addr = 0x0F0000; addr < 0x100000; addr += 0x1000) // BIOS Code
 		(*(_uint64*)(get_page((void*)addr))) &= ~4;
@@ -85,7 +101,6 @@ void memory_init()
 		(*(_uint64*)(get_page((void*)addr))) &= ~4;
 	for(_uint64 addr = kernel_data.bss; addr < (kernel_data.bss_top & 0xFFFFFFFFFFFFF000) + 0x1000; addr += 0x1000) // PXOS BSS
 		(*(_uint64*)(get_page((void*)addr))) &= ~4;
-
 	(*(_uint64*)(get_page((void*)pagetable))) &= ~4; // Setting pagetable pages as system
 	for(short i = 0; i < 512; i++) {
 		PPDE pde = pagetable[i];
@@ -134,8 +149,11 @@ void memory_init()
 	} else {
 		kernel_data.cmdline = 0;
 	}
-	if((kernel_data.flags & 8) == 8){
+	if(((kernel_data.flags & 8) == 8)&&(kernel_data.mods != 0)){
 		PMODULE mod = kernel_data.mods = (PMODULE)malloc(sizeof(MODULE));
+		mod->start = 0;
+		mod->end = 0;
+		mod->next = 0;
 		int i=0;
 		while(modules[i].start != 0){
 			mod->start = (void*)((_uint64)modules[i].start & 0xFFFFFFFF);
@@ -150,7 +168,7 @@ void memory_init()
 void memmap()
 {
 	char *m = (char*)0xB8000;
-	int i;
+	_uint64 i;
 	for(i = 0; i < 0x7D0000; i+=0x1000) {
 		void *p = get_page((void*)i);
 		char c = 0, cl;
@@ -170,6 +188,25 @@ void memmap()
 		*m = cl;
 		m++;
 	}
+}
+void* salloc(void* mem)
+{
+	_uint64 i = (_uint64)(mem) >> 12;
+	void *addr = (void*)(i << 12);
+	PDE pde = (PDE)((_uint64)pagetable[(i >> 27) & 0x1FF] & 0xFFFFFFFFFFFFF000);
+	if(pde == 0){
+		pagetable[(i >> 27) & 0x1FF] = (PPDE)((_uint64)(pde = (PDE)((_uint64)palloc(1))) | 3);
+	}
+	PDPE pdpe = (PDPE)((_uint64)pde[(i >> 18) & 0x1FF] & 0xFFFFFFFFFFFFF000);
+	if(pdpe == 0){
+		pde[(i >> 18) & 0x1FF] = (PPML4E)((_uint64)(pdpe = (PDPE)((_uint64)palloc(1))) | 3);
+	}
+	PPML4E page = (PPML4E)((_uint64)pdpe[(i >> 9) & 0x1FF] & 0xFFFFFFFFFFFFF000);
+	if(page == 0){
+		pdpe[(i >> 9) & 0x1FF] = (void*)((_uint64)(page = (PPML4E)((_uint64)palloc(1))) | 3);
+	}
+	page[i & 0x1FF] = (void*)(((_uint64)addr) | 3);
+	return addr;
 }
 void* palloc(char sys)
 {
@@ -308,5 +345,13 @@ void mfree(void* addr)
 			}
 		if(t->next == 0) return;
 		t = (PALLOCTABLE)t->next;
+	}
+}
+void memcpy(char *dest, char *src, _uint64 count) {
+	while(count){
+		*dest = *src;
+		dest++;
+		src++;
+		count--;
 	}
 }

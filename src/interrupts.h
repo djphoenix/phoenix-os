@@ -1,13 +1,23 @@
+//    PhoeniX OS Interrupts subsystem
+//    Copyright (C) 2013  PhoeniX
+//
+//    This program is free software: you can redistribute it and/or modify
+//    it under the terms of the GNU General Public License as published by
+//    the Free Software Foundation, either version 3 of the License, or
+//    (at your option) any later version.
+//
+//    This program is distributed in the hope that it will be useful,
+//    but WITHOUT ANY WARRANTY; without even the implied warranty of
+//    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//    GNU General Public License for more details.
+//
+//    You should have received a copy of the GNU General Public License
+//    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 #ifndef INTERRUPTS_H
 #define INTERRUPTS_H
 #include "pxlib.h"
-typedef struct {
-	short push_w;
-	short intr;
-	char push;
-	long addr;
-	char ret;
-} __attribute__ ((packed)) HCODE, *PHCODE;
+#pragma pack(push,1)
 typedef struct {
 	short offset_low;
 	short selector;
@@ -27,7 +37,8 @@ typedef struct {
 typedef struct {
 	short limit;
 	void* addr;
-} __attribute__ ((packed)) IDTR, *PIDTR;
+} IDTR, *PIDTR;
+#pragma pack(pop)
 typedef struct {
 	INTERRUPT64 ints[256];
 	IDTR rec;

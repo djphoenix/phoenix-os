@@ -1,46 +1,70 @@
+/*    PhoeniX OS Linking script
+**    Copyright (C) 2013  PhoeniX
+**
+**    This program is free software: you can redistribute it and/or modify
+**    it under the terms of the GNU General Public License as published by
+**    the Free Software Foundation, either version 3 of the License, or
+**    (at your option) any later version.
+**
+**    This program is distributed in the hope that it will be useful,
+**    but WITHOUT ANY WARRANTY; without even the implied warranty of
+**    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+**    GNU General Public License for more details.
+**
+**    You should have received a copy of the GNU General Public License
+**    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 OUTPUT_FORMAT(pei-x86-64)
 SECTIONS
 {
   . = SIZEOF_HEADERS;
-  . = ALIGN(__section_alignment__);
-  .text  __image_base__ + ( __section_alignment__ < 0x1000 ? . : __section_alignment__ ) :
+  . = 0x401000;
+  .text :
   {
-     *(.init)
+    *(.init)
+    *(.text32)
     *(.text)
     *(SORT(.text$*))
      *(.text.*)
+	 _smp_init = . ;
+	 *(.smp_init)
+	 _smp_end = . ;
      *(.gnu.linkonce.t.*)
     . = ALIGN(8);
      ___CTOR_LIST__ = .; __CTOR_LIST__ = . ;
 			LONG (-1); LONG (-1);*(.ctors); *(.ctor); *(SORT(.ctors.*));  LONG (0); LONG (0);
      ___DTOR_LIST__ = .; __DTOR_LIST__ = . ;
 			LONG (-1); LONG (-1); *(.dtors); *(.dtor); *(SORT(.dtors.*));  LONG (0); LONG (0);
-     *(.fini)
     PROVIDE (etext = .);
-     *(.gcc_except_table)
+     *(.fini)
   }
-  .data BLOCK(__section_alignment__) :
+  . = ALIGN (0x1000);
+  .data :
   {
     __data_start__ = . ;
     *(.data)
     *(SORT(.data$*))
     __data_end__ = . ;
   }
-  .rdata BLOCK(__section_alignment__) :
+  . = ALIGN (0x1000);
+  .rdata :
   {
     __rdata_start__ = . ;
     *(.rdata)
              *(SORT(.rdata$*))
     __rdata_end__ = . ;
   }
-  .bss BLOCK(__section_alignment__) :
+  . = ALIGN (0x1000);
+  .bss :
   {
     __bss_start__ = . ;
     *(.bss)
     *(COMMON)
     __bss_end__ = . ;
   }
-  .modules BLOCK(__section_alignment__) :
+  . = ALIGN (0x1000);
+  .modules :
   {
     __modules_start__ = . ;
     *(.modules)

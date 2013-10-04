@@ -1,6 +1,22 @@
+//    PhoeniX OS Interrupts subsystem
+//    Copyright (C) 2013  PhoeniX
+//
+//    This program is free software: you can redistribute it and/or modify
+//    it under the terms of the GNU General Public License as published by
+//    the Free Software Foundation, either version 3 of the License, or
+//    (at your option) any later version.
+//
+//    This program is distributed in the hope that it will be useful,
+//    but WITHOUT ANY WARRANTY; without even the implied warranty of
+//    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//    GNU General Public License for more details.
+//
+//    You should have received a copy of the GNU General Public License
+//    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 #include "interrupts.h"
 PIDT idt = 0;
-PHCODE handlers = 0;
+char* handlers = 0;
 INTERRUPT32 interrupts32[256];
 asm volatile("\
 _interrupt_handler:\n\
@@ -25,8 +41,6 @@ push %r14\n\
 push %r15\n\
 \
 call interrupt_handler\n\
-movb $0x20, %al\n\
-outb %al, $0x20\n\
 \
 popq %r15\n\
 popq %r14\n\
@@ -42,6 +56,8 @@ popq %rbp\n\
 popq %rbx\n\
 popq %rdx\n\
 popq %rcx\n\
+movb $0x20, %al\n\
+outb %al, $0x20\n\
 popq %rax\n\
 \
 add $2, %esp\n\
@@ -57,30 +73,39 @@ void interrupt_handler(){
 		for(int i=0;i<7;i++)
 			{printq(rsp[i]); print("\n");}
 		for(;;);
+	} else if(al!=0x20) {
+		print("INT "); prints(al); print("\n");
 	}
 }
 void interrupts_init()
 {
-	idt = (PIDT)malloc(sizeof(IDT));
+	idt = (PIDT)malloc(sizeof(IDT),0x1000);
 	idt->rec.limit = sizeof(idt->ints) -1;
 	idt->rec.addr = &idt->ints[0];
-	handlers = (PHCODE)malloc(sizeof(HCODE)*256);
+	handlers = (char*)malloc(9*256,0x1000);
 	void* addr;
 	asm("mov $_interrupt_handler,%q0":"=a"(addr));
 	for(int i=0; i<256; i++){
-		handlers[i].push_w = 0x6866;
-		handlers[i].intr = i & 0xFF;
-		handlers[i].push = 0x68;
-		handlers[i].addr = (_int64)addr;
-		handlers[i].ret = 0xC3;
+		_uint64 jmp_from = (_uint64)&handlers[9*i+ 4];
+		_uint64 jmp_to = (_uint64)addr;
+		_uint64 diff = jmp_to - jmp_from - 5;
+		handlers[9*i+ 0] = 0x66;				// push
+		handlers[9*i+ 1] = 0x68;				// short
+		handlers[9*i+ 2] = i & 0xFF;			// int_num [2]
+		handlers[9*i+ 3] = 0x00;
+		handlers[9*i+ 4] = 0xE9;				// jmp rel
+		handlers[9*i+ 5] = (diff      ) & 0xFF;
+		handlers[9*i+ 6] = (diff >>  8) & 0xFF;
+		handlers[9*i+ 7] = (diff >> 16) & 0xFF;
+		handlers[9*i+ 8] = (diff >> 24) & 0xFF;
 		
 		idt->ints[i].zero = 0;
 		idt->ints[i].reserved = 0;
 		idt->ints[i].selector = 8;
 		idt->ints[i].type = 0x8E;	// P[7]=1, DPL[65]=0, S[4]=0, Type[3210] = E
-		idt->ints[i].offset_low = ((_int64)(&handlers[i]) >> 0) & 0xFFFF;
-		idt->ints[i].offset_middle = ((_int64)(&handlers[i]) >> 16) & 0xFFFF;
-		idt->ints[i].offset_high = ((_int64)(&handlers[i]) >> 32) & 0xFFFFFFFF;
+		idt->ints[i].offset_low = ((_int64)(&handlers[9*i]) >> 0) & 0xFFFF;
+		idt->ints[i].offset_middle = ((_int64)(&handlers[9*i]) >> 16) & 0xFFFF;
+		idt->ints[i].offset_high = ((_int64)(&handlers[9*i]) >> 32) & 0xFFFFFFFF;
 	}
 
 	outportb(0x20, 0x11);
@@ -91,6 +116,7 @@ void interrupts_init()
 	outportb(0xA1, 0x02);
 	outportb(0x21, 0x01);
 	outportb(0xA1, 0x01);
+
 	outportb(0x21, 0);
 	outportb(0xA1, 0);
 	asm volatile( "lidtq %0\nsti"::"m"(idt->rec));
