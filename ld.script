@@ -45,6 +45,7 @@ SECTIONS
     __data_start__ = . ;
     *(.data)
     *(SORT(.data$*))
+    *(.rodata*)
     __data_end__ = . ;
   }
   . = ALIGN (0x1000);

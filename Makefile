@@ -28,7 +28,7 @@ BIN=bin/pxkrnl
 all: $(BIN) clean
 $(BIN): obj/x32to64.o obj/boot.o obj/memory.o obj/pxlib.o obj/interrupts.o obj/multiboot_info.o obj/modules.o obj/smp_init.o obj/smp.o obj/modules-linked.o
 	$(LD) -T ld.script -belf64-x86-64 -o $(BIN) -s --nostdlib $?
-	$(OBJCOPY) $(BIN) -Felf32-i386
+	$(OBJCOPY) $(BIN) -Felf32-i386 --remove-section .comment --remove-section .eh_fram
 obj/boot.o : src/boot.cpp obj
 	$(CC) $(CFLAGS) src/boot.cpp -o $@
 obj/pxlib.o : src/pxlib.cpp obj
