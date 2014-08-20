@@ -20,6 +20,7 @@ PPTE pagetable = (PPTE)0x20000;
 PALLOCTABLE allocs = 0;
 void* first_free = (void*)0x2000;
 _uint64 last_page = 1;
+GRUBMODULE modules[256];
 PPML4E get_page(void* base_addr)
 {
 	_uint64 i = (_uint64) base_addr >> 12;
@@ -69,9 +70,8 @@ void memory_init()
 		cmdline[i] = 0;
 		cmdlinel = i+1;
 	}
-	GRUBMODULE modules[256];
-	modules[grub_data->mods_count].start = 0;
 	if(((kernel_data.flags & 8) == 8) && (grub_data->mods_count != 0) && (kernel_data.mods != 0)){
+        modules[grub_data->mods_count].start = 0;
 		PGRUBMODULE c = (PGRUBMODULE)kernel_data.mods;
 		for(int i = 0; i < grub_data->mods_count; i++){
 			modules[i].start = c->start;
@@ -83,7 +83,7 @@ void memory_init()
 
 			c = (PGRUBMODULE)((_uint64)c + 16);
 		}
-	}
+	} else kernel_data.mods = 0;
 
 	// Initialization of pagetables
 	(*(_uint64*)(get_page((void*)0x00000000))) &= 0xFFFFFFFFFFFFFFF0; // BIOS Data
@@ -93,13 +93,13 @@ void memory_init()
 		(*(_uint64*)(get_page((void*)addr))) &= ~4;
 	for(_uint64 addr = 0x0F0000; addr < 0x100000; addr += 0x1000) // BIOS Code
 		(*(_uint64*)(get_page((void*)addr))) &= ~4;
-	for(_uint64 addr = kernel_data.stack; addr < (kernel_data.stack_top & 0xFFFFFFFFFFFFF000) + 0x1000; addr += 0x1000) // PXOS Stack
+	for(_uint64 addr = kernel_data.stack; addr <= ((kernel_data.stack_top-1) & 0xFFFFFFFFFFFFF000); addr += 0x1000) // PXOS Stack
 		(*(_uint64*)(get_page((void*)addr))) &= ~4;
-	for(_uint64 addr = kernel_data.kernel; addr < (kernel_data.data_top & 0xFFFFFFFFFFFFF000) + 0x1000; addr += 0x1000) // PXOS Code & Data
+	for(_uint64 addr = kernel_data.kernel; addr <= ((kernel_data.data_top-1) & 0xFFFFFFFFFFFFF000); addr += 0x1000) // PXOS Code & Data
 		(*(_uint64*)(get_page((void*)addr))) &= ~4;
-	for(_uint64 addr = kernel_data.modules; addr < (kernel_data.modules_top & 0xFFFFFFFFFFFFF000) + 0x1000; addr += 0x1000) // PXOS Modules
+	for(_uint64 addr = kernel_data.modules; addr <= ((kernel_data.modules_top-1) & 0xFFFFFFFFFFFFF000); addr += 0x1000) // PXOS Modules
 		(*(_uint64*)(get_page((void*)addr))) &= ~4;
-	for(_uint64 addr = kernel_data.bss; addr < (kernel_data.bss_top & 0xFFFFFFFFFFFFF000) + 0x1000; addr += 0x1000) // PXOS BSS
+	for(_uint64 addr = kernel_data.bss; addr <= ((kernel_data.bss_top-1) & 0xFFFFFFFFFFFFF000); addr += 0x1000) // PXOS BSS
 		(*(_uint64*)(get_page((void*)addr))) &= ~4;
 	(*(_uint64*)(get_page((void*)pagetable))) &= ~4; // Setting pagetable pages as system
 	for(short i = 0; i < 512; i++) {

@@ -31,8 +31,8 @@ typedef struct {
 	char zero;
 	char type;
 	short offset_middle;
-	long offset_high;
-	long reserved;
+	uint offset_high;
+	uint reserved;
 } INTERRUPT64, *PINTERRUPT64;
 typedef struct {
 	short limit;

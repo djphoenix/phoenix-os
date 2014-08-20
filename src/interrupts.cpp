@@ -18,14 +18,20 @@
 PIDT idt = 0;
 char* handlers = 0;
 INTERRUPT32 interrupts32[256];
-asm volatile("\
+bool ints_set = 0;
+asm("\
 _interrupt_handler:\n\
 \
 push %rax\n\
-mov 8(%esp), %ax\n\
 push %rcx\n\
+mov 16(%rsp), %ax\n\
+movq 8(%rsp), %rcx\n\
+movq %rcx,10(%rsp)\n\
+movq 0(%rsp), %rcx\n\
+movq %rcx,2(%rsp)\n\
+add $2, %rsp\n\
 movq %rsp, %rcx\n\
-addq $18, %rcx\n\
+addq $16, %rcx\n\
 push %rdx\n\
 push %rbx\n\
 push %rbp\n\
@@ -40,6 +46,8 @@ push %r13\n\
 push %r14\n\
 push %r15\n\
 \
+movq %rcx,%rsi\n\
+movl %eax,%edi\n\
 call interrupt_handler\n\
 \
 popq %r15\n\
@@ -60,21 +68,21 @@ movb $0x20, %al\n\
 outb %al, $0x20\n\
 popq %rax\n\
 \
-add $2, %esp\n\
 iretq\n\
 .align 16\n\
 interrupt_handler:\
 ");
-void interrupt_handler(){
-	unsigned char al; asm("mov %%al, %b0":"=b"(al));
-	_int64 *rsp; asm("mov %%rcx, %q0":"=q"(rsp));
-	if(al<0x20){
-		print("\nKernel fault #"); printb(al); print("h\nStack print:\n");
+void interrupt_handler(unsigned char intr, _uint64 stack){
+	if (!ints_set) return;
+	_int64 *rsp = (_int64*)stack;
+	if(intr<0x20){
+		print("\nKernel fault #"); printb(intr); print("h\nStack print:\n");
+		print("RSP=");printq((_uint64)rsp); print("h\n");
 		for(int i=0;i<7;i++)
 			{printq(rsp[i]); print("\n");}
 		for(;;);
-	} else if(al!=0x20) {
-		print("INT "); prints(al); print("\n");
+	} else if(intr != 0x20) {
+		print("INT "); prints(intr); print("h\n");
 	}
 }
 void interrupts_init()
@@ -119,5 +127,7 @@ void interrupts_init()
 
 	outportb(0x21, 0);
 	outportb(0xA1, 0);
+    interrupt_handler(0,0);
+    ints_set = 1;
 	asm volatile( "lidtq %0\nsti"::"m"(idt->rec));
 }

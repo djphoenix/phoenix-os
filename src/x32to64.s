@@ -134,6 +134,8 @@ multiboot_entry:
 	mov cr0, eax				; Set control register 0 to the A-register.
 
 	lgdt [GDT64.Pointer]
+    mov ax, 16
+    mov ss, ax
 	jmp (GDT64.Code - GDT64):x64_entry
 
 .NoMultiboot:

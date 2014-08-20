@@ -23,23 +23,23 @@ typedef PPML4E PDPE, *PPDPE;
 typedef PPDPE PDE, *PPDE;
 typedef PPDE PTE, *PPTE;
 typedef struct {
-	long start;
-	long end;
+	uint start;
+	uint end;
 } GRUBMODULE, *PGRUBMODULE;
 
 typedef struct {
-	long flags;
-	long mem_lower, mem_upper;
-	long boot_device;
-	long pcmdline;
-	long mods_count; long pmods_addr;
-	long syms[3];
-	long mmap_length; long pmmap_addr;
-	long drives_length; long pdrives_addr;
-	long pconfig_table;
-	long pboot_loader_name;
-	long papm_table;
-	long pvbe_control_info, pvbe_mode_info, pvbe_mode, pvbe_interface_seg, pvbe_interface_off, pvbe_interface_len;
+	uint flags;
+	uint mem_lower, mem_upper;
+	uint boot_device;
+	uint pcmdline;
+	uint mods_count; long pmods_addr;
+	uint syms[3];
+	uint mmap_length; long pmmap_addr;
+	uint drives_length; long pdrives_addr;
+	uint pconfig_table;
+	uint pboot_loader_name;
+	uint papm_table;
+	uint pvbe_control_info, pvbe_mode_info, pvbe_mode, pvbe_interface_seg, pvbe_interface_off, pvbe_interface_len;
 } GRUB, *PGRUB;
 
 typedef struct {
