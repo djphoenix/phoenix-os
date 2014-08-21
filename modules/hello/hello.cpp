@@ -6,6 +6,8 @@ const char* module_description = "Prints \"Hello, world\" text";
 const char* module_requirements = "";
 const char* module_developer = "PhoeniX";
 
+extern "C" {void module();}
+
 void module()
 {
 	print("Hello, world!");
