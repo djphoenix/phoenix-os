@@ -30,33 +30,112 @@ PMODULEINFO load_module_elf(void* addr)
 	if(e_hdr->e_version != 1 /* EV_CURRENT */) return (PMODULEINFO)0;
 	if(e_hdr->e_ehsize != sizeof(ELF64HDR)) return (PMODULEINFO)0;
 	
-	printq((_uint64)addr); print(" - "); print("ELF\n");
-	
 	PELF64SECT sect = (PELF64SECT)((_uint64)addr + e_hdr->e_shoff);
 	PMODULEINFO mod = (PMODULEINFO)malloc(sizeof(MODULEINFO));
-	mod->section_count = 0;
-	for(int i = 0; i < e_hdr->e_shnum; i++)
-		if((sect[i].sh_type == 1)||(sect[i].sh_type == 8))
-			mod->section_count++;
-	mod->sections = (PSECTION)malloc(mod->section_count*sizeof(SECTION));
-	int i = 0, s = 0;
-	return mod;
-	while(i < mod->section_count){
-		if((sect[s].sh_type == 1)||(sect[s].sh_type == 8)){
-			mod->sections[i].offset = (void*)((_uint64)addr + sect[s].sh_offset);
-			mod->sections[i].size = sect[s].sh_size;
-			mod->sections[i].name = strcpy((char*)((_uint64)addr + sect[e_hdr->e_shstrndx].sh_offset + sect[s].sh_name));
-			i++;
+    PELF64SYM sym; int symcount;
+    char* symnames;
+	for(int s = 0; s < e_hdr->e_shnum; s++){
+        if (sect[s].sh_type == 2) {
+            sym = (PELF64SYM)((_uint64)addr + sect[s].sh_offset);
+            symcount = sect[s].sh_size / sizeof(ELF64SYM);
+            symnames = (char*)((_uint64)addr + sect[sect[s].sh_link].sh_offset);
 		}
-		s++;
 	}
+    for (int i=0;i<symcount;i++){
+        if (((sym[i].st_info >> 4) & 0xF) == 0) continue;
+        char* symname = &symnames[sym[i].st_name];
+        PELF64SECT symsect = &sect[sym[i].st_shndx];
+        char* sectname = (char*)((_uint64)addr + sect[e_hdr->e_shstrndx].sh_offset + symsect->sh_name);
+
+        PELF64SECT relsect = 0;
+        _uint64 off = ((_uint64)symsect->sh_offset + (_uint64)sym[i].st_value);
+        char* rsn = (char*)malloc(strlen(sectname)+6);
+        memcpy(rsn,(char*)".rela",5);
+        memcpy(&rsn[5],sectname,strlen(sectname));
+        rsn[5+strlen(sectname)+1] =0;
+        for (int s=0; s<e_hdr->e_shnum; s++) {
+            char* sn = (char*)((_uint64)addr + sect[e_hdr->e_shstrndx].sh_offset + sect[s].sh_name);
+            if (strcmp(sn,rsn)) {
+                relsect = &sect[s]; break;
+            }
+        }
+        if (relsect == 0) {
+            memcpy(&rsn[4],sectname,strlen(sectname));
+            rsn[4+strlen(sectname)+1] =0;
+            for (int s=0; s<e_hdr->e_shnum; s++) {
+                char* sn = (char*)((_uint64)addr + sect[e_hdr->e_shstrndx].sh_offset + sect[s].sh_name);
+                if (strcmp(sn,rsn)) {
+                    relsect = &sect[s]; break;
+                }
+            }
+        }
+        mfree(rsn);
+        if (relsect != 0) {
+            if (relsect->sh_type == 4) {
+                PELF64RELA rela = (PELF64RELA)((_uint64)addr+relsect->sh_offset);
+                for (int r=0; r<relsect->sh_size/sizeof(ELF64RELA); r++) {
+                    if ((_uint64)sym[i].st_value == rela[r].addr) {
+                        if (rela[r].info.type == 1) {
+                            off = (_uint64)sect[sym[rela[r].info.sym].st_shndx].sh_offset+rela[r].add;
+                        } else {
+                            print("\nUnknown reloc:\n");
+                            printq(rela[r].addr);
+                            print(" ");
+                            printl(rela[r].info.sym);
+                            print(" ");
+                            printl(rela[r].info.type);
+                            print(" ");
+                            printq(rela[r].add);
+                            print("\n");
+                            for(;;);
+                        }
+                    }
+                }
+            } else if (relsect->sh_type == 9) {
+                PELF64REL rel = (PELF64REL)((_uint64)addr+relsect->sh_offset);
+                for (int r=0; r<relsect->sh_size/sizeof(ELF64REL); r++) {
+                    if ((_uint64)sym[i].st_value == rel[r].addr) {
+                        if (rel[r].info.type == 1) {
+                            off = (_uint64)sect[sym[rel[r].info.sym].st_shndx].sh_offset;
+                        } else {
+                            print("\nUnknown reloc:\n");
+                            printq(rel[r].addr);
+                            print(" ");
+                            printl(rel[r].info.sym);
+                            print(" ");
+                            printl(rel[r].info.type);
+                            print("\n");
+                            for(;;);
+                        }
+                    }
+                }
+            }
+        }
+
+        if (strcmp("module_name",symname)) {
+            mod->name = (char*)((_uint64)addr+off);
+        } else if (strcmp("module_version",symname)) {
+            mod->version = (char*)((_uint64)addr+off);
+        } else if (strcmp("module_description",symname)) {
+            mod->description = (char*)((_uint64)addr+off);
+        } else if (strcmp("module_requirements",symname)) {
+            mod->requirements = (char*)((_uint64)addr+off);
+        } else if (strcmp("module_developer",symname)) {
+            mod->developer = (char*)((_uint64)addr+off);
+        }
+    }
 	return mod;
 }
 void* load_module(void* addr)
 {
-	PMODULEINFO elf = load_module_elf(addr);
-	if(elf != 0){
-		
+	PMODULEINFO mod;
+	if((mod = load_module_elf(addr)) != 0){
+        printq((_uint64)addr); print(" - ELF\n");
+        print("Name: "); print(mod->name); print("\n");
+        print("Version: "); print(mod->version); print("\n");
+        print("Description: "); print(mod->description); print("\n");
+        print("Requirements: "); print(mod->requirements); print("\n");
+        print("Developer: "); print(mod->developer); print("\n");
 	} else {
 		printq((_uint64)addr); print(" - ");
 		print("Unrecognized\n");

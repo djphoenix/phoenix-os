@@ -22,7 +22,7 @@ extern void modules_init();
 extern void process_loop();
 typedef struct {
 	struct {
-		long EI_MAG;
+		uint EI_MAG;
 		char EI_CLASS;
 		char EI_DATA;
 		char EI_VERSION;
@@ -33,11 +33,11 @@ typedef struct {
 	} e_ident;
 	unsigned short e_type; /* Object file type */
 	unsigned short e_machine; /* Machine type */
-	unsigned long e_version; /* Object file version */
+	uint e_version; /* Object file version */
 	void* e_entry; /* Entry point address */
 	_uint64 e_phoff; /* Program header offset */
 	_uint64 e_shoff; /* Section header offset */
-	unsigned long e_flags; /* Processor-specific flags */
+	uint e_flags; /* Processor-specific flags */
 	unsigned short e_ehsize; /* ELF header size */
 	unsigned short e_phentsize; /* Size of program header entry */
 	unsigned short e_phnum; /* Number of program header entries */
@@ -47,31 +47,39 @@ typedef struct {
 } ELF64HDR, *PELF64HDR;
 typedef struct
 {
-	unsigned long sh_name;
-	unsigned long sh_type;
+	uint sh_name;
+	uint sh_type;
 	_uint64 sh_flags;
 	_uint64 sh_addr;
 	_uint64 sh_offset;
 	_uint64 sh_size;
-	unsigned long sh_link;
-	unsigned long sh_info;
+	uint sh_link;
+	uint sh_info;
 	_uint64 sh_addralign;
 	_uint64 sh_entsize;
 } ELF64SECT, *PELF64SECT;
 typedef struct{
-	void* offset;
-	_uint64 size;
-	char* name;
-} SECTION, *PSECTION;
+	uint st_name;
+	unsigned char st_info, st_other;
+    unsigned short st_shndx;
+    void* st_value;
+    _uint64 st_size;
+} ELF64SYM, *PELF64SYM;
 typedef struct{
-	void* offset;
-	char* name;
-} SYMBOL, *PSYMBOL;
-typedef struct{
-	_uint64 section_count;
-	PSECTION sections;
-	_uint64 symbol_count;
-	PSYMBOL symbols;
+	char *name, *version, *description, *requirements, *developer;
 	_uint64 size;
 } MODULEINFO, *PMODULEINFO;
+typedef struct{
+    uint type;
+    uint sym;
+} ELFRELI;
+typedef struct{
+	_uint64 addr;
+    ELFRELI info;
+    _uint64 add;
+} ELF64RELA, *PELF64RELA;
+typedef struct{
+	_uint64 addr;
+    ELFRELI info;
+} ELF64REL, *PELF64REL;
 #endif
