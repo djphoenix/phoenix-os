@@ -92,3 +92,13 @@ char* strcpy(char* c)
 	r[strlen(c)] = 0;
 	return r;
 }
+
+bool strcmp(const char* a, char* b)
+{
+    int i = 0;
+    while (true) {
+        if (a[i] != b[i]) return false;
+        if (a[i] == 0) return true;
+        i++;
+    }
+}

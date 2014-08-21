@@ -27,6 +27,7 @@ extern void printq(_int64 i);
 extern void clrscr();
 extern _uint64 strlen(char*);
 extern char* strcpy(char*);
+extern bool strcmp(const char*,char*);
 char __inline inportb(short port){ char c; asm("inb %w1, %b0":"=a"(c):"d"(port)); return c; }
 short __inline inports(short port){ short c; asm("inw %w1, %w0":"=a"(c):"d"(port)); return c; }
 uint __inline inportl(short port){ uint c; asm("inl %w1, %d0":"=a"(c):"d"(port)); return c; }
