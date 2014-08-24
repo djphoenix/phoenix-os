@@ -32,9 +32,13 @@ PMODULEINFO load_module_elf(void* addr)
 	
 	PELF64SECT sect = (PELF64SECT)((_uint64)addr + e_hdr->e_shoff);
 	PMODULEINFO mod = (PMODULEINFO)malloc(sizeof(MODULEINFO));
+    mod->size = MAX(
+                    e_hdr->e_phoff+e_hdr->e_phentsize*e_hdr->e_phnum,
+                    e_hdr->e_shoff+e_hdr->e_shentsize*e_hdr->e_shnum);
     PELF64SYM sym; int symcount;
     char* symnames;
 	for(int s = 0; s < e_hdr->e_shnum; s++){
+        mod->size = MAX(mod->size,sect[s].sh_offset+sect[s].sh_size);
         if (sect[s].sh_type == 2) {
             sym = (PELF64SYM)((_uint64)addr + sect[s].sh_offset);
             symcount = sect[s].sh_size / sizeof(ELF64SYM);
@@ -136,6 +140,8 @@ void* load_module(void* addr)
         print("Description: "); print(mod->description); print("\n");
         print("Requirements: "); print(mod->requirements); print("\n");
         print("Developer: "); print(mod->developer); print("\n");
+        print("Size: "); printq(mod->size); print("\n");
+        return (void*)((_uint64)addr + mod->size);
 	} else {
 		printq((_uint64)addr); print(" - ");
 		print("Unrecognized\n");

@@ -16,6 +16,9 @@
 
 #ifndef PXLIB_H
 #define PXLIB_H
+
+#define MAX(A,B) ((A)>(B))?(A):(B)
+
 typedef unsigned int uint;
 typedef long long int _int64;
 typedef unsigned long long int _uint64;
