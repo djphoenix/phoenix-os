@@ -19,7 +19,6 @@
 #include "pxlib.h"
 #include "multiboot_info.h"
 extern void modules_init();
-extern void process_loop();
 typedef struct {
 	struct {
 		uint EI_MAG;

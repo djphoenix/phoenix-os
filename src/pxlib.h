@@ -40,4 +40,5 @@ _uint64 __inline rdtsc() { unsigned long eax, edx; asm("rdtsc":"=a"(eax),"=d"(ed
 #include "interrupts.h"
 #include "multiboot_info.h"
 #include "modules.h"
+#include "process.h"
 #endif

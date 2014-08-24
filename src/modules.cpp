@@ -142,10 +142,6 @@ void* load_module(void* addr)
 	}
 	return (void*)0;
 }
-void process_loop()
-{
-	for(;;) asm("hlt");
-}
 void modules_init()
 {
 	if((kernel_data.modules != 0) && (kernel_data.modules != kernel_data.modules_top)){
