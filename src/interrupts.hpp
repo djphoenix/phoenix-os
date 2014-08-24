@@ -16,7 +16,7 @@
 
 #ifndef INTERRUPTS_H
 #define INTERRUPTS_H
-#include "pxlib.h"
+#include "pxlib.hpp"
 #pragma pack(push,1)
 typedef struct {
 	short offset_low;

@@ -14,7 +14,7 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#include "pxlib.h"
+#include "pxlib.hpp"
 char* display = (char*)0xB8000;
 void clrscr()
 {

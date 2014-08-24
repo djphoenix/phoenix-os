@@ -16,8 +16,8 @@
 
 #ifndef MULTIBOOT_INFO_H
 #define MULTIBOOT_INFO_H
-#include "pxlib.h"
-#include "memory.h"
+#include "pxlib.hpp"
+#include "memory.hpp"
 typedef struct {
 	void* start;
 	void* end;

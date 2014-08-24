@@ -16,8 +16,8 @@
 
 #ifndef MEMORY_H
 #define MEMORY_H
-#include "pxlib.h"
-#include "interrupts.h"
+#include "pxlib.hpp"
+#include "interrupts.hpp"
 typedef void* PML4E, **PPML4E;
 typedef PPML4E PDPE, *PPDPE;
 typedef PPDPE PDE, *PPDE;

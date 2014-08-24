@@ -16,7 +16,7 @@
 
 #ifndef PROCESS_H
 #define PROCESS_H
-#include "pxlib.h"
+#include "pxlib.hpp"
 extern void process_loop();
 
 #endif

@@ -14,7 +14,7 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#include "pxlib.h"
+#include "memory.hpp"
 PGRUB grub_data;
 PPTE pagetable = (PPTE)0x20000;
 PALLOCTABLE allocs = 0;

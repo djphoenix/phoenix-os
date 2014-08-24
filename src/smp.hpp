@@ -16,7 +16,7 @@
 
 #ifndef SMP_H
 #define SMP_H
-#include "memory.h"
+#include "memory.hpp"
 extern void smp_init();
 typedef unsigned int *uintptr_t;
 typedef struct AcpiHeader

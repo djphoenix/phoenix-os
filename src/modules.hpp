@@ -16,8 +16,8 @@
 
 #ifndef MODULES_H
 #define MODULES_H
-#include "pxlib.h"
-#include "multiboot_info.h"
+#include "pxlib.hpp"
+#include "multiboot_info.hpp"
 extern void modules_init();
 typedef struct {
 	struct {
