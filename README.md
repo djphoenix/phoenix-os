@@ -13,7 +13,7 @@
 В папке bin содержатся текущие актуальные версии бинарных файлов, необходимых для запуска ОС, таких как:
 
 * **bin/pxkrnl** - ядро PhoeniX OS
-* **bin/grldr** - Grub4dos (http://sourceforge.net/projects/* grub4dos/)
+* **bin/grldr** - [Grub4dos](http://sourceforge.net/projects/grub4dos/)
 * **bin/menu.lst/default** - menu.lst для Grub4dos
 
 В папке doc содержатся файлы документации по основным частям ОС. Начать изучение документации рекомендуется с файла **doc/Boot.txt**
