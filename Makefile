@@ -22,40 +22,50 @@ endif
 CC=$(PREFIX)gcc
 LD=$(PREFIX)ld
 OBJCOPY=$(PREFIX)objcopy
-CFLAGS=-c -nostdlib -s -m64 -O2
+CFLAGS=-c -nostdlib -s -m64 -O2 -Wno-multichar
 BIN=bin/pxkrnl
+ASSEMBLY=\
+    src/x32to64.s\
+    src/smp_init.s
+SOURCES=\
+    src/boot.cpp\
+    src/memory.cpp\
+    src/pxlib.cpp\
+    src/interrupts.cpp\
+    src/multiboot_info.cpp\
+    src/process.cpp\
+    src/modules.cpp\
+    src/smp.cpp
+OBJECTS=$(ASSEMBLY:src/%.s=obj/%.o) $(SOURCES:src/%.cpp=obj/%.o)
+MODULES=hello
 
 all: $(BIN) clean
-$(BIN): obj/x32to64.o obj/boot.o obj/memory.o obj/pxlib.o obj/interrupts.o obj/multiboot_info.o obj/modules.o obj/smp_init.o obj/smp.o obj/modules-linked.o
+$(BIN): ${OBJECTS} obj/modules-linked.o
 	$(LD) -T ld.script -belf64-x86-64 -o $(BIN) -s --nostdlib $?
 	$(OBJCOPY) $(BIN) -Felf32-i386 --remove-section .comment --remove-section .eh_fram
-obj/boot.o : src/boot.cpp obj
-	$(CC) $(CFLAGS) src/boot.cpp -o $@
-obj/pxlib.o : src/pxlib.cpp obj
-	$(CC) $(CFLAGS) src/pxlib.cpp -o $@
-obj/memory.o : src/memory.cpp obj
-	$(CC) $(CFLAGS) src/memory.cpp -o $@
-obj/smp.o : src/smp.cpp obj
-	$(CC) $(CFLAGS) src/smp.cpp -o $@
-obj/interrupts.o : src/interrupts.cpp obj
-	$(CC) $(CFLAGS) src/interrupts.cpp -o $@
-obj/multiboot_info.o : src/multiboot_info.cpp obj
-	$(CC) $(CFLAGS) src/multiboot_info.cpp -o $@
-obj/modules.o : src/modules.cpp obj
-	$(CC) $(CFLAGS) -Wno-multichar src/modules.cpp -o $@
-obj/x32to64.o : src/x32to64.s obj
-	fasm src/x32to64.s obj/x32to64.o
-obj/smp_init.o : src/smp.s obj
-	fasm src/smp.s obj/smp_init.b
+
+obj/%.o: src/%.cpp obj
+	$(CC) $(CFLAGS) $< -o $@
+obj/%.o: src/%.s obj
+	fasm $< $@
+obj/smp_init.o: src/smp_init.s obj
+	fasm src/smp_init.s obj/smp_init.b
 	$(OBJCOPY) -Oelf64-x86-64 -Bi386 -Ibinary --rename-section .data=.smp_init obj/smp_init.b obj/smp_init.o
-obj/modules-linked.o : mod/hello.o
-	$(OBJCOPY) -Oelf64-x86-64 -Bi386 -Ibinary --rename-section .data=.modules $? $@
-mod/hello.o : modules/hello/hello.cpp
-	$(CC) $(CFLAGS) $? -o $@
+
+obj/mod/%.o: modules/%/%.cpp obj
+	$(CC) $(CFLAGS) $< -o $@
 	$(OBJCOPY) -Oelf64-x86-64 $@
+
+obj/modules-linked.o: obj
+	for mod in $(MODULES); do \
+		$(CC) $(CFLAGS) modules/$$mod/$$mod.cpp -o obj/mod/$$mod.o ;\
+		$(OBJCOPY) -Oelf64-x86-64 obj/mod/$$mod.o ;\
+	done
+	$(OBJCOPY) -Oelf64-x86-64 -Bi386 -Ibinary --rename-section .data=.modules $(MODULES:%=obj/mod/%.o) $@
+
 clean:
-	rm -rf obj mod
+	rm -rf obj
 obj:
-	mkdir -p obj mod
+	mkdir -p obj/mod
 launch:
 	qemu -kernel $(BIN) -smp 8
