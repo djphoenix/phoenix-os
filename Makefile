@@ -61,7 +61,8 @@ obj/modules-linked.o: obj
 		$(CC) $(CFLAGS) modules/$$mod/$$mod.cpp -o obj/mod/$$mod.o ;\
 		$(OBJCOPY) -Oelf64-x86-64 obj/mod/$$mod.o ;\
 	done
-	$(OBJCOPY) -Oelf64-x86-64 -Bi386 -Ibinary --rename-section .data=.modules $(MODULES:%=obj/mod/%.o) $@
+	cat $(MODULES:%=obj/mod/%.o) > $(@:.o=.b)
+	$(OBJCOPY) -Oelf64-x86-64 -Bi386 -Ibinary --rename-section .data=.modules $(@:.o=.b) $@
 
 clean:
 	rm -rf obj
