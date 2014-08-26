@@ -38,10 +38,4 @@ void __inline outportb(short port, char c){ asm("outb %b0, %w1"::"a"(c),"d"(port
 void __inline outports(short port, short c){ asm("outw %w0, %w1"::"a"(c),"d"(port)); }
 void __inline outportl(short port, uint c){ asm("outl %d0, %w1"::"a"(c),"d"(port)); }
 _uint64 __inline rdtsc() { unsigned long eax, edx; asm("rdtsc":"=a"(eax),"=d"(edx)); _uint64 ret; ret = edx; ret <<= 32; ret |= eax; return ret; }
-#include "memory.hpp"
-#include "smp.hpp"
-#include "interrupts.hpp"
-#include "multiboot_info.hpp"
-#include "modules.hpp"
-#include "process.hpp"
 #endif

@@ -18,6 +18,7 @@
 #define MODULES_H
 #include "pxlib.hpp"
 #include "multiboot_info.hpp"
+#include "process.hpp"
 extern void modules_init();
 typedef struct {
 	struct {
@@ -67,6 +68,7 @@ typedef struct{
 typedef struct{
 	char *name, *version, *description, *requirements, *developer;
 	_uint64 size;
+    PROCSTARTINFO psinfo;
 } MODULEINFO, *PMODULEINFO;
 typedef struct{
     uint type;

@@ -15,6 +15,7 @@
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "pxlib.hpp"
+#include "memory.hpp"
 char* display = (char*)0xB8000;
 void clrscr()
 {

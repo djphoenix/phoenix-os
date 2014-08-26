@@ -1,4 +1,4 @@
-//    PhoeniX OS Multiboot subsystem
+//    PhoeniX OS Processes subsystem
 //    Copyright (C) 2013  PhoeniX
 //
 //    This program is free software: you can redistribute it and/or modify

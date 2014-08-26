@@ -15,6 +15,7 @@
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "smp.hpp"
+#include "process.hpp"
 unsigned char g_acpiCpuCount = 0;
 unsigned char g_activeCpuCount = 0;
 int g_acpiCpuIds[256];

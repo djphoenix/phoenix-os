@@ -18,6 +18,7 @@
 #define MEMORY_H
 #include "pxlib.hpp"
 #include "interrupts.hpp"
+#include "multiboot_info.hpp"
 typedef void* PML4E, **PPML4E;
 typedef PPML4E PDPE, *PPDPE;
 typedef PPDPE PDE, *PPDE;
