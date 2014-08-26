@@ -45,6 +45,10 @@ SECTIONS
     __data_start__ = . ;
     *(.data)
     *(SORT(.data$*))
+    *(.xdata.startup)
+    *(.xdata)
+    *(.pdata.startup)
+    *(.pdata)
     *(.rodata*)
     __data_end__ = . ;
   }
