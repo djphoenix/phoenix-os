@@ -18,5 +18,31 @@
 #define PROCESS_H
 #include "pxlib.hpp"
 extern void process_loop();
-
+typedef struct {
+    _uint64 offset;
+    _uint64 vaddr;
+    _uint64 size;
+    _uint64 fsize;
+} PROCSECT;
+typedef struct {
+    _uint64 offset;
+    uint type;
+    uint sym;
+    _uint64 add;
+} PROCREL;
+typedef struct {
+    _uint64 offset;
+    char* name;
+} PROCSYM;
+typedef struct {
+    _uint64 entry;
+    _uint64 seg_cnt;
+    PROCSECT* segments;
+    _uint64 reloc_cnt;
+    PROCREL* relocs;
+    _uint64 sym_cnt;
+    PROCSYM* symbols;
+    _uint64 link_cnt;
+    PROCSYM* links;
+} PROCSTARTINFO, *PPROCSTARTINFO;
 #endif
