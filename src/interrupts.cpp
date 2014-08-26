@@ -46,6 +46,8 @@ push %r13\n\
 push %r14\n\
 push %r15\n\
 \
+movq %rcx,%rdx\n\
+movl %eax,%ecx\n\
 movq %rcx,%rsi\n\
 movl %eax,%edi\n\
 call interrupt_handler\n\
