@@ -72,4 +72,5 @@ SECTIONS
              *(SORT(.modules$*))
     __modules_end__ = . ;
   }
+  /DISCARD/ : { *(.comment) *(.eh_frame) }
 }

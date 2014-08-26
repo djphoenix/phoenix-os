@@ -42,7 +42,7 @@ MODULES=hello
 all: $(BIN) clean
 $(BIN): ${OBJECTS} obj/modules-linked.o
 	$(LD) -T ld.script -belf64-x86-64 -o $(BIN) -s --nostdlib $?
-	$(OBJCOPY) $(BIN) -Felf32-i386 --remove-section .comment --remove-section .eh_fram
+	$(OBJCOPY) $(BIN) -Felf32-i386
 
 obj/%.o: src/%.cpp obj
 	$(CC) $(CFLAGS) $< -o $@
