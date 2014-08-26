@@ -24,18 +24,8 @@ LD=$(PREFIX)ld
 OBJCOPY=$(PREFIX)objcopy
 CFLAGS=-c -nostdlib -s -m64 -O2 -Wno-multichar
 BIN=bin/pxkrnl
-ASSEMBLY=\
-    src/x32to64.s\
-    src/smp_init.s
-SOURCES=\
-    src/boot.cpp\
-    src/memory.cpp\
-    src/pxlib.cpp\
-    src/interrupts.cpp\
-    src/multiboot_info.cpp\
-    src/process.cpp\
-    src/modules.cpp\
-    src/smp.cpp
+ASSEMBLY=$(shell ls src/*.s)
+SOURCES=$(shell ls src/*.cpp)
 OBJECTS=$(ASSEMBLY:src/%.s=obj/%.o) $(SOURCES:src/%.cpp=obj/%.o)
 MODULES=hello
 
