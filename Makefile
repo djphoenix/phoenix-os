@@ -52,10 +52,6 @@ obj/smp_init.o: src/smp_init.s obj
 	fasm src/smp_init.s obj/smp_init.b
 	$(OBJCOPY) -Oelf64-x86-64 -Bi386 -Ibinary --rename-section .data=.smp_init obj/smp_init.b obj/smp_init.o
 
-obj/mod/%.o: modules/%/%.cpp obj
-	$(CC) $(CFLAGS) $< -o $@
-	$(OBJCOPY) -Oelf64-x86-64 $@
-
 obj/modules-linked.o: obj
 	for mod in $(MODULES); do \
 		$(CC) $(CFLAGS) modules/$$mod/$$mod.cpp -o obj/mod/$$mod.o ;\
