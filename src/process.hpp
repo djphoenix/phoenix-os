@@ -35,13 +35,13 @@ typedef struct {
     char* name;
 } PROCSYM;
 typedef struct {
-    _uint64 entry;
     _uint64 seg_cnt;
     PROCSECT* segments;
     _uint64 reloc_cnt;
     PROCREL* relocs;
     _uint64 sym_cnt;
     PROCSYM* symbols;
+    _uint64 entry_sym;
     _uint64 link_cnt;
     PROCSYM* links;
 } PROCSTARTINFO, *PPROCSTARTINFO;

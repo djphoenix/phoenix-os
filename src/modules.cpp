@@ -35,6 +35,8 @@ PMODULEINFO load_module_elf(void* addr)
     mod->size = MAX(
                     e_hdr->e_phoff+e_hdr->e_phentsize*e_hdr->e_phnum,
                     e_hdr->e_shoff+e_hdr->e_shentsize*e_hdr->e_shnum);
+    mod->psinfo.seg_cnt = 0;
+    PROCSECT *segments = (PROCSECT*)malloc(sizeof(PROCSECT)*e_hdr->e_shnum);
     PELF64SYM sym; int symcount;
     char* symnames;
 	for(int s = 0; s < e_hdr->e_shnum; s++){
@@ -44,7 +46,29 @@ PMODULEINFO load_module_elf(void* addr)
             symcount = sect[s].sh_size / sizeof(ELF64SYM);
             symnames = (char*)((_uint64)addr + sect[sect[s].sh_link].sh_offset);
 		}
+        if (sect[s].sh_flags & 2) {
+            if (sect[s].sh_size == 0) continue;
+            int x = -1;
+            for (int i = 0; i < mod->psinfo.seg_cnt; i++) {
+                if (sect[s].sh_offset == segments[i].offset+segments[i].size) {x=i; break;}
+            }
+            if (x == -1) {
+                segments[mod->psinfo.seg_cnt].offset = sect[s].sh_offset;
+                segments[mod->psinfo.seg_cnt].vaddr = 0;
+                segments[mod->psinfo.seg_cnt].fsize = (sect[s].sh_type==1)?sect[s].sh_size:0;
+                segments[mod->psinfo.seg_cnt].size = sect[s].sh_size;
+                mod->psinfo.seg_cnt++;
+            } else {
+                segments[x].fsize += (sect[s].sh_type==1)?sect[s].sh_size:0;
+                segments[x].size += sect[s].sh_size;
+            }
+        }
 	}
+    if (mod->psinfo.seg_cnt != 0) {
+        mod->psinfo.segments = (PROCSECT*)malloc(sizeof(PROCSECT)*mod->psinfo.seg_cnt);
+        memcpy((char*)mod->psinfo.segments,(char*)segments,sizeof(PROCSECT)*mod->psinfo.seg_cnt);
+    }
+    mfree(segments);
     for (int i=0;i<symcount;i++){
         if (((sym[i].st_info >> 4) & 0xF) == 0) continue;
         char* symname = &symnames[sym[i].st_name];
@@ -134,13 +158,15 @@ void* load_module(void* addr)
 {
 	PMODULEINFO mod;
 	if((mod = load_module_elf(addr)) != 0){
-        printq((_uint64)addr); print(" - ELF\n");
-        print("Name: "); print(mod->name); print("\n");
-        print("Version: "); print(mod->version); print("\n");
-        print("Description: "); print(mod->description); print("\n");
-        print("Requirements: "); print(mod->requirements); print("\n");
-        print("Developer: "); print(mod->developer); print("\n");
-        print("Size: "); printq(mod->size); print("\n");
+        print("ELF Module \""); print(mod->name); print("\" @"); printq((_uint64)addr); print("\n");
+        for (int i = 0; i < mod->psinfo.seg_cnt; i++) {
+            print("SEG"); printb(i);
+            print(" @"); printl(mod->psinfo.segments[i].vaddr);
+            print(" f"); printl(mod->psinfo.segments[i].offset);
+            print(" m"); printl(mod->psinfo.segments[i].size);
+            print(" c"); printl(mod->psinfo.segments[i].fsize);
+            print("\n");
+        }
         return (void*)((_uint64)addr + mod->size);
 	} else {
 		printq((_uint64)addr); print(" - ");
