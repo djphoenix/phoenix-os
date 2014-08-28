@@ -27,6 +27,6 @@ int main()
     Memory::init();
     Interrupts::init();
     SMP::init();
-	modules_init();
+    ModuleManager::init();
 	process_loop();
 }
