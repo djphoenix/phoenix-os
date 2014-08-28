@@ -71,4 +71,7 @@ public:
     static void copy(void* dest, void* src, _uint64 count);
 };
 
+void __inline MmioWrite32(void *p, int data) { Memory::salloc(p); *(volatile int *)(p) = data; }
+int __inline MmioRead32(void *p) { Memory::salloc(p); return *(volatile int *)(p); }
+
 #endif

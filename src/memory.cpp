@@ -358,3 +358,10 @@ void Memory::copy(void *dest, void *src, _uint64 count) {
 		count--;
 	}
 }
+
+void* operator new(unsigned long a){
+    return Memory::alloc(a);
+}
+void operator delete(void* a){
+    return Memory::free(a);
+}
