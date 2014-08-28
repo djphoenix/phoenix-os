@@ -26,7 +26,7 @@ int main()
 	clrscr();
     Memory::init();
     Interrupts::init();
-	smp_init();
+    SMP::init();
 	modules_init();
 	process_loop();
 }

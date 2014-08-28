@@ -17,12 +17,12 @@
 #include "smp.hpp"
 #include "process.hpp"
 
-void smp_start() {
+void SMP::startup() {
     ACPI::getController()->activateCPU();
 	process_loop();
 }
 
-void smp_init() {
+void SMP::init() {
     ACPI* acpi = ACPI::getController();
 	int localId = acpi->getLapicID();
     int cpuCount = acpi->getCPUCount();
@@ -39,7 +39,7 @@ void smp_init() {
 		if(acpi->getLapicIDOfCPU(i) != localId)
 			stacks[i] = ((_uint64)Memory::palloc(1))+0x1000;
 	*((_uint64*)smp_init_code) = (_uint64)stacks; smp_init_code += 8;
-	*((_uint64*)smp_init_code) = (_uint64)(&smp_start);
+	*((_uint64*)smp_init_code) = (_uint64)(&SMP::startup);
 	for(int i = 0; i < cpuCount; i++) {
         int id = acpi->getLapicIDOfCPU(i);
 		if(id != localId) acpi->sendCPUInit(id);

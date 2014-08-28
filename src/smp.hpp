@@ -18,6 +18,12 @@
 #define SMP_H
 #include "memory.hpp"
 #include "acpi.hpp"
-extern void smp_init();
+
+class SMP {
+private:
+    static void startup();
+public:
+    static void init();
+};
 
 #endif
