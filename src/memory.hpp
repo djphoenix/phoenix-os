@@ -42,7 +42,6 @@ typedef struct {
 	uint papm_table;
 	uint pvbe_control_info, pvbe_mode_info, pvbe_mode, pvbe_interface_seg, pvbe_interface_off, pvbe_interface_len;
 } GRUB, *PGRUB;
-
 typedef struct {
 	void* addr;
 	_int64 size;
@@ -53,11 +52,23 @@ typedef struct {
 	_int64 reserved;
 } ALLOCTABLE, *PALLOCTABLE;
 extern PGRUB grub_data;
-extern void memmap();
-extern void memory_init();
-extern void* salloc(void* mem);
-extern void* palloc(char sys = 0);
-extern void* malloc(_uint64 size, int align = 4);
-extern void mfree(void* addr);
-extern void memcpy(char *dest, char *src, _uint64 count);
+
+class Memory {
+    static PPTE pagetable;
+    static PALLOCTABLE allocs;
+    static void* first_free;
+    static _uint64 last_page;
+    static GRUBMODULE modules[256];
+    static PPML4E get_page(void* base_addr);
+    static void map();
+public:
+    static void init();
+    static void* salloc(void* mem);
+    static void* palloc(char sys = 0);
+    static void* alloc(_uint64 size, int align = 4);
+    static void pfree(void* page);
+    static void free(void* addr);
+    static void copy(void* dest, void* src, _uint64 count);
+};
+
 #endif

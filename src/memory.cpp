@@ -16,12 +16,14 @@
 
 #include "memory.hpp"
 PGRUB grub_data;
-PPTE pagetable = (PPTE)0x20000;
-PALLOCTABLE allocs = 0;
-void* first_free = (void*)0x2000;
-_uint64 last_page = 1;
-GRUBMODULE modules[256];
-PPML4E get_page(void* base_addr)
+
+PPTE Memory::pagetable = (PPTE)0x20000;
+PALLOCTABLE Memory::allocs = 0;
+void* Memory::first_free = (void*)0x2000;
+_uint64 Memory::last_page = 1;
+GRUBMODULE Memory::modules[256];
+
+PPML4E Memory::get_page(void* base_addr)
 {
 	_uint64 i = (_uint64) base_addr >> 12;
 	PDE pde = (PDE)((_uint64)pagetable[(i >> 27) & 0x1FF] & 0xFFFFFFFFFFFFF000);
@@ -32,7 +34,7 @@ PPML4E get_page(void* base_addr)
 	if(page == 0) return 0;
 	return &page[i & 0x1FF];
 }
-void memory_init()
+void Memory::init()
 {
 	asm("movq $_start, %q0":"=a"(kernel_data.kernel)); kernel_data.stack = 0x1000; kernel_data.stack_top = 0x2000;
 	asm("movq $__data_start__, %q0":"=a"(kernel_data.data));
@@ -142,7 +144,7 @@ void memory_init()
 		}
 	}
 	if(cmdlinel > 0) {
-		kernel_data.cmdline = (char*)malloc(cmdlinel);
+		kernel_data.cmdline = (char*)alloc(cmdlinel);
 		for(int i=0; i<cmdlinel; i++){
 			kernel_data.cmdline[i] = cmdline[i];
 		}
@@ -150,7 +152,7 @@ void memory_init()
 		kernel_data.cmdline = 0;
 	}
 	if(((kernel_data.flags & 8) == 8)&&(kernel_data.mods != 0)){
-		PMODULE mod = kernel_data.mods = (PMODULE)malloc(sizeof(MODULE));
+		PMODULE mod = kernel_data.mods = (PMODULE)alloc(sizeof(MODULE));
 		mod->start = 0;
 		mod->end = 0;
 		mod->next = 0;
@@ -160,12 +162,12 @@ void memory_init()
 			mod->end = (void*)((_uint64)modules[i].end & 0xFFFFFFFF);
 			i++;
 			if(modules[i].start != 0)
-				mod = (PMODULE)(mod->next = (void*)malloc(sizeof(MODULE)));
+				mod = (PMODULE)(mod->next = (void*)alloc(sizeof(MODULE)));
 		}
 		mod->next = (void*)0;
 	}
 }
-void memmap()
+void Memory::map()
 {
 	char *m = (char*)0xB8000;
 	_uint64 i;
@@ -189,7 +191,7 @@ void memmap()
 		m++;
 	}
 }
-void* salloc(void* mem)
+void* Memory::salloc(void* mem)
 {
 	_uint64 i = (_uint64)(mem) >> 12;
 	void *addr = (void*)(i << 12);
@@ -208,7 +210,7 @@ void* salloc(void* mem)
 	page[i & 0x1FF] = (void*)(((_uint64)addr) | 3);
 	return addr;
 }
-void* palloc(char sys)
+void* Memory::palloc(char sys)
 {
 	void *addr; PPML4E page;
 	_uint64 i=last_page-1;
@@ -244,14 +246,14 @@ void* palloc(char sys)
 		((_uint64*)addr)[i] = 0;
 	return addr;
 }
-void pfree(void* page){
+void Memory::pfree(void* page){
 	PPML4E pdata = get_page(page);
 	if((pdata != 0) && ((*(_uint64*)pdata & 5) == 1)){
 		*(_uint64*)pdata &= 0xFFFFFFFFFFFFFFF0;
 		if(((_uint64)page >> 12) < last_page) last_page = (_uint64)page >> 12;
 	}
 }
-void* malloc(_uint64 size, int align)
+void* Memory::alloc(_uint64 size, int align)
 {
 	if(size == 0) return (void*)0;
 	_uint64 ns = (_uint64)first_free, ne; char f;
@@ -331,7 +333,7 @@ void* malloc(_uint64 size, int align)
 	}
 	return (void*) ns;
 }
-void mfree(void* addr)
+void Memory::free(void* addr)
 {
 	PALLOCTABLE t = allocs;
 	while(true){
@@ -347,11 +349,12 @@ void mfree(void* addr)
 		t = (PALLOCTABLE)t->next;
 	}
 }
-void memcpy(char *dest, char *src, _uint64 count) {
+void Memory::copy(void *dest, void *src, _uint64 count) {
+    char *cdest = (char*)dest, *csrc = (char*)src;
 	while(count){
-		*dest = *src;
-		dest++;
-		src++;
+		*cdest = *csrc;
+		cdest++;
+		csrc++;
 		count--;
 	}
 }

@@ -89,10 +89,10 @@ void interrupt_handler(unsigned char intr, _uint64 stack){
 }
 void interrupts_init()
 {
-	idt = (PIDT)malloc(sizeof(IDT),0x1000);
+	idt = (PIDT)Memory::alloc(sizeof(IDT),0x1000);
 	idt->rec.limit = sizeof(idt->ints) -1;
 	idt->rec.addr = &idt->ints[0];
-	handlers = (char*)malloc(9*256,0x1000);
+	handlers = (char*)Memory::alloc(9*256,0x1000);
 	void* addr;
 	asm("mov $_interrupt_handler,%q0":"=a"(addr));
 	for(int i=0; i<256; i++){

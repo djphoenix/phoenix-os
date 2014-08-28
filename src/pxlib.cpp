@@ -86,7 +86,7 @@ _uint64 strlen(char* c)
 
 char* strcpy(char* c)
 {
-	char* r = (char*)malloc(strlen(c)+1);
+	char* r = (char*)Memory::alloc(strlen(c)+1);
 	for(_uint64 i = 0; i < strlen(c); i++){
 		r[i] = c[i];
 	}

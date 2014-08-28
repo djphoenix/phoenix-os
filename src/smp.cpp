@@ -23,11 +23,11 @@ long* g_localApicAddr, *g_ioApicAddr;
 AcpiMadt *s_madt;
 
 inline void MmioWrite32(void *p, int data) {
-	salloc(p);
+    Memory::salloc(p);
     *(volatile int *)(p) = data;
 }
 inline int MmioRead32(void *p) {
-	salloc(p);
+	Memory::salloc(p);
     return *(volatile int *)(p);
 }
 static int LocalApicIn(int reg) {
@@ -38,11 +38,11 @@ static void LocalApicOut(int reg, int data) {
 }
 
 void AcpiParseApic(AcpiMadt *madt) {
-	salloc(madt);
+	Memory::salloc(madt);
     s_madt = madt;
 
     g_localApicAddr = (long *)(uintptr_t)((_uint64)madt->localApicAddr & 0xFFFFFFFF);
-	salloc(g_localApicAddr);
+	Memory::salloc(g_localApicAddr);
 
 //    LocalApicOut(0x0080, 0);
 //    LocalApicOut(0x00e0, 0xffffffff);
@@ -56,7 +56,7 @@ void AcpiParseApic(AcpiMadt *madt) {
         ApicHeader *header = (ApicHeader *)p;
         short type = header->type;
         short length = header->length;
-		salloc(header);
+		Memory::salloc(header);
         if (type == 0) {
             ApicLocalApic *s = (ApicLocalApic *)p;
 
@@ -75,7 +75,7 @@ void AcpiParseApic(AcpiMadt *madt) {
         } else if (type == 1) {
             ApicIoApic *s = (ApicIoApic *)p;
             g_ioApicAddr = (long *)(uintptr_t)((_uint64)s->ioApicAddress & 0xFFFFFFFF);
-			salloc(g_ioApicAddr);
+			Memory::salloc(g_ioApicAddr);
         } else if (type == 2) {
             ApicInterruptOverride *s = (ApicInterruptOverride *)p;
         }
@@ -86,14 +86,14 @@ void AcpiParseApic(AcpiMadt *madt) {
 
 
 static void AcpiParseDT(AcpiHeader *header) {
-	salloc(header);
+	Memory::salloc(header);
 
     if (header->signature == 0x43495041)
         AcpiParseApic((AcpiMadt *)header);
 }
 
 void AcpiParseRsdt(AcpiHeader *rsdt) {
-	salloc(rsdt);
+	Memory::salloc(rsdt);
     int *p = (int *)(rsdt + 1);
     int *end = (int *)((char*)rsdt + rsdt->length);
 
@@ -104,7 +104,7 @@ void AcpiParseRsdt(AcpiHeader *rsdt) {
 }
 
 void AcpiParseXsdt(AcpiHeader *xsdt) {
-	salloc(xsdt);
+	Memory::salloc(xsdt);
     _uint64 *p = (_uint64 *)(xsdt + 1);
     _uint64 *end = (_uint64 *)((char*)xsdt + xsdt->length);
 
@@ -123,7 +123,7 @@ bool AcpiParseRsdp(char *p) {
         return false;
 
     char oem[7];
-    memcpy(oem, (char*)(p + 9), 6);
+    Memory::copy(oem, (char*)(p + 9), 6);
     oem[6] = '\0';
 
     char revision = p[15];
@@ -197,16 +197,16 @@ void smp_init() {
 	AcpiInit();
 	g_activeCpuCount = 1;
 	int localId = LocalApicGetId();	
-	char* smp_init_code = (char*)palloc(1);
+	char* smp_init_code = (char*)Memory::palloc(1);
 	char smp_init_vector = (((_uint64)smp_init_code) >> 12) & 0xFF;
 	char* smp_s; asm("mov $_smp_init,%q0":"=a"(smp_s):);
 	char* smp_e; asm("mov $_smp_end,%q0":"=a"(smp_e):);
 	while(smp_s < smp_e) *(smp_init_code++) = *(smp_s++);
 	*((_uint64*)smp_init_code) = (_uint64)g_localApicAddr; smp_init_code += 8;
-	_uint64 *stacks = (_uint64*)malloc(sizeof(_uint64)*g_acpiCpuCount);
+	_uint64 *stacks = (_uint64*)Memory::alloc(sizeof(_uint64)*g_acpiCpuCount);
 	for(int i = 0; i < g_acpiCpuCount; i++)
 		if(g_acpiCpuIds[i] != localId)
-			stacks[i] = ((_uint64)palloc(1))+0x1000;
+			stacks[i] = ((_uint64)Memory::palloc(1))+0x1000;
 	*((_uint64*)smp_init_code) = (_uint64)stacks; smp_init_code += 8;
 	*((_uint64*)smp_init_code) = (_uint64)(&smp_start);
 	for(int i = 0; i < g_acpiCpuCount; i++)
@@ -223,5 +223,5 @@ void smp_init() {
 
 	while (g_activeCpuCount != g_acpiCpuCount) asm("hlt");
 
-	mfree(stacks);
+	Memory::free(stacks);
 }

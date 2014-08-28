@@ -15,6 +15,7 @@
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "modules.hpp"
+
 PMODULEINFO load_module_elf(void* addr)
 {
 	// Parsing ELF
@@ -31,12 +32,12 @@ PMODULEINFO load_module_elf(void* addr)
 	if(e_hdr->e_ehsize != sizeof(ELF64HDR)) return (PMODULEINFO)0;
 	
 	PELF64SECT sect = (PELF64SECT)((_uint64)addr + e_hdr->e_shoff);
-	PMODULEINFO mod = (PMODULEINFO)malloc(sizeof(MODULEINFO));
+	PMODULEINFO mod = (PMODULEINFO)Memory::alloc(sizeof(MODULEINFO));
     mod->size = MAX(
                     e_hdr->e_phoff+e_hdr->e_phentsize*e_hdr->e_phnum,
                     e_hdr->e_shoff+e_hdr->e_shentsize*e_hdr->e_shnum);
     mod->psinfo.seg_cnt = 0;
-    PROCSECT *segments = (PROCSECT*)malloc(sizeof(PROCSECT)*e_hdr->e_shnum);
+    PROCSECT *segments = (PROCSECT*)Memory::alloc(sizeof(PROCSECT)*e_hdr->e_shnum);
     PELF64SYM sym; int symcount;
     char* symnames;
 	for(int s = 0; s < e_hdr->e_shnum; s++){
@@ -65,10 +66,10 @@ PMODULEINFO load_module_elf(void* addr)
         }
 	}
     if (mod->psinfo.seg_cnt != 0) {
-        mod->psinfo.segments = (PROCSECT*)malloc(sizeof(PROCSECT)*mod->psinfo.seg_cnt);
-        memcpy((char*)mod->psinfo.segments,(char*)segments,sizeof(PROCSECT)*mod->psinfo.seg_cnt);
+        mod->psinfo.segments = (PROCSECT*)Memory::alloc(sizeof(PROCSECT)*mod->psinfo.seg_cnt);
+        Memory::copy((char*)mod->psinfo.segments,(char*)segments,sizeof(PROCSECT)*mod->psinfo.seg_cnt);
     }
-    mfree(segments);
+    Memory::free(segments);
     for (int i=0;i<symcount;i++){
         if (((sym[i].st_info >> 4) & 0xF) == 0) continue;
         char* symname = &symnames[sym[i].st_name];
@@ -77,9 +78,9 @@ PMODULEINFO load_module_elf(void* addr)
 
         PELF64SECT relsect = 0;
         _uint64 off = ((_uint64)symsect->sh_offset + (_uint64)sym[i].st_value);
-        char* rsn = (char*)malloc(strlen(sectname)+6);
-        memcpy(rsn,(char*)".rela",5);
-        memcpy(&rsn[5],sectname,strlen(sectname));
+        char* rsn = (char*)Memory::alloc(strlen(sectname)+6);
+        Memory::copy(rsn,(char*)".rela",5);
+        Memory::copy(&rsn[5],sectname,strlen(sectname));
         rsn[5+strlen(sectname)+1] =0;
         for (int s=0; s<e_hdr->e_shnum; s++) {
             char* sn = (char*)((_uint64)addr + sect[e_hdr->e_shstrndx].sh_offset + sect[s].sh_name);
@@ -88,7 +89,7 @@ PMODULEINFO load_module_elf(void* addr)
             }
         }
         if (relsect == 0) {
-            memcpy(&rsn[4],sectname,strlen(sectname));
+            Memory::copy(&rsn[4],sectname,strlen(sectname));
             rsn[4+strlen(sectname)+1] =0;
             for (int s=0; s<e_hdr->e_shnum; s++) {
                 char* sn = (char*)((_uint64)addr + sect[e_hdr->e_shstrndx].sh_offset + sect[s].sh_name);
@@ -97,7 +98,7 @@ PMODULEINFO load_module_elf(void* addr)
                 }
             }
         }
-        mfree(rsn);
+        Memory::free(rsn);
         if (relsect != 0) {
             if (relsect->sh_type == 4) {
                 PELF64RELA rela = (PELF64RELA)((_uint64)addr+relsect->sh_offset);
