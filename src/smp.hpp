@@ -17,54 +17,7 @@
 #ifndef SMP_H
 #define SMP_H
 #include "memory.hpp"
+#include "acpi.hpp"
 extern void smp_init();
-typedef unsigned int *uintptr_t;
-typedef struct AcpiHeader
-{
-    int signature;
-    int length;
-    char revision;
-    char checksum;
-    char oem[6];
-    char oemTableId[8];
-    int oemRevision;
-    int creatorId;
-    int creatorRevision;
-} AcpiHeader;
 
-typedef struct AcpiMadt
-{
-    AcpiHeader header;
-    int localApicAddr;
-    int flags;
-} AcpiMadt;
-typedef struct ApicHeader
-{
-    char type;
-    char length;
-} ApicHeader;
-
-typedef struct ApicLocalApic
-{
-    ApicHeader header;
-    unsigned char acpiProcessorId;
-    unsigned char apicId;
-    unsigned int flags;
-} ApicLocalApic;
-typedef struct ApicIoApic
-{
-    ApicHeader header;
-    char ioApicId;
-    char reserved;
-    int ioApicAddress;
-    int globalSystemInterruptBase;
-} ApicIoApic;
-typedef struct ApicInterruptOverride
-{
-    ApicHeader header;
-    char bus;
-    char source;
-    int interrupt;
-    short flags;
-} ApicInterruptOverride;
 #endif
