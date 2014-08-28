@@ -44,6 +44,15 @@ typedef struct {
 	INTERRUPT64 ints[256];
 	IDTR rec;
 } IDT, *PIDT;
-extern INTERRUPT32 interrupts32[256];
-extern void interrupts_init();
+
+class Interrupts {
+private:
+    static char* handlers;
+    static PIDT idt;
+    static bool ints_set;
+public:
+    static INTERRUPT32 interrupts32[256];
+    static void init();
+    static void handle(unsigned char intr, _uint64 stack);
+};
 #endif

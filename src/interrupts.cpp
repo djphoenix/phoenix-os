@@ -15,10 +15,10 @@
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "interrupts.hpp"
-PIDT idt = 0;
-char* handlers = 0;
-INTERRUPT32 interrupts32[256];
-bool ints_set = 0;
+PIDT Interrupts::idt = 0;
+char* Interrupts::handlers = 0;
+INTERRUPT32 Interrupts::interrupts32[256];
+bool Interrupts::ints_set = 0;
 asm("\
 _interrupt_handler:\n\
 \
@@ -75,6 +75,9 @@ iretq\n\
 interrupt_handler:\
 ");
 void interrupt_handler(unsigned char intr, _uint64 stack){
+    Interrupts::handle(intr,stack);
+}
+void Interrupts::handle(unsigned char intr, _uint64 stack){
 	if (!ints_set) return;
 	_int64 *rsp = (_int64*)stack;
 	if(intr<0x20){
@@ -87,7 +90,7 @@ void interrupt_handler(unsigned char intr, _uint64 stack){
 		print("INT "); prints(intr); print("h\n");
 	}
 }
-void interrupts_init()
+void Interrupts::init()
 {
 	idt = (PIDT)Memory::alloc(sizeof(IDT),0x1000);
 	idt->rec.limit = sizeof(idt->ints) -1;

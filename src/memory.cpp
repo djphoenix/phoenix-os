@@ -46,7 +46,7 @@ void Memory::init()
 	// Buffering BIOS interrupts
 	for(int i=0; i<256; i++){
 		PINTERRUPT32 intr = (PINTERRUPT32)(((_uint64)i & 0xFF)*sizeof(INTERRUPT32));
-		interrupts32[i] = *intr;
+        Interrupts::interrupts32[i] = *intr;
 	}
 	// Buffering grub data
 	kernel_data.flags = grub_data->flags;
