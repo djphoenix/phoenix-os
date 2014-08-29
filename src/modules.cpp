@@ -47,7 +47,10 @@ PMODULEINFO ModuleManager::loadElf(Stream *stream){
     Sections = (ELF64SECT*)Memory::alloc(sizeof(ELF64SECT)*Elf.shnum);
     stream->read(Sections,sizeof(ELF64SECT)*Elf.shnum);
     mod->psinfo.seg_cnt = 0;
+    mod->psinfo.sect_cnt = 0;
     PROCSECT *segments = (PROCSECT*)Memory::alloc(sizeof(PROCSECT)*Elf.shnum);
+    PROCSECT *sections = (PROCSECT*)Memory::alloc(sizeof(PROCSECT)*Elf.shnum);
+    int* secmap = (int*)Memory::alloc(sizeof(int)*Elf.shnum);
     _uint64 symoff, symcount, symnsoff;
 	for(int s = 0; s < Elf.shnum; s++){
         mod->size = MAX(mod->size,Sections[s].offset+Sections[s].size);
@@ -57,6 +60,12 @@ PMODULEINFO ModuleManager::loadElf(Stream *stream){
             symnsoff = Sections[Sections[s].link].offset;
 		}
         if (Sections[s].flags & 2) {
+            secmap[s] = mod->psinfo.sect_cnt;
+            sections[mod->psinfo.sect_cnt].offset = Sections[s].offset;
+            sections[mod->psinfo.sect_cnt].vaddr = 0;
+            sections[mod->psinfo.sect_cnt].fsize = (Sections[s].type==1)?Sections[s].size:0;
+            sections[mod->psinfo.sect_cnt].size = Sections[s].size;
+            mod->psinfo.sect_cnt++;
             if (Sections[s].size == 0) continue;
             int x = -1;
             for (int i = 0; i < mod->psinfo.seg_cnt; i++) {
@@ -78,102 +87,36 @@ PMODULEINFO ModuleManager::loadElf(Stream *stream){
         mod->psinfo.segments = (PROCSECT*)Memory::alloc(sizeof(PROCSECT)*mod->psinfo.seg_cnt);
         Memory::copy((char*)mod->psinfo.segments,(char*)segments,sizeof(PROCSECT)*mod->psinfo.seg_cnt);
     }
+    if (mod->psinfo.sect_cnt != 0) {
+        mod->psinfo.sections = (PROCSECT*)Memory::alloc(sizeof(PROCSECT)*mod->psinfo.sect_cnt);
+        Memory::copy((char*)mod->psinfo.sections,(char*)sections,sizeof(PROCSECT)*mod->psinfo.sect_cnt);
+    }
     Memory::free(segments);
+    Memory::free(sections);
     
     ELF64SYM *Symbols = (ELF64SYM*)Memory::alloc(sizeof(ELF64SYM)*symcount);
     stream->seek(symoff,-1);
     stream->read(Symbols,sizeof(ELF64SYM)*symcount);
     
-    for (int i=0;i<symcount;i++){
-        if (((Symbols[i].info >> 4) & 0xF) == 0) continue;
+    mod->psinfo.sym_cnt = symcount;
+    mod->psinfo.symbols = (PROCSYM*)Memory::alloc(sizeof(PROCSYM)*mod->psinfo.sym_cnt);
+    
+    for (int i=1;i<symcount;i++){
         char* symname = stream->readstr(symnsoff+Symbols[i].name);
-        ELF64SECT symsect = Sections[Symbols[i].shndx];
-        char* sectname = stream->readstr(Sections[Elf.shstrndx].offset + symsect.name);
-        
-        ELF64SECT *relsect = 0;
-        _uint64 off = (symsect.offset + Symbols[i].value);
-        char* rsn = (char*)Memory::alloc(strlen(sectname)+6);
-        Memory::copy(rsn,(char*)".rela",5);
-        Memory::copy(&rsn[5],sectname,strlen(sectname));
-        rsn[5+strlen(sectname)+1] =0;
-        for (int s=1; s<Elf.shnum; s++) {
-            char* sn = stream->readstr(Sections[Elf.shstrndx].offset + Sections[s].name);
-            if (strcmp(sn,rsn)) {
-                relsect = &Sections[s]; break;
-            }
+        switch (Symbols[i].info & 0xF) {
+            case(3):
+                mod->psinfo.symbols[i].type = 0; break; // section
+            case(0):
+                mod->psinfo.symbols[i].type = 2; break; // link
+            default:
+                mod->psinfo.symbols[i].type = 1; // symbol
         }
-        if (relsect == 0) {
-            Memory::copy(&rsn[4],sectname,strlen(sectname));
-            rsn[4+strlen(sectname)+1] =0;
-            for (int s=1; s<Elf.shnum; s++) {
-                char* sn = stream->readstr(Sections[Elf.shstrndx].offset + Sections[s].name);
-                if (strcmp(sn,rsn)) {
-                    relsect = &Sections[s]; break;
-                }
-            }
-        }
-        Memory::free(rsn);
-        if (relsect != 0) {
-            if (relsect->type == 4) {
-                ELF64RELA *rela = (ELF64RELA*)Memory::alloc(relsect->size);
-                stream->seek(relsect->offset,-1);
-                stream->read(rela,relsect->size);
-                for (int r=0; r<relsect->size/sizeof(ELF64RELA); r++) {
-                    if (Symbols[i].value == rela[r].addr) {
-                        if (rela[r].info.type == 1) {
-                            off = Sections[Symbols[rela[r].info.sym].shndx].offset+rela[r].add;
-                        } else {
-                            print("\nUnknown reloc:\n");
-                            printq(rela[r].addr);
-                            print(" ");
-                            printl(rela[r].info.sym);
-                            print(" ");
-                            printl(rela[r].info.type);
-                            print(" ");
-                            printq(rela[r].add);
-                            print("\n");
-                            for(;;);
-                        }
-                    }
-                }
-                Memory::free(rela);
-            } else if (relsect->type == 9) {
-                ELF64REL *rel = (ELF64REL*)Memory::alloc(relsect->size);
-                stream->seek(relsect->offset,-1);
-                stream->read(rel,relsect->size);
-                for (int r=0; r<relsect->size/sizeof(ELF64REL); r++) {
-                    if (Symbols[i].value == rel[r].addr) {
-                        if (rel[r].info.type == 1) {
-                            off = Sections[Symbols[rel[r].info.sym].shndx].offset;
-                        } else {
-                            print("\nUnknown reloc:\n");
-                            printq(rel[r].addr);
-                            print(" ");
-                            printl(rel[r].info.sym);
-                            print(" ");
-                            printl(rel[r].info.type);
-                            print("\n");
-                            for(;;);
-                        }
-                    }
-                }
-                Memory::free(rel);
-            }
-        }
-        if (strcmp("module_name",symname)) {
-            mod->name = stream->readstr(off);
-        } else if (strcmp("module_version",symname)) {
-            mod->version = stream->readstr(off);
-        } else if (strcmp("module_description",symname)) {
-            mod->description = stream->readstr(off);
-        } else if (strcmp("module_requirements",symname)) {
-            mod->requirements = stream->readstr(off);
-        } else if (strcmp("module_developer",symname)) {
-            mod->developer = stream->readstr(off);
-        }
-        Memory::free(symname);
-        Memory::free(sectname);
+        int symsect = Symbols[i].shndx < Elf.shnum ? secmap[Symbols[i].shndx] : 0;
+        mod->psinfo.symbols[i].sect=symsect;
+        mod->psinfo.symbols[i].name=symname;
+        mod->psinfo.symbols[i].offset=Symbols[i].value;
     }
+    Memory::free(secmap);
     Memory::free(Symbols);
     Memory::free(Sections);
     
@@ -184,7 +127,15 @@ ModuleManager* ModuleManager::manager = 0;
 void ModuleManager::loadStream(Stream *stream){
 	PMODULEINFO mod;
 	if((mod = loadElf(stream)) != 0){
-        print("ELF Module \""); print(mod->name); print("\"\n");
+        print("ELF Module:\n");
+        for (int i = 0; i < mod->psinfo.sect_cnt; i++) {
+            print("SECT"); printb(i);
+            print(" @"); printl(mod->psinfo.sections[i].vaddr);
+            print(" f"); printl(mod->psinfo.sections[i].offset);
+            print(" m"); printl(mod->psinfo.sections[i].size);
+            print(" c"); printl(mod->psinfo.sections[i].fsize);
+            print("\n");
+        }
         for (int i = 0; i < mod->psinfo.seg_cnt; i++) {
             print("SEG"); printb(i);
             print(" @"); printl(mod->psinfo.segments[i].vaddr);
@@ -193,6 +144,18 @@ void ModuleManager::loadStream(Stream *stream){
             print(" c"); printl(mod->psinfo.segments[i].fsize);
             print("\n");
         }
+        for (int i = 0; i < mod->psinfo.sym_cnt; i++) {
+            print("SYM"); printb(i);
+            print(" @"); printl(mod->psinfo.symbols[i].offset);
+            print(" s"); prints(mod->psinfo.symbols[i].sect);
+            print(" t"); prints(mod->psinfo.symbols[i].type);
+            if (mod->psinfo.symbols[i].name != 0) {
+                print(" ");
+                print(mod->psinfo.symbols[i].name);
+            }
+            print("\n");
+        }
+        print("\n");
         stream->seek(mod->size,-1);
         if (!stream->eof()){
             Stream *sub = stream->substream();

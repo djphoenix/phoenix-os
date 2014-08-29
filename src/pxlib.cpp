@@ -78,10 +78,11 @@ void printq(_int64 i)
 	printl(i & 0xFFFFFFFF);
 }
 
-_uint64 strlen(char* c)
+_uint64 strlen(char* c, _uint64 limit)
 {
-	for(_uint64 i = 0;; i++)
+	for(_uint64 i = 0; i < limit; i++)
 		if(c[i] == 0) return i;
+    return 0;
 }
 
 char* strcpy(char* c)

@@ -44,7 +44,8 @@ Stream* MemoryStream::substream(_uint64 offset, _uint64 limit){
 }
 char* MemoryStream::readstr(_uint64 offset){
     if (offset == -1) offset = this->offset;
-    _uint64 len = strlen(&((char*)memory)[offset]);
+    if (offset > limit) return 0;
+    _uint64 len = strlen(&((char*)memory)[offset],limit-offset);
     char* res = (char*)Memory::alloc(len+1);
     Memory::copy(res,&((char*)memory)[offset],len);
     res[len]=0;

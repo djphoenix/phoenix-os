@@ -32,17 +32,19 @@ typedef struct {
 } PROCREL;
 typedef struct {
     _uint64 offset;
+    uint type;
+    uint sect;
     char* name;
 } PROCSYM;
 typedef struct {
     _uint64 seg_cnt;
     PROCSECT* segments;
+    _uint64 sect_cnt;
+    PROCSECT* sections;
     _uint64 reloc_cnt;
     PROCREL* relocs;
     _uint64 sym_cnt;
     PROCSYM* symbols;
     _uint64 entry_sym;
-    _uint64 link_cnt;
-    PROCSYM* links;
 } PROCSTARTINFO, *PPROCSTARTINFO;
 #endif
