@@ -115,6 +115,7 @@ PMODULEINFO ModuleManager::loadElf(Stream *stream){
         mod->psinfo.symbols[i].sect=symsect;
         mod->psinfo.symbols[i].name=symname;
         mod->psinfo.symbols[i].offset=Symbols[i].value;
+        if(strcmp("module",symname)) mod->psinfo.entry_sym=i;
     }
     Memory::free(secmap);
     Memory::free(Symbols);
@@ -155,6 +156,7 @@ void ModuleManager::loadStream(Stream *stream){
             }
             print("\n");
         }
+        print("Entry symbol: "); printl(mod->psinfo.entry_sym); print("\n");
         print("\n");
         stream->seek(mod->size,-1);
         if (!stream->eof()){
