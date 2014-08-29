@@ -38,7 +38,7 @@ void Memory::init()
 {
 	asm("movq $_start, %q0":"=a"(kernel_data.kernel)); kernel_data.stack = 0x1000; kernel_data.stack_top = 0x2000;
 	asm("movq $__data_start__, %q0":"=a"(kernel_data.data));
-	asm("movq $__rdata_end__, %q0":"=a"(kernel_data.data_top));
+	asm("movq $__data_end__, %q0":"=a"(kernel_data.data_top));
 	asm("movq $__bss_start__, %q0":"=a"(kernel_data.bss));
 	asm("movq $__bss_end__, %q0":"=a"(kernel_data.bss_top));
 	asm("movq $__modules_start__, %q0":"=a"(kernel_data.modules));

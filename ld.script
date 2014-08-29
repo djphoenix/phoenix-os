@@ -50,31 +50,24 @@ SECTIONS
     *(.pdata.startup)
     *(.pdata)
     *(.rodata*)
+    *(.rdata)
+    *(SORT(.rdata$*))
     __data_end__ = . ;
   }
-  . = ALIGN (0x1000);
-  .rdata :
+  .modules : AT ( ADDR (.data) + SIZEOF (.data) + ALIGN(0x1000) )
   {
-    __rdata_start__ = . ;
-    *(.rdata)
-             *(SORT(.rdata$*))
-    __rdata_end__ = . ;
+    __modules_start__ = . ;
+    *(.modules)
+    *(SORT(.modules$*))
+    __modules_end__ = . ;
   }
   . = ALIGN (0x1000);
-  .bss :
+  .bss : AT ( ADDR (.modules) + SIZEOF (.modules) + ALIGN(0x1000) )
   {
     __bss_start__ = . ;
     *(.bss)
     *(COMMON)
     __bss_end__ = . ;
-  }
-  . = ALIGN (0x1000);
-  .modules :
-  {
-    __modules_start__ = . ;
-    *(.modules)
-             *(SORT(.modules$*))
-    __modules_end__ = . ;
   }
   /DISCARD/ : { *(.comment) *(.eh_frame) }
 }
