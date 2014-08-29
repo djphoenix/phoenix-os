@@ -45,7 +45,7 @@ obj/smp_init.o: src/smp_init.s obj
 obj/modules-linked.o: obj
 	for mod in $(MODULES); do \
 		$(CC) $(CFLAGS) modules/$$mod/$$mod.cpp -o obj/mod/$$mod.o ;\
-		$(OBJCOPY) -Oelf64-x86-64 obj/mod/$$mod.o ;\
+		$(OBJCOPY) -Oelf64-x86-64 obj/mod/$$mod.o -R '*.eh_frame' -R .comment -R '.note.*' ;\
 	done
 	cat $(MODULES:%=obj/mod/%.o) > $(@:.o=.b)
 	$(OBJCOPY) -Oelf64-x86-64 -Bi386 -Ibinary --rename-section .data=.modules $(@:.o=.b) $@
