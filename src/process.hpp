@@ -29,6 +29,7 @@ typedef struct {
     uint type;
     uint sym;
     _uint64 add;
+    _uint64 sect;
 } PROCREL;
 typedef struct {
     _uint64 offset;

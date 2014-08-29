@@ -48,6 +48,7 @@ PMODULEINFO ModuleManager::loadElf(Stream *stream){
     stream->read(Sections,sizeof(ELF64SECT)*Elf.shnum);
     mod->psinfo.seg_cnt = 0;
     mod->psinfo.sect_cnt = 0;
+    mod->psinfo.reloc_cnt = 0;
     PROCSECT *segments = (PROCSECT*)Memory::alloc(sizeof(PROCSECT)*Elf.shnum);
     PROCSECT *sections = (PROCSECT*)Memory::alloc(sizeof(PROCSECT)*Elf.shnum);
     int* secmap = (int*)Memory::alloc(sizeof(int)*Elf.shnum);
@@ -82,6 +83,8 @@ PMODULEINFO ModuleManager::loadElf(Stream *stream){
                 segments[x].size += Sections[s].size;
             }
         }
+        if (Sections[s].type == 4) mod->psinfo.reloc_cnt += Sections[s].size/sizeof(ELF64RELA);
+        if (Sections[s].type == 9) mod->psinfo.reloc_cnt += Sections[s].size/sizeof(ELF64REL);
 	}
     if (mod->psinfo.seg_cnt != 0) {
         mod->psinfo.segments = (PROCSECT*)Memory::alloc(sizeof(PROCSECT)*mod->psinfo.seg_cnt);
@@ -93,7 +96,42 @@ PMODULEINFO ModuleManager::loadElf(Stream *stream){
     }
     Memory::free(segments);
     Memory::free(sections);
-    
+
+    if (mod->psinfo.reloc_cnt != 0) {
+        mod->psinfo.relocs = (PROCREL*)Memory::alloc(sizeof(PROCREL)*mod->psinfo.reloc_cnt);
+        int r = 0;
+        for (int s = 0; s < Elf.shnum; s++) {
+            if (Sections[s].type == 4) {
+                ELF64RELA *rel = (ELF64RELA*)Memory::alloc(Sections[s].size);
+                stream->seek(Sections[s].offset,-1);
+                stream->read(rel,Sections[s].size);
+                for (int i = 0; i < Sections[s].size/sizeof(ELF64RELA); i++){
+                    mod->psinfo.relocs[r].offset = rel[i].addr;
+                    mod->psinfo.relocs[r].type = rel[i].info.type;
+                    mod->psinfo.relocs[r].sym = rel[i].info.sym;
+                    mod->psinfo.relocs[r].add = rel[i].add;
+                    mod->psinfo.relocs[r].sect = secmap[Sections[s].info];
+                    r++;
+                }
+                Memory::free(rel);
+            }
+            if (Sections[s].type == 9) {
+                ELF64REL *rel = (ELF64REL*)Memory::alloc(Sections[s].size);
+                stream->seek(Sections[s].offset,-1);
+                stream->read(rel,Sections[s].size);
+                for (int i = 0; i < Sections[s].size/sizeof(ELF64REL); i++){
+                    mod->psinfo.relocs[r].offset = rel[i].addr;
+                    mod->psinfo.relocs[r].type = rel[i].info.type;
+                    mod->psinfo.relocs[r].sym = rel[i].info.sym;
+                    mod->psinfo.relocs[r].add = 0;
+                    mod->psinfo.relocs[r].sect = secmap[Sections[s].info];
+                    r++;
+                }
+                Memory::free(rel);
+            }
+        }
+    }
+
     ELF64SYM *Symbols = (ELF64SYM*)Memory::alloc(sizeof(ELF64SYM)*symcount);
     stream->seek(symoff,-1);
     stream->read(Symbols,sizeof(ELF64SYM)*symcount);
@@ -154,6 +192,15 @@ void ModuleManager::loadStream(Stream *stream){
                 print(" ");
                 print(mod->psinfo.symbols[i].name);
             }
+            print("\n");
+        }
+        for (int i = 0; i < mod->psinfo.reloc_cnt; i++) {
+            print("REL"); printb(i);
+            print(" @"); printl(mod->psinfo.relocs[i].offset);
+            print(" s"); prints(mod->psinfo.relocs[i].sect);
+            print(" s"); prints(mod->psinfo.relocs[i].sym);
+            print(" t"); prints(mod->psinfo.relocs[i].type);
+            print(" a"); prints(mod->psinfo.relocs[i].add);
             print("\n");
         }
         print("Entry symbol: "); printl(mod->psinfo.entry_sym); print("\n");
