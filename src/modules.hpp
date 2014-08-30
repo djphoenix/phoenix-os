@@ -32,6 +32,7 @@ private:
     void parseInternal();
     void parseInitRD();
     void loadStream(Stream *stream);
+    bool parseModuleInfo(PMODULEINFO mod, Stream *stream);
     PMODULEINFO loadElf(Stream *stream);
 public:
     ModuleManager();

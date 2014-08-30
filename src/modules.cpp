@@ -153,7 +153,6 @@ PMODULEINFO ModuleManager::loadElf(Stream *stream){
         mod->psinfo.symbols[i].sect=symsect;
         mod->psinfo.symbols[i].name=symname;
         mod->psinfo.symbols[i].offset=Symbols[i].value;
-        if(strcmp("module",symname)) mod->psinfo.entry_sym=i;
     }
     Memory::free(secmap);
     Memory::free(Symbols);
@@ -161,59 +160,144 @@ PMODULEINFO ModuleManager::loadElf(Stream *stream){
     
     return mod;
 }
+bool ModuleManager::parseModuleInfo(PMODULEINFO mod, Stream *stream){
+    for (int i = 0; i < mod->psinfo.sym_cnt; i++) {
+        if (mod->psinfo.symbols[i].name == 0) continue;
+        if (strcmp("module",mod->psinfo.symbols[i].name)) {
+            mod->psinfo.entry_sym = i;
+            continue;
+        }
+        if (!(
+              strcmp("module_name",mod->psinfo.symbols[i].name) ||
+              strcmp("module_version",mod->psinfo.symbols[i].name) ||
+              strcmp("module_description",mod->psinfo.symbols[i].name) ||
+              strcmp("module_requirements",mod->psinfo.symbols[i].name) ||
+              strcmp("module_developer",mod->psinfo.symbols[i].name)))
+            continue;
+        _uint64 sect = mod->psinfo.symbols[i].sect, off = mod->psinfo.sections[sect].offset + mod->psinfo.symbols[i].offset;
+        for (int r = 0; r < mod->psinfo.reloc_cnt; r++) {
+            if (mod->psinfo.relocs[r].sect != sect) continue;
+            if (mod->psinfo.sections[sect].offset + mod->psinfo.relocs[r].offset != off) continue;
+            switch (mod->psinfo.relocs[r].type) {
+                default:
+                    print("Unknown reloc type: "); printb(mod->psinfo.relocs[r].type); print("\n");
+                    break;
+                case(1):
+                    _uint64 sym = mod->psinfo.relocs[r].sym, add = mod->psinfo.relocs[r].add;
+                    switch (mod->psinfo.symbols[sym].type) {
+                        case 0:
+                            off = mod->psinfo.sections[mod->psinfo.symbols[sym].sect].offset;
+                            break;
+                        case 1:
+                            off = mod->psinfo.symbols[sym].offset;
+                            break;
+                            
+                        default:
+                            off = 0;
+                            break;
+                    }
+                    if (off != 0) off += add;
+                    break;
+            }
+        }
+        if (off == 0) continue;
+        if (strcmp("module_name",mod->psinfo.symbols[i].name))
+            mod->name = stream->readstr(off);
+        if (strcmp("module_version",mod->psinfo.symbols[i].name))
+            mod->version = stream->readstr(off);
+        if (strcmp("module_description",mod->psinfo.symbols[i].name))
+            mod->description = stream->readstr(off);
+        if (strcmp("module_requirements",mod->psinfo.symbols[i].name))
+            mod->requirements = stream->readstr(off);
+        if (strcmp("module_developer",mod->psinfo.symbols[i].name))
+            mod->developer = stream->readstr(off);
+    }
+    if (!(
+          mod->psinfo.entry_sym &&
+          mod->name &&
+          mod->version &&
+          mod->description &&
+          mod->requirements &&
+          mod->developer)) {
+        mod->psinfo.entry_sym=0;
+        if (mod->name) Memory::free(mod->name);
+        if (mod->version) Memory::free(mod->version);
+        if (mod->description) Memory::free(mod->description);
+        if (mod->requirements) Memory::free(mod->requirements);
+        if (mod->developer) Memory::free(mod->developer);
+        return 0;
+    }
+    return 1;
+}
 
 ModuleManager* ModuleManager::manager = 0;
 void ModuleManager::loadStream(Stream *stream){
 	PMODULEINFO mod;
-	if((mod = loadElf(stream)) != 0){
-        print("ELF Module:\n");
-        for (int i = 0; i < mod->psinfo.sect_cnt; i++) {
-            print("SECT"); printb(i);
-            print(" @"); printl(mod->psinfo.sections[i].vaddr);
-            print(" f"); printl(mod->psinfo.sections[i].offset);
-            print(" m"); printl(mod->psinfo.sections[i].size);
-            print(" c"); printl(mod->psinfo.sections[i].fsize);
-            print("\n");
-        }
-        for (int i = 0; i < mod->psinfo.seg_cnt; i++) {
-            print("SEG"); printb(i);
-            print(" @"); printl(mod->psinfo.segments[i].vaddr);
-            print(" f"); printl(mod->psinfo.segments[i].offset);
-            print(" m"); printl(mod->psinfo.segments[i].size);
-            print(" c"); printl(mod->psinfo.segments[i].fsize);
-            print("\n");
-        }
-        for (int i = 0; i < mod->psinfo.sym_cnt; i++) {
-            print("SYM"); printb(i);
-            print(" @"); printl(mod->psinfo.symbols[i].offset);
-            print(" s"); prints(mod->psinfo.symbols[i].sect);
-            print(" t"); prints(mod->psinfo.symbols[i].type);
-            if (mod->psinfo.symbols[i].name != 0) {
-                print(" ");
-                print(mod->psinfo.symbols[i].name);
-            }
-            print("\n");
-        }
-        for (int i = 0; i < mod->psinfo.reloc_cnt; i++) {
-            print("REL"); printb(i);
-            print(" @"); printl(mod->psinfo.relocs[i].offset);
-            print(" s"); prints(mod->psinfo.relocs[i].sect);
-            print(" s"); prints(mod->psinfo.relocs[i].sym);
-            print(" t"); prints(mod->psinfo.relocs[i].type);
-            print(" a"); prints(mod->psinfo.relocs[i].add);
-            print("\n");
-        }
-        print("Entry symbol: "); printl(mod->psinfo.entry_sym); print("\n");
-        print("\n");
-        stream->seek(mod->size,-1);
-        if (!stream->eof()){
-            Stream *sub = stream->substream();
-            loadStream(sub);
-            delete sub;
-        }
+	mod = loadElf(stream);
+    if (mod == 0) {
+        print("Unrecognized module type\n");
+        return;
+    }
+    if (!parseModuleInfo(mod,stream)) {
+        if(mod->psinfo.segments) Memory::free(mod->psinfo.segments);
+        if(mod->psinfo.sections) Memory::free(mod->psinfo.sections);
+        if(mod->psinfo.relocs) Memory::free(mod->psinfo.relocs);
+        for (int i=1;i<mod->psinfo.sym_cnt;i++)
+            if (mod->psinfo.symbols[i].name) Memory::free(mod->psinfo.symbols[i].name);
+        if(mod->psinfo.symbols) Memory::free(mod->psinfo.symbols);
+        Memory::free(mod);
+        print("Module metadata parse fail\n");
         return;
 	}
-    print("Unrecognized module type\n");
+    for (int i = 0; i < mod->psinfo.sect_cnt; i++) {
+        print("SECT"); printb(i);
+        print(" @"); printl(mod->psinfo.sections[i].vaddr);
+        print(" f"); printl(mod->psinfo.sections[i].offset);
+        print(" m"); printl(mod->psinfo.sections[i].size);
+        print(" c"); printl(mod->psinfo.sections[i].fsize);
+        print("\n");
+    }
+    for (int i = 0; i < mod->psinfo.seg_cnt; i++) {
+        print("SEG"); printb(i);
+        print(" @"); printl(mod->psinfo.segments[i].vaddr);
+        print(" f"); printl(mod->psinfo.segments[i].offset);
+        print(" m"); printl(mod->psinfo.segments[i].size);
+        print(" c"); printl(mod->psinfo.segments[i].fsize);
+        print("\n");
+    }
+    for (int i = 0; i < mod->psinfo.sym_cnt; i++) {
+        print("SYM"); printb(i);
+        print(" @"); printl(mod->psinfo.symbols[i].offset);
+        print(" s"); prints(mod->psinfo.symbols[i].sect);
+        print(" t"); prints(mod->psinfo.symbols[i].type);
+        if (mod->psinfo.symbols[i].name != 0) {
+            print(" ");
+            print(mod->psinfo.symbols[i].name);
+        }
+        print("\n");
+    }
+    for (int i = 0; i < mod->psinfo.reloc_cnt; i++) {
+        print("REL"); printb(i);
+        print(" @"); printl(mod->psinfo.relocs[i].offset);
+        print(" s"); prints(mod->psinfo.relocs[i].sect);
+        print(" s"); prints(mod->psinfo.relocs[i].sym);
+        print(" t"); prints(mod->psinfo.relocs[i].type);
+        print(" a"); prints(mod->psinfo.relocs[i].add);
+        print("\n");
+    }
+    print("Entry symbol: "); printl(mod->psinfo.entry_sym); print("\n");
+    if (mod->name != 0) { print("Module name: "); print(mod->name); print("\n"); }
+    if (mod->version != 0) { print("Module version: "); print(mod->version); print("\n"); }
+    if (mod->description != 0) { print("Module description: "); print(mod->description); print("\n"); }
+    if (mod->developer != 0) { print("Module developer: "); print(mod->developer); print("\n"); }
+    if (mod->requirements != 0) { print("Module requirements: "); print(mod->requirements); print("\n"); }
+    print("\n");
+    stream->seek(mod->size,-1);
+    if (!stream->eof()){
+        Stream *sub = stream->substream();
+        loadStream(sub);
+        delete sub;
+    }
 }
 void ModuleManager::parseInternal(){
 	if((kernel_data.modules != 0) && (kernel_data.modules != kernel_data.modules_top)){
