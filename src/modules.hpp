@@ -31,7 +31,7 @@ private:
     static ModuleManager* manager;
     void parseInternal();
     void parseInitRD();
-    void loadStream(Stream *stream);
+    void loadStream(Stream *stream, bool start=0);
     bool parseModuleInfo(PMODULEINFO mod, Stream *stream);
     PMODULEINFO loadElf(Stream *stream);
 public:

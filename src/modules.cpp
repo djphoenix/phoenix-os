@@ -231,11 +231,10 @@ bool ModuleManager::parseModuleInfo(PMODULEINFO mod, Stream *stream){
 }
 
 ModuleManager* ModuleManager::manager = 0;
-void ModuleManager::loadStream(Stream *stream){
+void ModuleManager::loadStream(Stream *stream, bool start){
 	PMODULEINFO mod;
 	mod = loadElf(stream);
     if (mod == 0) {
-        print("Unrecognized module type\n");
         return;
     }
     if (!parseModuleInfo(mod,stream)) {
@@ -246,52 +245,9 @@ void ModuleManager::loadStream(Stream *stream){
             if (mod->psinfo.symbols[i].name) Memory::free(mod->psinfo.symbols[i].name);
         if(mod->psinfo.symbols) Memory::free(mod->psinfo.symbols);
         Memory::free(mod);
-        print("Module metadata parse fail\n");
         return;
 	}
-    for (int i = 0; i < mod->psinfo.sect_cnt; i++) {
-        print("SECT"); printb(i);
-        print(" @"); printl(mod->psinfo.sections[i].vaddr);
-        print(" f"); printl(mod->psinfo.sections[i].offset);
-        print(" m"); printl(mod->psinfo.sections[i].size);
-        print(" c"); printl(mod->psinfo.sections[i].fsize);
-        print("\n");
-    }
-    for (int i = 0; i < mod->psinfo.seg_cnt; i++) {
-        print("SEG"); printb(i);
-        print(" @"); printl(mod->psinfo.segments[i].vaddr);
-        print(" f"); printl(mod->psinfo.segments[i].offset);
-        print(" m"); printl(mod->psinfo.segments[i].size);
-        print(" c"); printl(mod->psinfo.segments[i].fsize);
-        print("\n");
-    }
-    for (int i = 0; i < mod->psinfo.sym_cnt; i++) {
-        print("SYM"); printb(i);
-        print(" @"); printl(mod->psinfo.symbols[i].offset);
-        print(" s"); prints(mod->psinfo.symbols[i].sect);
-        print(" t"); prints(mod->psinfo.symbols[i].type);
-        if (mod->psinfo.symbols[i].name != 0) {
-            print(" ");
-            print(mod->psinfo.symbols[i].name);
-        }
-        print("\n");
-    }
-    for (int i = 0; i < mod->psinfo.reloc_cnt; i++) {
-        print("REL"); printb(i);
-        print(" @"); printl(mod->psinfo.relocs[i].offset);
-        print(" s"); prints(mod->psinfo.relocs[i].sect);
-        print(" s"); prints(mod->psinfo.relocs[i].sym);
-        print(" t"); prints(mod->psinfo.relocs[i].type);
-        print(" a"); prints(mod->psinfo.relocs[i].add);
-        print("\n");
-    }
-    print("Entry symbol: "); printl(mod->psinfo.entry_sym); print("\n");
-    if (mod->name != 0) { print("Module name: "); print(mod->name); print("\n"); }
-    if (mod->version != 0) { print("Module version: "); print(mod->version); print("\n"); }
-    if (mod->description != 0) { print("Module description: "); print(mod->description); print("\n"); }
-    if (mod->developer != 0) { print("Module developer: "); print(mod->developer); print("\n"); }
-    if (mod->requirements != 0) { print("Module requirements: "); print(mod->requirements); print("\n"); }
-    print("\n");
+    if(start) new Process(mod->psinfo);
     stream->seek(mod->size,-1);
     if (!stream->eof()){
         Stream *sub = stream->substream();
@@ -302,7 +258,7 @@ void ModuleManager::loadStream(Stream *stream){
 void ModuleManager::parseInternal(){
 	if((kernel_data.modules != 0) && (kernel_data.modules != kernel_data.modules_top)){
         Stream *ms = new MemoryStream((void*)kernel_data.modules,kernel_data.modules_top-kernel_data.modules);
-        loadStream(ms);
+        loadStream(ms,1);
         delete ms;
 	}
 }
@@ -311,7 +267,7 @@ void ModuleManager::parseInitRD(){
 		PMODULE mod = kernel_data.mods;
 		while(mod != 0){
             Stream *ms = new MemoryStream((void*)mod->start,((_uint64)mod->end)-((_uint64)mod->start));
-            loadStream(ms);
+            loadStream(ms,1);
             delete ms;
 			mod = (PMODULE)mod->next;
 		}
@@ -319,11 +275,8 @@ void ModuleManager::parseInitRD(){
 }
 void ModuleManager::init() {
     ModuleManager *mm = getManager();
-    print("Built-in modules:\n");
     mm->parseInternal();
-    print("Modules in initRD:\n");
     mm->parseInitRD();
-	print("Modules loaded\n");
 }
 ModuleManager* ModuleManager::getManager(){
     if (manager) return manager;

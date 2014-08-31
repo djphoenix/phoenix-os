@@ -17,6 +17,7 @@
 #ifndef PROCESS_H
 #define PROCESS_H
 #include "pxlib.hpp"
+#include "memory.hpp"
 extern void process_loop();
 typedef struct {
     _uint64 offset;
@@ -48,4 +49,19 @@ typedef struct {
     PROCSYM* symbols;
     _uint64 entry_sym;
 } PROCSTARTINFO, *PPROCSTARTINFO;
+
+class Process {
+private:
+    PPTE pagetable;
+    PROCSTARTINFO psinfo;
+    struct {
+        _uint64 rax, rcx, rdx, rbx;
+        _uint64 rsi, rdi, rbp, rsp;
+        _uint64 rip, rflags;
+        _uint64 r8, r9, r10, r11, r12, r13, r14, r15;
+    } regs;
+    bool suspend;
+public:
+    Process(PROCSTARTINFO psinfo);
+};
 #endif

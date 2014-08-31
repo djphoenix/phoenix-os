@@ -20,3 +20,7 @@ void process_loop()
 {
     for(;;) asm("hlt");
 }
+
+Process::Process(PROCSTARTINFO psinfo){
+    suspend=true;
+}
