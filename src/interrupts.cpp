@@ -130,9 +130,18 @@ void Interrupts::init()
 	outportb(0x21, 0x01);
 	outportb(0xA1, 0x01);
 
-	outportb(0x21, 0);
-	outportb(0xA1, 0);
+    maskIRQ(0);
+    
     interrupt_handler(0,0);
     ints_set = 1;
 	asm volatile( "lidtq %0\nsti"::"m"(idt->rec));
+}
+
+void Interrupts::maskIRQ(unsigned short mask){
+	outportb(0x21, mask & 0xFF);
+	outportb(0xA1, (mask >> 8) & 0xFF);
+}
+
+unsigned short Interrupts::getIRQmask(){
+    return inportb(0x21) | (inportb(0xA1) << 8);
 }

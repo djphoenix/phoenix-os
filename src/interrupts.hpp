@@ -54,5 +54,7 @@ public:
     static INTERRUPT32 interrupts32[256];
     static void init();
     static void handle(unsigned char intr, _uint64 stack);
+    static void maskIRQ(unsigned short mask);
+    static unsigned short getIRQmask();
 };
 #endif
