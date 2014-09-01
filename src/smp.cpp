@@ -45,17 +45,15 @@ void SMP::init() {
 	*((_uint64*)smp_init_code) = (_uint64)stacks; smp_init_code += 8;
 	*((_uint64*)smp_init_code) = (_uint64)(&SMP::startup);
 
-    int oacpu = acpi->getActiveCPUCount();
-	for(int i = 0; i < cpuCount; i++) {
-        if(cpuids[i] == localId) continue;
-        acpi->sendCPUInit(cpuids[i]);
-        asm("hlt");
-        acpi->sendCPUStartup(cpuids[i],smp_init_vector);
-        asm("hlt");
-        acpi->sendCPUStartup(cpuids[i],smp_init_vector);
-        while (oacpu == acpi->getActiveCPUCount()) asm("hlt");
-        oacpu = acpi->getActiveCPUCount();
-    }
+	for(int i = 0; i < cpuCount; i++)
+        if(cpuids[i] != localId) acpi->sendCPUInit(cpuids[i]);
+    asm("hlt");
+	for(int i = 0; i < cpuCount; i++)
+        if(cpuids[i] != localId) acpi->sendCPUStartup(cpuids[i],smp_init_vector);
+    asm("hlt");
+	for(int i = 0; i < cpuCount; i++)
+        if(cpuids[i] != localId) acpi->sendCPUStartup(cpuids[i],smp_init_vector);
+    while (cpuCount != acpi->getActiveCPUCount()) asm("hlt");
 
 	Memory::free(cpuids);
 	Memory::free(stacks);
