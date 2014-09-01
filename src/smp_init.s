@@ -101,13 +101,22 @@ x64_entry:
 	xor rcx, rcx
 	mov ecx, [rbx]
 	shr rcx, 24
+
+    mov rax, [rbp + _smp_end + 8]
+    xor rdx, rdx
+_getid:
+    cmp rcx, [rax]
+    je _foundid
+    add rax, 8
+    inc rdx
+    jmp _getid
+_foundid:
+
+	shl rdx, 3
+	add rdx, [rbp + _smp_end + 16]
+	mov rsp, [rdx]
 	
-	mov r9, rcx
-	shl r9, 3
-	add r9, [rbp + _smp_end + 8]
-	mov rsp, r9
-	
-	call qword [rbp + _smp_end + 16]
+	call qword [rbp + _smp_end + 24]
 .loop:
 	hlt
 	jmp .loop
