@@ -16,6 +16,7 @@
 
 #include "interrupts.hpp"
 PIDT Interrupts::idt = 0;
+intcbreg* Interrupts::callbacks = 0;
 char* Interrupts::handlers = 0;
 INTERRUPT32 Interrupts::interrupts32[256];
 bool Interrupts::ints_set = 0;
@@ -89,6 +90,13 @@ void Interrupts::handle(unsigned char intr, _uint64 stack){
 	} else if(intr != 0x20) {
 		print("INT "); prints(intr); print("h\n");
 	}
+    if (callbacks) {
+        _uint64 i = 0;
+        while ((callbacks[i].intr != 0) || ((callbacks[i].cb != 0))) {
+            if(callbacks[i].intr == intr) callbacks[i].cb();
+            i++;
+        }
+    }
 }
 void Interrupts::init()
 {
@@ -135,6 +143,7 @@ void Interrupts::init()
     interrupt_handler(0,0);
     ints_set = 1;
 	asm volatile( "lidtq %0\nsti"::"m"(idt->rec));
+    (ACPI::getController())->initTimer();
 }
 
 void Interrupts::maskIRQ(unsigned short mask){
@@ -144,4 +153,25 @@ void Interrupts::maskIRQ(unsigned short mask){
 
 unsigned short Interrupts::getIRQmask(){
     return inportb(0x21) | (inportb(0xA1) << 8);
+}
+
+void Interrupts::addCallback(unsigned char intr, intcb* cb){
+    if (callbacks == 0) {
+        callbacks = (intcbreg*)Memory::alloc(sizeof(intcbreg)*2);
+        callbacks[0].intr = intr;
+        callbacks[0].cb = cb;
+        callbacks[1].intr = 0;
+        callbacks[1].cb = 0;
+    } else {
+        _uint64 cid = 0;
+        while ((callbacks[cid].intr != 0) || (callbacks[cid].cb != 0)) cid++;
+        intcbreg* nc = (intcbreg*)Memory::alloc(sizeof(intcbreg)*(cid+1));
+        Memory::copy(nc, callbacks, sizeof(intcbreg)*cid);
+        Memory::free(callbacks);
+        callbacks = nc;
+        callbacks[cid].intr = intr;
+        callbacks[cid].cb = cb;
+        callbacks[cid+1].intr = 0;
+        callbacks[cid+1].cb = 0;
+    }
 }

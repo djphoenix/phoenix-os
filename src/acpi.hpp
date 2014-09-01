@@ -93,6 +93,8 @@ public:
     int getLapicIDOfCPU(int cpuId);
     void sendCPUInit(int id);
     void sendCPUStartup(int id, char vector);
+    void initTimer();
+    static void EOI();
 };
 
 #endif

@@ -17,6 +17,7 @@
 #include "acpi.hpp"
 ACPI* ACPI::controller = 0;
 unsigned char ACPI::activeCpuCount = 0;
+#define quantum 1000
 
 ACPI* ACPI::getController() {
     if (controller) return controller;
@@ -165,4 +166,51 @@ void ACPI::sendCPUStartup(int id, char vector) {
     LapicOut(0x0300, vector | 0x00004600);
     while (LapicIn(0x0300) & 0x00001000);
 }
+void ACPI::EOI(){
+    (ACPI::getController())->LapicOut(0xB0,0);
+}
+void ACPI::initTimer(){
+    if (localApicAddr == 0) return;
+    LapicOut(0xE0,0xFFFFFFFF);
+    LapicOut(0xD0,(LapicIn(0xD0)&0x00FFFFFF)|1);
+    LapicOut(0x320,0x10000);
+    LapicOut(0x340,4<<8);
+    LapicOut(0x350,0x10000);
+    LapicOut(0x360,0x10000);
+    LapicOut(0x80,0);
+    
+    unsigned int base;
+    asm("rdmsr":"=A"(base):"c"(0x1B));
+    base &= 0xfffff100;
+    asm("wrmsr"::"c"(0x1B),"A"(base|0x800));
+    
+    LapicOut(0xF0,LapicIn(0xF0) | 0x100);
+    LapicOut(0x320,0x20);
+    LapicOut(0x3E0,3);
 
+    outportb(0x61,(inportb(0x61)&0xFD)|1);
+	outportb(0x43,/*0xB2*/0);
+	outportb(0x42,0x9B);
+	inportb(0x60);
+	outportb(0x42,0x2E);
+
+	unsigned char tmp=inportb(0x61)&0xFE;
+	outportb(0x61,tmp);
+	outportb(0x61,tmp|1);
+    LapicOut(0x380,0xFFFFFFFF);
+    char t;
+	while(!((t=inportb(0x61))&0x20)) {
+        printb(t);
+    };
+    
+    LapicOut(0x320,0x10000);
+
+	unsigned int cpubusfreq = ((0xFFFFFFFF-LapicIn(0x390))+1)*16*100, tmp2 = cpubusfreq/quantum/16;
+    
+    Interrupts::maskIRQ(Interrupts::getIRQmask()|2);
+    
+    LapicOut(0x380,tmp2<16?16:tmp2);
+    LapicOut(0x320,0x20|0x20000);
+    LapicOut(0x3E0,3);
+    Interrupts::addCallback(0x20,&ACPI::EOI);
+}
