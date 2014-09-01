@@ -251,7 +251,7 @@ void ModuleManager::loadStream(Stream *stream, bool start){
     stream->seek(mod->size,-1);
     if (!stream->eof()){
         Stream *sub = stream->substream();
-        loadStream(sub);
+        loadStream(sub,start);
         delete sub;
     }
 }
