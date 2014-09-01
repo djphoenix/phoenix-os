@@ -16,6 +16,8 @@
 
 #include "process.hpp"
 
+_uint64 countval = 0;
+
 void process_loop()
 {
     for(;;) asm("hlt");
@@ -24,7 +26,13 @@ void process_loop()
 ProcessManager* ProcessManager::manager = 0;
 ProcessManager* ProcessManager::getManager() {
     if (manager) return manager;
+    Interrupts::addCallback(0x20,&ProcessManager::SwitchProcess);
     return manager = new ProcessManager();
+}
+void ProcessManager::SwitchProcess(){
+    if (countval++ % 0x1000 != 0) return;
+    printl((ACPI::getController())->getLapicID()); print("->");
+    printq(countval); print("\n");
 }
 
 _uint64 ProcessManager::RegisterProcess(Process* process){

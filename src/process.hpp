@@ -54,6 +54,7 @@ class ProcessManager {
 private:
     Process** processes;
     static ProcessManager* manager;
+    static void SwitchProcess();
 public:
     _uint64 RegisterProcess(Process* process);
     static ProcessManager* getManager();
