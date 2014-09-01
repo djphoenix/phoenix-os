@@ -37,7 +37,7 @@ _uint64 ProcessManager::RegisterProcess(Process* process){
         _uint64 pid = 1;
         while (this->processes[pid-1] != 0) pid++;
         Process** np = (Process**)Memory::alloc(sizeof(Process*)*pid);
-        Memory::copy(np, this->processes, sizeof(Process*)*pid-2);
+        Memory::copy(np, this->processes, sizeof(Process*)*(pid-2));
         Memory::free(this->processes);
         this->processes = np;
         this->processes[pid-1] = process;
