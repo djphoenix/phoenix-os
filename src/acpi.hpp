@@ -18,6 +18,7 @@
 #define ACPI_H
 #include "pxlib.hpp"
 #include "memory.hpp"
+#include "cpu.hpp"
 
 typedef unsigned int *uintptr_t;
 typedef struct

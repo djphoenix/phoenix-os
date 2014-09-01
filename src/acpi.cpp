@@ -29,6 +29,11 @@ ACPI::ACPI() {
     acpiCpuCount = 0;
     activeCpuCount = 1;
     
+    if (!((CPU::getFeatures() >> 32) & CPUID_FEAT_APIC)) {
+        acpiCpuCount = 1;
+        return;
+    }
+
     while (p < end)
     {
         _uint64 signature = *(_uint64 *)p;
@@ -132,16 +137,20 @@ bool ACPI::ParseRsdp(char *p) {
     return true;
 }
 int ACPI::getLapicID() {
+    if (!localApicAddr) return 0;
     return LapicIn(0x0020) >> 24;
 }
 int ACPI::getLapicIDOfCPU(int id) {
+    if (!localApicAddr) return 0;
     return acpiCpuIds[id];
 }
 int ACPI::LapicIn(int reg) {
+    if (!localApicAddr) return 0;
     Memory::salloc((char*)localApicAddr + reg);
     return MmioRead32((char*)localApicAddr + reg);
 }
 void ACPI::LapicOut(int reg, int data) {
+    if (!localApicAddr) return;
     Memory::salloc((char*)localApicAddr + reg);
     MmioWrite32((char*)localApicAddr + reg, data);
 }
@@ -149,12 +158,15 @@ void* ACPI::getLapicAddr() {
     return localApicAddr;
 }
 int ACPI::getCPUCount() {
+    if (!localApicAddr) return 1;
     return acpiCpuCount;
 }
 int ACPI::getActiveCPUCount() {
+    if (!localApicAddr) return 1;
     return activeCpuCount;
 }
 void ACPI::activateCPU() {
+    if (!localApicAddr) return;
     activeCpuCount++;
     Interrupts::loadVector();
     LapicOut(0x380,16);
@@ -162,19 +174,23 @@ void ACPI::activateCPU() {
     LapicOut(0x3E0,3);
 }
 void ACPI::sendCPUInit(int id) {
+    if (!localApicAddr) return;
     LapicOut(0x0310, id << 24);
     LapicOut(0x0300, 0x00004500);
     while (LapicIn(0x0300) & 0x00001000);
 }
 void ACPI::sendCPUStartup(int id, char vector) {
+    if (!localApicAddr) return;
     LapicOut(0x0310, id << 24);
     LapicOut(0x0300, vector | 0x00004600);
     while (LapicIn(0x0300) & 0x00001000);
 }
 void ACPI::EOI(){
+    if (!(ACPI::getController())->localApicAddr) return;
     (ACPI::getController())->LapicOut(0xB0,0);
 }
 void ACPI::initTimer(){
+    if (!((CPU::getFeatures() >> 32) & CPUID_FEAT_APIC)) return;
     if (localApicAddr == 0) return;
     LapicOut(0xE0,0xFFFFFFFF);
     LapicOut(0xD0,(LapicIn(0xD0)&0x00FFFFFF)|1);
