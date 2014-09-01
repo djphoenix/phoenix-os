@@ -49,9 +49,19 @@ typedef struct {
     PROCSYM* symbols;
     _uint64 entry_sym;
 } PROCSTARTINFO, *PPROCSTARTINFO;
+class Process;
+class ProcessManager {
+private:
+    Process** processes;
+    static ProcessManager* manager;
+public:
+    _uint64 RegisterProcess(Process* process);
+    static ProcessManager* getManager();
+};
 
 class Process {
 private:
+    _uint64 id;
     PPTE pagetable;
     PROCSTARTINFO psinfo;
     struct {

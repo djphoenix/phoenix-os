@@ -21,6 +21,34 @@ void process_loop()
     for(;;) asm("hlt");
 }
 
+ProcessManager* ProcessManager::manager = 0;
+ProcessManager* ProcessManager::getManager() {
+    if (manager) return manager;
+    return manager = new ProcessManager();
+}
+
+_uint64 ProcessManager::RegisterProcess(Process* process){
+    if (this->processes == 0) {
+        this->processes = (Process**)Memory::alloc(sizeof(Process*)*2);
+        this->processes[0] = process;
+        this->processes[1] = 0;
+        return 1;
+    } else {
+        _uint64 pid = 1;
+        while (this->processes[pid-1] != 0) pid++;
+        Process** np = (Process**)Memory::alloc(sizeof(Process*)*pid);
+        Memory::copy(np, this->processes, sizeof(Process*)*pid-2);
+        Memory::free(this->processes);
+        this->processes = np;
+        this->processes[pid-1] = process;
+        this->processes[pid] = 0;
+        return pid;
+    }
+}
+
 Process::Process(PROCSTARTINFO psinfo){
     suspend=true;
+    this->psinfo = psinfo;
+    this->id = (ProcessManager::getManager())->RegisterProcess(this);
+    print("Registered process: "); printq(this->id); print("\n");
 }
