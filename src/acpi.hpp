@@ -69,6 +69,7 @@ typedef struct ApicInterruptOverride
 
 class ACPI {
 private:
+    unsigned int cpubusfreq;
     AcpiMadt *madt;
     long* localApicAddr, *ioApicAddr;
     int acpiCpuIds[256];

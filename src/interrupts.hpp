@@ -62,5 +62,6 @@ public:
     static void maskIRQ(unsigned short mask);
     static unsigned short getIRQmask();
     static void addCallback(unsigned char intr, intcb* cb);
+    static void loadVector();
 };
 #endif

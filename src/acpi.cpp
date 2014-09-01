@@ -139,9 +139,11 @@ int ACPI::getLapicIDOfCPU(int id) {
     return acpiCpuIds[id];
 }
 int ACPI::LapicIn(int reg) {
+    Memory::salloc((char*)localApicAddr + reg);
     return MmioRead32((char*)localApicAddr + reg);
 }
 void ACPI::LapicOut(int reg, int data) {
+    Memory::salloc((char*)localApicAddr + reg);
     MmioWrite32((char*)localApicAddr + reg, data);
 }
 void* ACPI::getLapicAddr() {
@@ -155,6 +157,11 @@ int ACPI::getActiveCPUCount() {
 }
 void ACPI::activateCPU() {
     activeCpuCount++;
+    unsigned int tmp2 = cpubusfreq/quantum/16;
+    Interrupts::loadVector();
+    LapicOut(0x380,tmp2<16?16:tmp2);
+    LapicOut(0x320,0x20|0x20000);
+    LapicOut(0x3E0,3);
 }
 void ACPI::sendCPUInit(int id) {
     LapicOut(0x0310, id << 24);
@@ -204,13 +211,13 @@ void ACPI::initTimer(){
     };
     
     LapicOut(0x320,0x10000);
-
-	unsigned int cpubusfreq = ((0xFFFFFFFF-LapicIn(0x390))+1)*16*100, tmp2 = cpubusfreq/quantum/16;
     
+    cpubusfreq = ((0xFFFFFFFF-LapicIn(0x390))+1)*16*100;
+	unsigned int tmp2 = cpubusfreq/quantum/16;
+
     Interrupts::maskIRQ(Interrupts::getIRQmask()|2);
     
     LapicOut(0x380,tmp2<16?16:tmp2);
     LapicOut(0x320,0x20|0x20000);
     LapicOut(0x3E0,3);
-    Interrupts::addCallback(0x20,&ACPI::EOI);
 }

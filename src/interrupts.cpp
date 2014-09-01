@@ -97,6 +97,7 @@ void Interrupts::handle(unsigned char intr, _uint64 stack){
             i++;
         }
     }
+    ACPI::EOI();
 }
 void Interrupts::init()
 {
@@ -142,13 +143,17 @@ void Interrupts::init()
     
     interrupt_handler(0,0);
     ints_set = 1;
-	asm volatile( "lidtq %0\nsti"::"m"(idt->rec));
+    loadVector();
     (ACPI::getController())->initTimer();
 }
 
 void Interrupts::maskIRQ(unsigned short mask){
 	outportb(0x21, mask & 0xFF);
 	outportb(0xA1, (mask >> 8) & 0xFF);
+}
+
+void Interrupts::loadVector(){
+	asm volatile( "lidtq %0\nsti"::"m"(idt->rec));
 }
 
 unsigned short Interrupts::getIRQmask(){
