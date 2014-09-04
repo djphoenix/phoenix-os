@@ -144,7 +144,7 @@ void Interrupts::init()
     interrupt_handler(0,0);
     ints_set = 1;
     loadVector();
-    (ACPI::getController())->initTimer();
+    (ACPI::getController())->initAPIC();
 }
 
 void Interrupts::maskIRQ(unsigned short mask){

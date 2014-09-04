@@ -169,9 +169,19 @@ void ACPI::activateCPU() {
     if (!localApicAddr) return;
     activeCpuCount++;
     Interrupts::loadVector();
-    LapicOut(0x380,16);
+    LapicOut(0xE0,0xFFFFFFFF);
+    LapicOut(0xD0,(LapicIn(0xD0)&0x00FFFFFF)|1);
+    LapicOut(0x320,0x10000);
+    LapicOut(0x340,4<<8);
+    LapicOut(0x350,0x10000);
+    LapicOut(0x360,0x10000);
+    LapicOut(0x80,0);
+    LapicOut(0xF0,0x27 | 0x100);
+    LapicOut(0x3E0,3);
+    LapicOut(0x380,16*acpiCpuCount);
     LapicOut(0x320,0x20|0x20000);
     LapicOut(0x3E0,3);
+	EOI();
 }
 void ACPI::sendCPUInit(int id) {
     if (!localApicAddr) return;
@@ -189,7 +199,7 @@ void ACPI::EOI(){
     if (!(ACPI::getController())->localApicAddr) return;
     (ACPI::getController())->LapicOut(0xB0,0);
 }
-void ACPI::initTimer(){
+void ACPI::initAPIC(){
     if (!((CPU::getFeatures() >> 32) & CPUID_FEAT_APIC)) return;
     if (localApicAddr == 0) return;
     LapicOut(0xE0,0xFFFFFFFF);
@@ -200,20 +210,13 @@ void ACPI::initTimer(){
     LapicOut(0x360,0x10000);
     LapicOut(0x80,0);
     
-    unsigned int base;
-    asm("rdmsr":"=A"(base):"c"(0x1B));
-    base &= 0xfffff100;
-    asm("wrmsr"::"c"(0x1B),"A"(base|0x800));
-    
-    LapicOut(0xF0,LapicIn(0xF0) | 0x100);
-    LapicOut(0x320,0x20);
+    LapicOut(0xF0,0x27 | 0x100);
     LapicOut(0x3E0,3);
     
-    LapicOut(0x320,0x10000);
+    Interrupts::maskIRQ(0xFFFF);
     
-    Interrupts::maskIRQ(Interrupts::getIRQmask()|2);
-    
-    LapicOut(0x380,16);
+    LapicOut(0x380,16*acpiCpuCount);
     LapicOut(0x320,0x20|0x20000);
     LapicOut(0x3E0,3);
+    EOI();
 }
