@@ -25,14 +25,16 @@ _smp_init:
 	mov ax, cs
 	shl eax, 4
 	
-	mov [gd_reg+2], dword gd_table
-	add [gd_reg+2], eax
+	add eax, dword gd_table
+	mov [gd_reg+2], eax
 	
-	mov [.jmp+1], word _protected
-	add [.jmp+1], ax
+	add eax, dword (_protected-gd_table)
+	mov [.jmp+1], ax
 	
 	lgdt [gd_reg]
-	
+	mov ebp, eax
+	sub ebp, _protected
+
 	mov eax, cr0 
 	or al, 1 
 	mov cr0, eax
@@ -57,17 +59,12 @@ _protected:
 	mov ds, ax
 	mov es, ax
 	mov ss, ax
-	mov esp, 0x1000
-	call .get_eip
-.get_eip:
-	pop ebp
-	sub ebp, .get_eip
+	mov eax, dword GDT64.Null
+	add eax, ebp
+	mov [ebp + GDT64.Pointer +2], eax
 	
-	mov [ebp + GDT64.Pointer +2], dword GDT64.Null
-	add [ebp + GDT64.Pointer +2], ebp
-	
-	mov [ebp + .jmp +1], dword x64_entry
-	add [ebp + .jmp +1], ebp
+	add eax, dword (x64_entry-GDT64.Null)
+	mov [ebp + .jmp +1], eax
 	lgdt [GDT64.Pointer + ebp]
 
 	mov eax, cr0
@@ -104,13 +101,13 @@ x64_entry:
 
     mov rax, [rbp + _smp_end + 8]
     xor rdx, rdx
-_getid:
+.getid:
     cmp rcx, [rax]
-    je _foundid
+    je .foundid
     add rax, 8
     inc rdx
-    jmp _getid
-_foundid:
+    jmp .getid
+.foundid:
 
 	shl rdx, 3
 	add rdx, [rbp + _smp_end + 16]
