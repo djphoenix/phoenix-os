@@ -17,6 +17,11 @@
 PREFIX=
 ifeq ($(OS),Windows_NT)
     PREFIX=x86_64-w64-mingw32-
+else
+    UNAME_S=$(shell uname -s)
+    ifeq ($(UNAME_S),Darwin)
+        PREFIX=x86_64-elf-
+    endif
 endif
 
 CC=$(PREFIX)gcc
@@ -28,6 +33,10 @@ ASSEMBLY=$(shell ls src/*.s)
 SOURCES=$(shell ls src/*.cpp)
 OBJECTS=$(ASSEMBLY:src/%.s=obj/%.o) $(SOURCES:src/%.cpp=obj/%.o)
 MODULES=hello
+
+ifeq ($(UNAME_S),Darwin)
+    OBJCOPY=gobjcopy
+endif
 
 all: $(BIN) clean
 $(BIN): ${OBJECTS} obj/modules-linked.o
