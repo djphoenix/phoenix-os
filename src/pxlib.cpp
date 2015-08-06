@@ -108,3 +108,5 @@ bool strcmp(const char* a, char* b)
         i++;
     }
 }
+
+extern "C" void __cxa_pure_virtual() { while (1); }
