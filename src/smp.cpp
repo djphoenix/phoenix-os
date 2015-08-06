@@ -30,8 +30,8 @@ void SMP::init() {
 
 	char* smp_init_code = (char*)Memory::palloc(1);
 	char smp_init_vector = (((_uint64)smp_init_code) >> 12) & 0xFF;
-	char* smp_s; asm("mov $_smp_init,%q0":"=a"(smp_s):);
-	char* smp_e; asm("mov $_smp_end,%q0":"=a"(smp_e):);
+	char* smp_s; asm("movabs $_smp_init,%q0":"=a"(smp_s):);
+	char* smp_e; asm("movabs $_smp_end,%q0":"=a"(smp_e):);
 	while(smp_s < smp_e) *(smp_init_code++) = *(smp_s++);
 	*((_uint64*)smp_init_code) = (_uint64)acpi->getLapicAddr(); smp_init_code += 8;
 	_uint64 *stacks = (_uint64*)Memory::alloc(sizeof(_uint64)*cpuCount);

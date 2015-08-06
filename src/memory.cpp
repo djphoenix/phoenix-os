@@ -36,13 +36,13 @@ PPML4E Memory::get_page(void* base_addr)
 }
 void Memory::init()
 {
-	asm("movq $_start, %q0":"=a"(kernel_data.kernel)); kernel_data.stack = 0x1000; kernel_data.stack_top = 0x2000;
-	asm("movq $__data_start__, %q0":"=a"(kernel_data.data));
-	asm("movq $__data_end__, %q0":"=a"(kernel_data.data_top));
-	asm("movq $__bss_start__, %q0":"=a"(kernel_data.bss));
-	asm("movq $__bss_end__, %q0":"=a"(kernel_data.bss_top));
-	asm("movq $__modules_start__, %q0":"=a"(kernel_data.modules));
-	asm("movq $__modules_end__, %q0":"=a"(kernel_data.modules_top));
+	asm("movabs $_start, %q0":"=a"(kernel_data.kernel)); kernel_data.stack = 0x1000; kernel_data.stack_top = 0x2000;
+	asm("movabs $__data_start__, %q0":"=a"(kernel_data.data));
+	asm("movabs $__data_end__, %q0":"=a"(kernel_data.data_top));
+	asm("movabs $__bss_start__, %q0":"=a"(kernel_data.bss));
+	asm("movabs $__bss_end__, %q0":"=a"(kernel_data.bss_top));
+	asm("movabs $__modules_start__, %q0":"=a"(kernel_data.modules));
+	asm("movabs $__modules_end__, %q0":"=a"(kernel_data.modules_top));
 	// Buffering BIOS interrupts
 	for(int i=0; i<256; i++){
 		PINTERRUPT32 intr = (PINTERRUPT32)(((_uint64)i & 0xFF)*sizeof(INTERRUPT32));

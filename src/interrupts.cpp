@@ -106,7 +106,7 @@ void Interrupts::init()
 	idt->rec.addr = &idt->ints[0];
 	handlers = (char*)Memory::alloc(9*256,0x1000);
 	void* addr;
-	asm("mov $_interrupt_handler,%q0":"=a"(addr));
+	asm("movabs $_interrupt_handler,%q0":"=a"(addr));
 	for(int i=0; i<256; i++){
 		_uint64 jmp_from = (_uint64)&handlers[9*i+ 4];
 		_uint64 jmp_to = (_uint64)addr;
