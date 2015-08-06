@@ -31,8 +31,8 @@ MODULES=hello
 
 all: $(BIN) clean
 $(BIN): ${OBJECTS} obj/modules-linked.o
-	$(LD) -T ld.script -belf64-x86-64 -o $(BIN) -s --nostdlib $?
-	$(OBJCOPY) $(BIN) -Felf32-i386
+	$(LD) -T ld.script -belf64-x86-64 -o $(BIN).elf -s --nostdlib $?
+	$(OBJCOPY) -Opei-x86-64 $(BIN).elf $(BIN)
 
 obj/%.o: src/%.cpp obj
 	$(CC) $(CFLAGS) $< -o $@
