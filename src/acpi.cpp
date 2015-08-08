@@ -18,9 +18,11 @@
 ACPI* ACPI::controller = 0;
 unsigned char ACPI::activeCpuCount = 0;
 _uint64 ACPI::busfreq = 0;
+Mutex* ACPI::cpuCountMutex = 0;
 
 ACPI* ACPI::getController() {
     if (controller) return controller;
+    ACPI::cpuCountMutex = new Mutex();
     return controller = new ACPI();
 }
 
@@ -185,10 +187,9 @@ void ACPI::activateCPU() {
     LapicOut(0x320,0x20 | 0x20000);
     LapicOut(0x3E0,3);
     EOI();
-    static bool lock;
-    while (lock); lock = 1;
+    cpuCountMutex->lock();
     activeCpuCount++;
-    lock = 0;
+    cpuCountMutex->release();
 }
 void ACPI::sendCPUInit(int id) {
     if (!localApicAddr) return;

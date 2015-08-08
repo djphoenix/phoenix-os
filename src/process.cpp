@@ -23,19 +23,23 @@ void process_loop()
     for(;;) asm("hlt");
 }
 
+Mutex* ProcessManager::processSwitchMutex = 0;
 ProcessManager* ProcessManager::manager = 0;
 ProcessManager* ProcessManager::getManager() {
     if (manager) return manager;
+    processSwitchMutex = new Mutex();
     Interrupts::addCallback(0x20,&ProcessManager::SwitchProcess);
     return manager = new ProcessManager();
 }
 void ProcessManager::SwitchProcess(){
-    static bool lock;
-    while (lock); lock = 1;
-    if (countval++ % 0x101 != 0) {lock = 0; return;}
+    processSwitchMutex->lock();
+    if (countval++ % 0x1001 != 0) {
+        processSwitchMutex->release();
+        return;
+    }
     printl((ACPI::getController())->getLapicID()); print("->");
     printq(countval); print("\n");
-    lock = 0;
+    processSwitchMutex->release();
 }
 
 _uint64 ProcessManager::RegisterProcess(Process* process){
