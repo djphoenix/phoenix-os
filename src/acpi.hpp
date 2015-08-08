@@ -75,6 +75,7 @@ private:
     int acpiCpuIds[256];
     unsigned char acpiCpuCount;
     static unsigned char activeCpuCount;
+    static _uint64 busfreq;
     static ACPI *controller;
     bool ParseRsdp(char* rsdp);
     void ParseRsdt(AcpiHeader* rsdt);
@@ -94,7 +95,7 @@ public:
     int getLapicIDOfCPU(int cpuId);
     void sendCPUInit(int id);
     void sendCPUStartup(int id, char vector);
-    void initAPIC();
+    bool initAPIC();
     static void EOI();
 };
 

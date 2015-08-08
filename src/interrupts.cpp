@@ -129,22 +129,23 @@ void Interrupts::init()
 		idt->ints[i].offset_middle = ((_int64)(&handlers[9*i]) >> 16) & 0xFFFF;
 		idt->ints[i].offset_high = ((_int64)(&handlers[9*i]) >> 32) & 0xFFFFFFFF;
 	}
-
-	outportb(0x20, 0x11);
-	outportb(0xA0, 0x11);
-	outportb(0x21, 0x20);
-	outportb(0xA1, 0x28);
-	outportb(0x21, 0x04);
-	outportb(0xA1, 0x02);
-	outportb(0x21, 0x01);
-	outportb(0xA1, 0x01);
-
-    maskIRQ(0);
     
+    outportb(0x20, 0x11);
+    outportb(0xA0, 0x11);
+    outportb(0x21, 0x20);
+    outportb(0xA1, 0x28);
+    outportb(0x21, 0x04);
+    outportb(0xA1, 0x02);
+    outportb(0x21, 0x01);
+    outportb(0xA1, 0x01);
+
+    loadVector();
+
+    if (!(ACPI::getController())->initAPIC()) {
+        maskIRQ(0);
+    }
     interrupt_handler(0,0);
     ints_set = 1;
-    loadVector();
-    (ACPI::getController())->initAPIC();
 }
 
 void Interrupts::maskIRQ(unsigned short mask){

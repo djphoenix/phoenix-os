@@ -30,9 +30,12 @@ ProcessManager* ProcessManager::getManager() {
     return manager = new ProcessManager();
 }
 void ProcessManager::SwitchProcess(){
-    if (countval++ % 0x1000 != 0) return;
+    static bool lock;
+    while (lock); lock = 1;
+    if (countval++ % 0x101 != 0) {lock = 0; return;}
     printl((ACPI::getController())->getLapicID()); print("->");
     printq(countval); print("\n");
+    lock = 0;
 }
 
 _uint64 ProcessManager::RegisterProcess(Process* process){
