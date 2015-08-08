@@ -110,3 +110,13 @@ bool strcmp(const char* a, char* b)
 }
 
 extern "C" void __cxa_pure_virtual() { while (1); }
+
+void Mutex::lock()
+{
+    bool n = 1;
+    asm volatile("lock xchgb %0,%1":"=r"(n),"+m"(state):"0"(n):"memory");
+}
+void Mutex::release()
+{
+    state = 0;
+}

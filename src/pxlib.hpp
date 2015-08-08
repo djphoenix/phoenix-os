@@ -19,6 +19,17 @@
 
 #define MAX(A,B) ((A)>(B))?(A):(B)
 
+class Mutex {
+private:
+    bool state;
+public:
+    Mutex() {
+        state = 0;
+    }
+    void lock();
+    void release();
+};
+
 typedef unsigned int uint;
 typedef long long int _int64;
 typedef unsigned long long int _uint64;
