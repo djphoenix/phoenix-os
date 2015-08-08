@@ -60,7 +60,7 @@ obj/modules-linked.o: obj
 	$(OBJCOPY) -Oelf64-x86-64 -Bi386 -Ibinary --rename-section .data=.modules $(@:.o=.b) $@
 
 clean:
-	rm -rf obj
+	rm -rf obj bin/pxkrnl.elf bin/pxkrnl
 obj:
 	mkdir -p obj/mod
 launch:
