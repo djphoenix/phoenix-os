@@ -177,8 +177,6 @@ void ACPI::activateCPU() {
     asm("mov $0x1B,%ecx \n rdmsr \n bts $11,%eax \n wrmsr");
     
     LapicOut(0xF0,0x27 | 0x100);
-    LapicOut(0x320,0x20);
-    LapicOut(0x3E0,3);
     
     _uint64 c = (ACPI::busfreq / 1000) >> 4;
     if (c < 0x10) c = 0x10;
@@ -224,8 +222,6 @@ bool ACPI::initAPIC(){
     asm("mov $0x1B,%ecx \n rdmsr \n bts $11,%eax \n wrmsr");
 
     LapicOut(0xF0,0x27 | 0x100);
-    LapicOut(0x320,0x20);
-    LapicOut(0x3E0,3);
     
     outportb(0x61,inportb(0x61)&0xFD|1);
     outportb(0x43,0xB2);
