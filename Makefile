@@ -33,6 +33,7 @@ ASSEMBLY=$(shell ls src/*.s)
 SOURCES=$(shell ls src/*.cpp)
 OBJECTS=$(ASSEMBLY:src/%.s=obj/%.o) $(SOURCES:src/%.cpp=obj/%.o)
 MODULES=hello
+QEMU=qemu-system-x86_64
 
 ifeq ($(UNAME_S),Darwin)
     OBJCOPY=gobjcopy
@@ -64,4 +65,4 @@ clean:
 obj:
 	mkdir -p obj/mod
 launch:
-	qemu -kernel $(BIN) -smp 8
+	$(QEMU) -kernel $(BIN) -smp 8 -cpu Nehalem
