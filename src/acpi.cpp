@@ -136,7 +136,7 @@ bool ACPI::ParseRsdp(char *p) {
 }
 int ACPI::getLapicID() {
     if (!localApicAddr) return 0;
-    return LapicIn(0x0020) >> 24;
+    return LapicIn(LAPIC_APICID) >> 24;
 }
 int ACPI::getLapicIDOfCPU(int id) {
     if (!localApicAddr) return 0;
@@ -166,24 +166,24 @@ int ACPI::getActiveCPUCount() {
 void ACPI::activateCPU() {
     if (!localApicAddr) return;
     Interrupts::loadVector();
-    LapicOut(0xE0,0xFFFFFFFF);
-    LapicOut(0xD0,(LapicIn(0xD0)&0x00FFFFFF)|1);
-    LapicOut(0x320,0x10000);
-    LapicOut(0x340,4<<8);
-    LapicOut(0x350,0x10000);
-    LapicOut(0x360,0x10000);
-    LapicOut(0x80,0);
+    LapicOut(LAPIC_DFR,0xFFFFFFFF);
+    LapicOut(LAPIC_LDR,(LapicIn(0xD0)&0x00FFFFFF)|1);
+    LapicOut(LAPIC_LVT_TMR,LAPIC_DISABLE);
+    LapicOut(LAPIC_LVT_PERF,4<<8);
+    LapicOut(LAPIC_LVT_LINT0,LAPIC_DISABLE);
+    LapicOut(LAPIC_LVT_LINT1,LAPIC_DISABLE);
+    LapicOut(LAPIC_TASKPRIOR,0);
     
     asm("mov $0x1B,%ecx \n rdmsr \n bts $11,%eax \n wrmsr");
     
-    LapicOut(0xF0,0x27 | 0x100);
+    LapicOut(LAPIC_SPURIOUS,0x27 | LAPIC_SW_ENABLE);
     
     _uint64 c = (ACPI::busfreq / 1000) >> 4;
     if (c < 0x10) c = 0x10;
     
-    LapicOut(0x380,c & 0xFFFFFFFF);
-    LapicOut(0x320,0x20 | 0x20000);
-    LapicOut(0x3E0,3);
+    LapicOut(LAPIC_TMRINITCNT,c & 0xFFFFFFFF);
+    LapicOut(LAPIC_LVT_TMR,0x20 | TMR_PERIODIC);
+    LapicOut(LAPIC_TMRDIV,3);
     EOI();
     cpuCountMutex->lock();
     activeCpuCount++;
@@ -191,19 +191,19 @@ void ACPI::activateCPU() {
 }
 void ACPI::sendCPUInit(int id) {
     if (!localApicAddr) return;
-    LapicOut(0x0310, id << 24);
-    LapicOut(0x0300, 0x00004500);
-    while (LapicIn(0x0300) & 0x00001000);
+    LapicOut(LAPIC_ICRH, id << 24);
+    LapicOut(LAPIC_ICRL, 0x00004500);
+    while (LapicIn(LAPIC_ICRL) & 0x00001000);
 }
 void ACPI::sendCPUStartup(int id, char vector) {
     if (!localApicAddr) return;
-    LapicOut(0x0310, id << 24);
-    LapicOut(0x0300, vector | 0x00004600);
-    while (LapicIn(0x0300) & 0x00001000);
+    LapicOut(LAPIC_ICRH, id << 24);
+    LapicOut(LAPIC_ICRL, vector | 0x00004600);
+    while (LapicIn(LAPIC_ICRL) & 0x00001000);
 }
 void ACPI::EOI(){
     if (!(ACPI::getController())->localApicAddr) return;
-    (ACPI::getController())->LapicOut(0xB0,0);
+    (ACPI::getController())->LapicOut(LAPIC_EOI,0);
 }
 bool ACPI::initAPIC(){
     if (!((CPU::getFeatures() >> 32) & CPUID_FEAT_APIC)) return false;
@@ -211,17 +211,17 @@ bool ACPI::initAPIC(){
     Interrupts::maskIRQ(0xFFFF);
     ACPI *acpi = (ACPI::getController());
     
-    LapicOut(0xE0,0xFFFFFFFF);
-    LapicOut(0xD0,(LapicIn(0xD0)&0x00FFFFFF)|1);
-    LapicOut(0x320,0x10000);
-    LapicOut(0x340,4<<8);
-    LapicOut(0x350,0x10000);
-    LapicOut(0x360,0x10000);
-    LapicOut(0x80,0);
+    LapicOut(LAPIC_DFR,0xFFFFFFFF);
+    LapicOut(LAPIC_LDR,(LapicIn(0xD0)&0x00FFFFFF)|1);
+    LapicOut(LAPIC_LVT_TMR,LAPIC_DISABLE);
+    LapicOut(LAPIC_LVT_PERF,4<<8);
+    LapicOut(LAPIC_LVT_LINT0,LAPIC_DISABLE);
+    LapicOut(LAPIC_LVT_LINT1,LAPIC_DISABLE);
+    LapicOut(LAPIC_TASKPRIOR,0);
     
     asm("mov $0x1B,%ecx \n rdmsr \n bts $11,%eax \n wrmsr");
 
-    LapicOut(0xF0,0x27 | 0x100);
+    LapicOut(LAPIC_SPURIOUS,0x27 | LAPIC_SW_ENABLE);
     
     outportb(0x61,inportb(0x61)&0xFD|1);
     outportb(0x43,0xB2);
@@ -231,16 +231,16 @@ bool ACPI::initAPIC(){
     char t = inportb(0x61) & 0xFE;
     outportb(0x61,t);
     outportb(0x61,t|1);
-    LapicOut(0x380,-1);
+    LapicOut(LAPIC_TMRINITCNT,-1);
     while (inportb(0x61) & 0x20 != 0) ;
-    LapicOut(0x320,0x10000);
+    LapicOut(LAPIC_LVT_TMR,LAPIC_DISABLE);
     acpi->busfreq = ((-1 - LapicIn(0x390)) << 4) * 100;
     _uint64 c = (ACPI::busfreq / 1000) >> 4;
     if (c < 0x10) c = 0x10;
     
-    LapicOut(0x380,c & 0xFFFFFFFF);
-    LapicOut(0x320,0x20 | 0x20000);
-    LapicOut(0x3E0,3);
+    LapicOut(LAPIC_TMRINITCNT,c & 0xFFFFFFFF);
+    LapicOut(LAPIC_LVT_TMR,0x20 | TMR_PERIODIC);
+    LapicOut(LAPIC_TMRDIV,3);
     EOI();
     return true;
 }

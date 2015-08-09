@@ -20,6 +20,36 @@
 #include "memory.hpp"
 #include "cpu.hpp"
 
+enum LAPIC_FIELDS {
+    LAPIC_APICID        = 0x20,
+    LAPIC_APICVER       = 0x30,
+    LAPIC_TASKPRIOR     = 0x80,
+    LAPIC_EOI           = 0xB0,
+    LAPIC_LDR           = 0xD0,
+    LAPIC_DFR           = 0xE0,
+    LAPIC_SPURIOUS      = 0xF0,
+    LAPIC_ESR           = 0x280,
+    LAPIC_ICRL          = 0x300,
+    LAPIC_ICRH          = 0x310,
+    LAPIC_LVT_TMR       = 0x320,
+    LAPIC_LVT_PERF      = 0x340,
+    LAPIC_LVT_LINT0     = 0x350,
+    LAPIC_LVT_LINT1     = 0x360,
+    LAPIC_LVT_ERR       = 0x370,
+    LAPIC_TMRINITCNT	= 0x380,
+    LAPIC_TMRCURRCNT	= 0x390,
+    LAPIC_TMRDIV        = 0x3E0,
+    LAPIC_LAST          = 0x38F,
+};
+enum LAPIC_VALUES {
+    LAPIC_DISABLE       = 0x10000,
+    LAPIC_SW_ENABLE     = 0x100,
+    LAPIC_CPUFOCUS      = 0x200,
+    LAPIC_NMI           = (4<<8),
+    TMR_PERIODIC        = 0x20000,
+    TMR_BASEDIV         = (1<<20),
+};
+
 typedef unsigned int *uintptr_t;
 typedef struct
 {
