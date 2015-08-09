@@ -21,6 +21,8 @@ extrn main
 public _start
 public __main
 extrn grub_data
+extrn __bss_start__
+extrn __bss_end__
 _start:
 	jmp multiboot_entry
 
@@ -32,7 +34,14 @@ multiboot_header:
 
 multiboot_entry:
 	cli
-	
+
+    mov edi, __bss_start__
+._bss_loop:
+	mov dword [edi], 0
+	add edi, 4
+	cmp edi, __bss_end__
+	jl ._bss_loop
+
 	cmp eax, 0x2BADB002
 	jne .NoMultiboot
 
