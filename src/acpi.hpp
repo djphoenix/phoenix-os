@@ -124,6 +124,7 @@ public:
     void LapicOut(int reg, int data);
     void activateCPU();
     int getLapicIDOfCPU(int cpuId);
+    int getCPUIDOfLapic(int lapicId);
     void sendCPUInit(int id);
     void sendCPUStartup(int id, char vector);
     bool initAPIC();

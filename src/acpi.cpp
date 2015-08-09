@@ -142,6 +142,13 @@ int ACPI::getLapicIDOfCPU(int id) {
     if (!localApicAddr) return 0;
     return acpiCpuIds[id];
 }
+int ACPI::getCPUIDOfLapic(int id) {
+    if (!localApicAddr) return 0;
+    for (int i=0; i<256; i++) {
+        if (acpiCpuIds[i]==id) return i;
+    }
+    return 0;
+}
 int ACPI::LapicIn(int reg) {
     if (!localApicAddr) return 0;
     Memory::salloc((char*)localApicAddr + reg);

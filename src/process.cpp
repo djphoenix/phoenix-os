@@ -37,8 +37,11 @@ void ProcessManager::SwitchProcess(){
         processSwitchMutex->release();
         return;
     }
-    printl((ACPI::getController())->getLapicID()); print("->");
-    printq(countval); print("\n");
+    ACPI *acpi = ACPI::getController();
+    printl(acpi->getCPUIDOfLapic(acpi->getLapicID()));
+    print("->");
+    printq(countval);
+    print("\n");
     processSwitchMutex->release();
 }
 
