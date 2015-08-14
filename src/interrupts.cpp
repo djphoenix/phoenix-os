@@ -87,7 +87,9 @@ void Interrupts::handle(unsigned char intr, _uint64 stack){
 		for(int i=0;i<7;i++)
 			{printq(rsp[i]); print("\n");}
 		for(;;);
-	} else if(intr != 0x20) {
+    } else if(intr == 0x21) {
+        print("KBD "); printb(inportb(0x60)); print("\n");
+    } else if(intr != 0x20) {
 		print("INT "); prints(intr); print("h\n");
 	}
     if (callbacks) {
