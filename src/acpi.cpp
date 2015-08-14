@@ -176,6 +176,30 @@ void ACPI::LapicOut(int reg, int data) {
     Memory::salloc((char*)localApicAddr + reg);
     MmioWrite32((char*)localApicAddr + reg, data);
 }
+int ACPI::IOapicIn(int reg) {
+    if (!ioApicAddr) return 0;
+    Memory::salloc((char*)ioApicAddr + IOAPIC_REGSEL);
+    Memory::salloc((char*)ioApicAddr + IOAPIC_REGWIN);
+    MmioWrite32((char*)ioApicAddr + IOAPIC_REGSEL, reg);
+    return MmioRead32((char*)ioApicAddr + IOAPIC_REGWIN);
+}
+void ACPI::IOapicOut(int reg, int data) {
+    if (!ioApicAddr) return;
+    Memory::salloc((char*)ioApicAddr + IOAPIC_REGSEL);
+    Memory::salloc((char*)ioApicAddr + IOAPIC_REGWIN);
+    MmioWrite32((char*)ioApicAddr + IOAPIC_REGSEL, reg);
+    MmioWrite32((char*)ioApicAddr + IOAPIC_REGWIN, data);
+}
+void ACPI::IOapicMap(int idx, ioapic_redir r) {
+    IOapicOut(IOAPIC_REDTBL + idx*2 +0, ((int*)&r)[0]);
+    IOapicOut(IOAPIC_REDTBL + idx*2 +1, ((int*)&r)[1]);
+}
+ioapic_redir ACPI::IOapicReadMap(int idx) {
+    ioapic_redir r;
+    ((int*)&r)[0] = IOapicIn(IOAPIC_REDTBL + idx*2 +0);
+    ((int*)&r)[1] = IOapicIn(IOAPIC_REDTBL + idx*2 +1);
+    return r;
+}
 void* ACPI::getLapicAddr() {
     return localApicAddr;
 }
@@ -229,6 +253,23 @@ void ACPI::EOI(){
     if (!(ACPI::getController())->localApicAddr) return;
     (ACPI::getController())->LapicOut(LAPIC_EOI,0);
 }
+void ACPI::initIOAPIC(){
+    if (ioApicAddr == 0) return;
+    ioApicMaxCount = (IOapicIn(IOAPIC_VER) >> 16) & 0xFF;
+    {
+        ioapic_redir kbd;
+        kbd.vector = 0x21;
+        kbd.deliveryMode = 1;
+        kbd.destinationMode = 0;
+        kbd.deliveryStatus = 0;
+        kbd.pinPolarity = 0;
+        kbd.remoteIRR = 0;
+        kbd.triggerMode = 0;
+        kbd.mask = 0;
+        kbd.destination = 0x00;
+        IOapicMap(1,kbd);
+    }
+}
 bool ACPI::initAPIC(){
     if (!((CPU::getFeatures() >> 32) & CPUID_FEAT_APIC)) return false;
     if (localApicAddr == 0) return false;
@@ -265,6 +306,7 @@ bool ACPI::initAPIC(){
     LapicOut(LAPIC_TMRINITCNT,c & 0xFFFFFFFF);
     LapicOut(LAPIC_LVT_TMR,0x20 | TMR_PERIODIC);
     LapicOut(LAPIC_TMRDIV,3);
+    initIOAPIC();
     EOI();
     return true;
 }

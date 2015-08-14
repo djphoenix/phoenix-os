@@ -50,6 +50,17 @@ enum LAPIC_VALUES {
     TMR_BASEDIV         = (1<<20),
 };
 
+enum IOAPIC_FIELDS {
+    IOAPIC_REGSEL       = 0x0,
+    IOAPIC_REGWIN       = 0x10,
+};
+
+enum IOAPIC_REGS {
+    IOAPIC_ID           = 0x0,
+    IOAPIC_VER          = 0x1,
+    IOAPIC_REDTBL       = 0x10,
+};
+
 typedef unsigned int *uintptr_t;
 typedef struct
 {
@@ -98,10 +109,24 @@ typedef struct ApicInterruptOverride
     short flags;
 } ApicInterruptOverride;
 
+typedef struct {
+    char vector: 8;
+    char deliveryMode: 3;
+    bool destinationMode: 1;
+    bool deliveryStatus: 1;
+    bool pinPolarity: 1;
+    bool remoteIRR: 1;
+    bool triggerMode: 1;
+    bool mask: 1;
+    _uint64 reserved: 39;
+    char destination: 8;
+} ioapic_redir;
+
 class ACPI {
 private:
     AcpiMadt *madt;
     long* localApicAddr, *ioApicAddr;
+    char ioApicMaxCount;
     int acpiCpuIds[256];
     unsigned char acpiCpuCount;
     static unsigned char activeCpuCount;
@@ -113,6 +138,7 @@ private:
     void ParseXsdt(AcpiHeader* xsdt);
     void ParseDT(AcpiHeader* dt);
     void ParseApic(AcpiMadt *madt);
+    void initIOAPIC();
 public:
     ACPI();
     static ACPI* getController();
@@ -122,6 +148,10 @@ public:
     int getActiveCPUCount();
     int LapicIn(int reg);
     void LapicOut(int reg, int data);
+    int IOapicIn(int reg);
+    void IOapicOut(int reg, int data);
+    void IOapicMap(int idx, ioapic_redir r);
+    ioapic_redir IOapicReadMap(int idx);
     void activateCPU();
     int getLapicIDOfCPU(int cpuId);
     int getCPUIDOfLapic(int lapicId);
