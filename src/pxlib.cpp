@@ -113,8 +113,13 @@ extern "C" void __cxa_pure_virtual() { while (1); }
 
 void Mutex::lock()
 {
-    bool n = 1;
-    asm volatile("lock xchgb %0,%1":"=r"(n),"+m"(state):"0"(n):"memory");
+    bool ret_val = 0,old_val = 0,new_val = 1;
+    do {
+        asm volatile("lock cmpxchgb %1,%2":
+                     "=a"(ret_val):
+                     "r"(new_val),"m"(state),"0"(old_val):
+                     "memory");
+    } while (ret_val);
 }
 void Mutex::release()
 {
