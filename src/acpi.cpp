@@ -39,6 +39,8 @@ ACPI::ACPI() {
 
     while (p < end)
     {
+        Memory::salloc(p);
+        Memory::salloc((_uint64*)p+1);
         _uint64 signature = *(_uint64 *)p;
         
         if ((signature == 0x2052545020445352) && ParseRsdp(p))
@@ -59,6 +61,8 @@ void ACPI::ParseRsdt(AcpiHeader *rsdt) {
     int *end = (int *)((char*)rsdt + rsdt->length);
     
     while (p < end) {
+        Memory::salloc(p);
+        Memory::salloc((_uint64*)p+1);
         _uint64 address = (_uint64)((int)(*p++) & 0xFFFFFFFF);
         ParseDT((AcpiHeader *)(uintptr_t)address);
     }
@@ -69,6 +73,8 @@ void ACPI::ParseXsdt(AcpiHeader *xsdt) {
     _uint64 *end = (_uint64 *)((char*)xsdt + xsdt->length);
     
     while (p < end) {
+        Memory::salloc(p);
+        Memory::salloc((_uint64*)p+1);
         _uint64 address = *p++;
         ParseDT((AcpiHeader *)(uintptr_t)address);
     }
@@ -85,6 +91,8 @@ void ACPI::ParseApic(AcpiMadt *a_madt) {
 	
     while (p < end) {
         ApicHeader *header = (ApicHeader *)p;
+        Memory::salloc(header);
+        Memory::salloc(header+1);
         short type = header->type;
         short length = header->length;
 		Memory::salloc(header);
@@ -119,11 +127,15 @@ bool ACPI::ParseRsdp(char *p) {
     oem[6] = '\0';
     
     char revision = p[15];
+    Memory::salloc((int *)(p + 16));
+    Memory::salloc((int *)(p + 16)+1);
     if (revision == 0) {
         int rsdtAddr = *(int *)(p + 16);
         ParseRsdt((AcpiHeader *)(uintptr_t)((_uint64)rsdtAddr & 0xFFFFFFFF));
     } else if (revision == 2) {
         int rsdtAddr = *(int *)(p + 16);
+        Memory::salloc((_uint64 *)(p + 24));
+        Memory::salloc((_uint64 *)(p + 24)+1);
         _uint64 xsdtAddr = *(_uint64 *)(p + 24);
         
         if (xsdtAddr)
