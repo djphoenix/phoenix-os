@@ -20,6 +20,11 @@ unsigned char ACPI::activeCpuCount = 0;
 _uint64 ACPI::busfreq = 0;
 Mutex* ACPI::cpuCountMutex = 0;
 
+static const char* ACPI_FIND_START = (const char*)0x000e0000;
+static const char* ACPI_FIND_TOP = (const char*)0x000fffff;
+static const _uint64 ACPI_SIG_RTP_DSR = 0x2052545020445352;
+static const long ACPI_SIG_CIPA = 0x43495041;
+
 ACPI* ACPI::getController() {
     if (controller) return controller;
     ACPI::cpuCountMutex = new Mutex();
@@ -27,8 +32,8 @@ ACPI* ACPI::getController() {
 }
 
 ACPI::ACPI() {
-    char *p = (char *)0x000e0000;
-    char *end = (char *)0x000fffff;
+    char *p = (char*)ACPI_FIND_START;
+    char *end = (char*)ACPI_FIND_TOP;
     acpiCpuCount = 0;
     activeCpuCount = 1;
     
@@ -43,7 +48,7 @@ ACPI::ACPI() {
         Memory::salloc((_uint64*)p+1);
         _uint64 signature = *(_uint64 *)p;
         
-        if ((signature == 0x2052545020445352) && ParseRsdp(p))
+        if ((signature == ACPI_SIG_RTP_DSR) && ParseRsdp(p))
             break;
         
         p += 16;
@@ -52,7 +57,7 @@ ACPI::ACPI() {
 void ACPI::ParseDT(AcpiHeader *header) {
 	Memory::salloc(header);
     
-    if (header->signature == 0x43495041)
+    if (header->signature == ACPI_SIG_CIPA)
         ParseApic((AcpiMadt *)header);
 }
 void ACPI::ParseRsdt(AcpiHeader *rsdt) {
