@@ -1,4 +1,5 @@
-# PhoeniX OS
+# PhoeniX OS [![Build Status](https://travis-ci.org/djphoenix/PhoeniXOS.svg)](https://travis-ci.org/djphoenix/PhoeniXOS)
+
 ***&copy; DJ PhoeniX, 2012***
 
 ***<http://goo.gl/X2e9z>***
