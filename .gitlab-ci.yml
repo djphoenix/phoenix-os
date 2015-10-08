@@ -1,0 +1,9 @@
+stages:
+  - build
+
+job1:
+  stage: build
+  only:
+    - master
+  script:
+    - make all
