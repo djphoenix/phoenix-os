@@ -18,9 +18,7 @@
 
 В папке src содержатся файлы исходного кода (*.s - на языке Ассемблера, *.cpp и *.h - C/C++)
 
-compile.bat и compile.sh - скрипты компиляции для Windows и Linux соответственно
-
-Для компиляции необходимы GCC (http://gcc.gnu.org/) и FASM (http://flatassembler.net/)
+Для компиляции необходимы [MAKE](http://www.gnu.org/software/make/), [GCC](http://gcc.gnu.org/) и [FASM](http://flatassembler.net/), а так же [MinGW](http://www.mingw.org/) / [Cygwin](http://www.cygwin.com/) для компиляции в среде OS Windows.
 
 ## Тестирование
 
