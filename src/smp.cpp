@@ -24,7 +24,7 @@ void SMP::startup() {
 
 void SMP::init() {
     ACPI* acpi = ACPI::getController();
-	int localId = acpi->getLapicID();
+	_uint64 localId = acpi->getLapicID();
     int cpuCount = acpi->getCPUCount();
     if (cpuCount == 1) return;
 
