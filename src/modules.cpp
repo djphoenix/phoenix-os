@@ -52,7 +52,7 @@ PMODULEINFO ModuleManager::loadElf(Stream *stream){
     PROCSECT *segments = (PROCSECT*)Memory::alloc(sizeof(PROCSECT)*Elf.shnum);
     PROCSECT *sections = (PROCSECT*)Memory::alloc(sizeof(PROCSECT)*Elf.shnum);
     int* secmap = (int*)Memory::alloc(sizeof(int)*Elf.shnum);
-    _uint64 symoff, symcount, symnsoff;
+    _uint64 symoff = 0, symcount = 0, symnsoff = 0;
 	for(int s = 0; s < Elf.shnum; s++){
         mod->size = MAX(mod->size,Sections[s].offset+Sections[s].size);
         if (Sections[s].type == 2) {
@@ -69,7 +69,7 @@ PMODULEINFO ModuleManager::loadElf(Stream *stream){
             mod->psinfo.sect_cnt++;
             if (Sections[s].size == 0) continue;
             int x = -1;
-            for (int i = 0; i < mod->psinfo.seg_cnt; i++) {
+            for (unsigned int i = 0; i < mod->psinfo.seg_cnt; i++) {
                 if (Sections[s].offset == segments[i].offset+segments[i].size) {x=i; break;}
             }
             if (x == -1) {
@@ -105,7 +105,7 @@ PMODULEINFO ModuleManager::loadElf(Stream *stream){
                 ELF64RELA *rel = (ELF64RELA*)Memory::alloc(Sections[s].size);
                 stream->seek(Sections[s].offset,-1);
                 stream->read(rel,Sections[s].size);
-                for (int i = 0; i < Sections[s].size/sizeof(ELF64RELA); i++){
+                for (unsigned int i = 0; i < Sections[s].size/sizeof(ELF64RELA); i++){
                     mod->psinfo.relocs[r].offset = rel[i].addr;
                     mod->psinfo.relocs[r].type = rel[i].info.type;
                     mod->psinfo.relocs[r].sym = rel[i].info.sym;
@@ -119,7 +119,7 @@ PMODULEINFO ModuleManager::loadElf(Stream *stream){
                 ELF64REL *rel = (ELF64REL*)Memory::alloc(Sections[s].size);
                 stream->seek(Sections[s].offset,-1);
                 stream->read(rel,Sections[s].size);
-                for (int i = 0; i < Sections[s].size/sizeof(ELF64REL); i++){
+                for (unsigned int i = 0; i < Sections[s].size/sizeof(ELF64REL); i++){
                     mod->psinfo.relocs[r].offset = rel[i].addr;
                     mod->psinfo.relocs[r].type = rel[i].info.type;
                     mod->psinfo.relocs[r].sym = rel[i].info.sym;
@@ -139,7 +139,7 @@ PMODULEINFO ModuleManager::loadElf(Stream *stream){
     mod->psinfo.sym_cnt = symcount;
     mod->psinfo.symbols = (PROCSYM*)Memory::alloc(sizeof(PROCSYM)*mod->psinfo.sym_cnt);
     
-    for (int i=1;i<symcount;i++){
+    for (unsigned int i=1;i<symcount;i++){
         char* symname = stream->readstr(symnsoff+Symbols[i].name);
         switch (Symbols[i].info & 0xF) {
             case(3):
@@ -161,7 +161,7 @@ PMODULEINFO ModuleManager::loadElf(Stream *stream){
     return mod;
 }
 bool ModuleManager::parseModuleInfo(PMODULEINFO mod, Stream *stream){
-    for (int i = 0; i < mod->psinfo.sym_cnt; i++) {
+    for (unsigned int i = 0; i < mod->psinfo.sym_cnt; i++) {
         if (mod->psinfo.symbols[i].name == 0) continue;
         if (strcmp("module",mod->psinfo.symbols[i].name)) {
             mod->psinfo.entry_sym = i;
@@ -175,7 +175,7 @@ bool ModuleManager::parseModuleInfo(PMODULEINFO mod, Stream *stream){
               strcmp("module_developer",mod->psinfo.symbols[i].name)))
             continue;
         _uint64 sect = mod->psinfo.symbols[i].sect, off = mod->psinfo.sections[sect].offset + mod->psinfo.symbols[i].offset;
-        for (int r = 0; r < mod->psinfo.reloc_cnt; r++) {
+        for (unsigned int r = 0; r < mod->psinfo.reloc_cnt; r++) {
             if (mod->psinfo.relocs[r].sect != sect) continue;
             if (mod->psinfo.sections[sect].offset + mod->psinfo.relocs[r].offset != off) continue;
             switch (mod->psinfo.relocs[r].type) {
@@ -241,7 +241,7 @@ void ModuleManager::loadStream(Stream *stream, bool start){
         if(mod->psinfo.segments) Memory::free(mod->psinfo.segments);
         if(mod->psinfo.sections) Memory::free(mod->psinfo.sections);
         if(mod->psinfo.relocs) Memory::free(mod->psinfo.relocs);
-        for (int i=1;i<mod->psinfo.sym_cnt;i++)
+        for (unsigned int i=1;i<mod->psinfo.sym_cnt;i++)
             if (mod->psinfo.symbols[i].name) Memory::free(mod->psinfo.symbols[i].name);
         if(mod->psinfo.symbols) Memory::free(mod->psinfo.symbols);
         Memory::free(mod);
@@ -252,14 +252,12 @@ void ModuleManager::loadStream(Stream *stream, bool start){
     if (!stream->eof()){
         Stream *sub = stream->substream();
         loadStream(sub,start);
-        delete sub;
     }
 }
 void ModuleManager::parseInternal(){
 	if((kernel_data.modules != 0) && (kernel_data.modules != kernel_data.modules_top)){
         Stream *ms = new MemoryStream((void*)kernel_data.modules,kernel_data.modules_top-kernel_data.modules);
         loadStream(ms,1);
-        delete ms;
 	}
 }
 void ModuleManager::parseInitRD(){
@@ -268,7 +266,6 @@ void ModuleManager::parseInitRD(){
 		while(mod != 0){
             Stream *ms = new MemoryStream((void*)mod->start,((_uint64)mod->end)-((_uint64)mod->start));
             loadStream(ms,1);
-            delete ms;
 			mod = (PMODULE)mod->next;
 		}
 	}
