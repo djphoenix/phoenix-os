@@ -113,7 +113,7 @@ void ACPI::ParseApic(AcpiMadt *a_madt) {
             ioApicAddr = (long *)(uintptr_t)((_uint64)s->ioApicAddress & 0xFFFFFFFF);
 			Memory::salloc(ioApicAddr);
         } else if (type == 2) {
-            ApicInterruptOverride *s = (ApicInterruptOverride *)p;
+            //ApicInterruptOverride *s = (ApicInterruptOverride *)p;
         }
         
         p += length;
@@ -190,15 +190,21 @@ void ACPI::IOapicOut(int reg, int data) {
     MmioWrite32((char*)ioApicAddr + IOAPIC_REGSEL, reg);
     MmioWrite32((char*)ioApicAddr + IOAPIC_REGWIN, data);
 }
+union ioapic_redir_ints {
+  ioapic_redir r;
+  int i[2];
+};
 void ACPI::IOapicMap(int idx, ioapic_redir r) {
-    IOapicOut(IOAPIC_REDTBL + idx*2 +0, ((int*)&r)[0]);
-    IOapicOut(IOAPIC_REDTBL + idx*2 +1, ((int*)&r)[1]);
+    ioapic_redir_ints a;
+    a.r = r;
+    IOapicOut(IOAPIC_REDTBL + idx*2 +0, a.i[0]);
+    IOapicOut(IOAPIC_REDTBL + idx*2 +1, a.i[1]);
 }
 ioapic_redir ACPI::IOapicReadMap(int idx) {
-    ioapic_redir r;
-    ((int*)&r)[0] = IOapicIn(IOAPIC_REDTBL + idx*2 +0);
-    ((int*)&r)[1] = IOapicIn(IOAPIC_REDTBL + idx*2 +1);
-    return r;
+    ioapic_redir_ints a;
+    a.i[0] = IOapicIn(IOAPIC_REDTBL + idx*2 +0);
+    a.i[1] = IOapicIn(IOAPIC_REDTBL + idx*2 +1);
+    return a.r;
 }
 void* ACPI::getLapicAddr() {
     return localApicAddr;
@@ -215,9 +221,9 @@ void ACPI::activateCPU() {
     if (!localApicAddr) return;
     Interrupts::loadVector();
     LapicOut(LAPIC_DFR,0xFFFFFFFF);
-    LapicOut(LAPIC_LDR,(LapicIn(0xD0)&0x00FFFFFF)|1);
+    LapicOut(LAPIC_LDR,(LapicIn(LAPIC_LDR)&0x00FFFFFF)|1);
     LapicOut(LAPIC_LVT_TMR,LAPIC_DISABLE);
-    LapicOut(LAPIC_LVT_PERF,4<<8);
+    LapicOut(LAPIC_LVT_PERF,LAPIC_NMI);
     LapicOut(LAPIC_LVT_LINT0,LAPIC_DISABLE);
     LapicOut(LAPIC_LVT_LINT1,LAPIC_DISABLE);
     LapicOut(LAPIC_TASKPRIOR,0);
@@ -277,9 +283,9 @@ bool ACPI::initAPIC(){
     ACPI *acpi = (ACPI::getController());
     
     LapicOut(LAPIC_DFR,0xFFFFFFFF);
-    LapicOut(LAPIC_LDR,(LapicIn(0xD0)&0x00FFFFFF)|1);
+    LapicOut(LAPIC_LDR,(LapicIn(LAPIC_LDR)&0x00FFFFFF)|1);
     LapicOut(LAPIC_LVT_TMR,LAPIC_DISABLE);
-    LapicOut(LAPIC_LVT_PERF,4<<8);
+    LapicOut(LAPIC_LVT_PERF,LAPIC_NMI);
     LapicOut(LAPIC_LVT_LINT0,LAPIC_DISABLE);
     LapicOut(LAPIC_LVT_LINT1,LAPIC_DISABLE);
     LapicOut(LAPIC_TASKPRIOR,0);
@@ -288,7 +294,7 @@ bool ACPI::initAPIC(){
 
     LapicOut(LAPIC_SPURIOUS,0x27 | LAPIC_SW_ENABLE);
     
-    outportb(0x61,inportb(0x61)&0xFD|1);
+    outportb(0x61,(inportb(0x61)&0xFD)|1);
     outportb(0x43,0xB2);
     outportb(0x42,0x9B);
     inportb(0x60);
@@ -297,9 +303,9 @@ bool ACPI::initAPIC(){
     outportb(0x61,t);
     outportb(0x61,t|1);
     LapicOut(LAPIC_TMRINITCNT,-1);
-    while (inportb(0x61) & 0x20 != 0) ;
+    while ((inportb(0x61) & 0x20) == 0) ;
     LapicOut(LAPIC_LVT_TMR,LAPIC_DISABLE);
-    acpi->busfreq = ((-1 - LapicIn(0x390)) << 4) * 100;
+    acpi->busfreq = ((-1 - LapicIn(LAPIC_TMRCURRCNT)) << 4) * 100;
     _uint64 c = (ACPI::busfreq / 1000) >> 4;
     if (c < 0x10) c = 0x10;
     
