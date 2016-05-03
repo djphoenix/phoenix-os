@@ -27,7 +27,7 @@ endif
 CC=$(PREFIX)gcc
 LD=$(PREFIX)ld
 OBJCOPY=$(PREFIX)objcopy
-CFLAGS=-c -nostdlib -s -m64 -O2 -Wno-multichar -fno-exceptions -fno-rtti
+CFLAGS=-c -nostdlib -s -m64 -O2 -Wno-multichar -fno-exceptions -fno-rtti -Wall
 BIN=bin/pxkrnl
 ASSEMBLY=$(shell ls src/*.s)
 SOURCES=$(shell ls src/*.cpp)
