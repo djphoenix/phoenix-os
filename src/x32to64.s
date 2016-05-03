@@ -1,200 +1,205 @@
-;    PhoeniX OS 32-bit mode bootup process
-;    Copyright (C) 2013  PhoeniX
-;
-;    This program is free software: you can redistribute it and/or modify
-;    it under the terms of the GNU General Public License as published by
-;    the Free Software Foundation, either version 3 of the License, or
-;    (at your option) any later version.
-;
-;    This program is distributed in the hope that it will be useful,
-;    but WITHOUT ANY WARRANTY; without even the implied warranty of
-;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;    GNU General Public License for more details.
-;
-;    You should have received a copy of the GNU General Public License
-;    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//    PhoeniX OS 32-bit mode bootup process
+//    Copyright (C) 2013  PhoeniX
+//
+//    This program is free software: you can redistribute it and/or modify
+//    it under the terms of the GNU General Public License as published by
+//    the Free Software Foundation, either version 3 of the License, or
+//    (at your option) any later version.
+//
+//    This program is distributed in the hope that it will be useful,
+//    but WITHOUT ANY WARRANTY; without even the implied warranty of
+//    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//    GNU General Public License for more details.
+//
+//    You should have received a copy of the GNU General Public License
+//    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-format elf64
-use32
-section '.text32'
-extrn main
-public _start
-public __main
-extrn grub_data
-extrn __bss_start__
-extrn __bss_end__
+.code32
+.section .text32
+.extern
+.extern main
+.global _start
+.global __main
+.extern grub_data
+.extern __bss_start__
+.extern __bss_end__
 _start:
 	jmp multiboot_entry
 
-	align 4
+//	.align 64
+//multiboot2_header:
+//	.long 0xE85250D6
+//	.long 0x00000000
+//	.long 0x00000010
+//	.long -(0xE85250D6+0x00000000+0x00000010)
+	.align 4
 multiboot_header:
-	dd 0x1BADB002
-	dd 0x00000003
-	dd -(0x1BADB002 + 0x00000003)
+	.long 0x1BADB002
+	.long 0x00000003
+	.long -(0x1BADB002+0x00000003)
 
 multiboot_entry:
 	cli
-
-    mov edi, __bss_start__
+	
+    mov $__bss_start__, %edi
 ._bss_loop:
-	mov dword [edi], 0
-	add edi, 4
-	cmp edi, __bss_end__
+	movl $0, (%edi)
+	add $4, %edi
+	cmp $__bss_end__, %edi
 	jl ._bss_loop
 
-	cmp eax, 0x2BADB002
+	cmp $0x2BADB002, %eax
 	jne .NoMultiboot
 
-	mov [grub_data], ebx
+	mov %ebx, grub_data
 	
-	; Moving first 512K to 0x100000
-	xor eax, eax
-	mov ebx, 0x100000
+	// Moving first 512K to 0x100000
+	xor %eax, %eax
+	mov $0x100000, %ebx
 	
 .mvloop:
-	mov ecx, [eax]
-	mov [ebx], ecx
-	add eax, 4
-	add ebx, 4
-	cmp eax, 0x80000
+	mov (%eax), %ecx
+	mov %ecx, (%ebx)
+	add $4, %eax
+	add $4, %ebx
+	cmp $0x80000, %eax
 	jne .mvloop
 	
-	mov dx, 0x3D4
-	mov al, 0xA
-	out dx, al
-	inc dx
-	in al, dx
-	or al, 0x20
-	out dx, al
+	mov $0x3D4, %dx
+	mov $0xA, %al
+	out %al, %dx
+	inc %dx
+	in %dx, %al
+	or $0x20, %al
+	out %al, %dx
 
-	mov eax, 0xB8000
+	mov $0xB8000, %eax
 ._clr_loop:
-	mov dword [eax], 0F000F00h
-	add eax, 4
-	cmp eax, 0xB8FA0
+	movl $0x0F000F00, (%eax)
+	add $4, %eax
+	cmp $0xB8FA0, %eax
 	jnz ._clr_loop
 	
-	mov esp, 0x2000
+	mov $0x2000, %esp
 
-	pushfd						; Store the FLAGS-register.
-	pop eax						; Restore the A-register.
-	mov ecx, eax				; Set the C-register to the A-register.
-	xor eax, 0x200000			; Flip the ID-bit, which is bit 21.
-	push eax					; Store the A-register.
-	popfd						; Restore the FLAGS-register.
-	pushfd						; Store the FLAGS-register.
-	pop eax						; Restore the A-register.
-	push ecx					; Store the C-register.
-	popfd						; Restore the FLAGS-register.
-	xor eax, ecx				; Do a XOR-operation on the A-register and the C-register.
-	jz .NoCPUID					; The zero flag is set, no CPUID.
+	pushfl						// Store the FLAGS-register.
+	pop %eax						// Restore the A-register.
+	mov %eax, %ecx				// Set the C-register to the A-register.
+	xor $0x200000, %eax			// Flip the ID-bit, which is bit 21.
+	push %eax					// Store the A-register.
+	popfl						// Restore the FLAGS-register.
+	pushfl						// Store the FLAGS-register.
+	pop %eax						// Restore the A-register.
+	push %ecx					// Store the C-register.
+	popfl						// Restore the FLAGS-register.
+	xor %ecx, %eax				// Do a XOR-operation on the A-register and the C-register.
+	jz .NoCPUID					// The zero flag is set, no CPUID.
 
-	mov eax, 0x80000000			; Set the A-register to 0x80000000.
-	cpuid						; CPU identification.
-	cmp eax, 0x80000001			; Compare the A-register with 0x80000001.
-	jb .NoLongMode				; It is less, there is no long mode.
+	mov $0x80000000, %eax 			// Set the A-register to 0x80000000.
+	cpuid						// CPU identification.
+	cmp $0x80000001, %eax			// Compare the A-register with 0x80000001.
+	jb .NoLongMode				// It is less, there is no long mode.
 
-	mov eax, 0x80000001			; Set the A-register to 0x80000001.
-	cpuid						; CPU identification.
-	test edx, 0x20000000		; Test if the LM-bit, which is bit 29, is set in the D-register.
-	jz .NoLongMode				; They aren't, there is no long mode.
+	mov $0x80000001, %eax			// Set the A-register to 0x80000001.
+	cpuid						// CPU identification.
+	test $0x20000000, %edx		// Test if the LM-bit, which is bit 29, is set in the D-register.
+	jz .NoLongMode				// They aren't, there is no long mode.
 
-	mov eax, cr0				; Set the A-register to control register 0.
-	and eax, 0x7FFFFFFF			; Clear the PG-bit, which is bit 31.
-	mov cr0, eax				; Set control register 0 to the A-register.
+	mov %cr0, %eax				// Set the A-register to control register 0.
+	and $0x7FFFFFFF, %eax			// Clear the PG-bit, which is bit 31.
+	mov %eax, %cr0				// Set control register 0 to the A-register.
 
-	mov edi, 0x20000			; Set the destination index to 0x10000.
-	mov cr3, edi				; Set control register 3 to the destination index.
-	xor eax, eax				; Nullify the A-register.
-	mov ecx, 7168				; Set the C-register to 7168.
-	rep stosd					; Clear the memory.
-	mov edi, cr3				; Set the destination index to control register 3.
+	mov $0x20000, %edi			// Set the destination index to 0x10000.
+	mov %edi, %cr3				// Set control register 3 to the destination index.
+	xor %eax, %eax				// Nullify the A-register.
+	mov $7168, %ecx				// Set the C-register to 7168.
+	rep stosl					// Clear the memory.
+	mov %cr3, %edi				// Set the destination index to control register 3.
 
-	mov DWORD [edi], 0x21003		; Set the double word at the destination index to 0x2003.
-	add edi, 0x1000				; Add 0x1000 to the destination index.
-	mov DWORD [edi], 0x22003		; Set the double word at the destination index to 0x3003.
-	add edi, 0x1000				; Add 0x1000 to the destination index.
-	mov DWORD [edi+00h], 0x23003	; Set the double word at the destination index to 0x4003.
-	mov DWORD [edi+08h], 0x24003	; Set the double word at the destination index to 0x5003.
-	mov DWORD [edi+10h], 0x25003	; Set the double word at the destination index to 0x6003.
-	mov DWORD [edi+18h], 0x26003	; Set the double word at the destination index to 0x7003.
-	add edi, 0x1000				; Add 0x1000 to the destination index.
+	movl $0x21003, (%edi)		// Set the double word at the destination index to 0x2003.
+	add $0x1000, %edi				// Add 0x1000 to the destination index.
+	movl $0x22003, (%edi)		// Set the double word at the destination index to 0x3003.
+	add $0x1000, %edi				// Add 0x1000 to the destination index.
+	movl $0x23003, 0x00(%edi)	// Set the double word at the destination index to 0x4003.
+	movl $0x24003, 0x08(%edi)	// Set the double word at the destination index to 0x5003.
+	movl $0x25003, 0x10(%edi)	// Set the double word at the destination index to 0x6003.
+	movl $0x26003, 0x18(%edi)	// Set the double word at the destination index to 0x7003.
+	add $0x1000, %edi				// Add 0x1000 to the destination index.
 
-	mov ebx, 0x00000007			; Set the B-register to 0x00000007.
-	mov ecx, 2048				; Set the C-register to 2048.
+	mov $0x00000007, %ebx			// Set the B-register to 0x00000007.
+	mov $2048, %ecx				// Set the C-register to 2048.
 
 .SetEntry:
-	mov DWORD [edi], ebx		; Set the double word at the destination index to the B-register.
-	add ebx, 0x1000				; Add 0x1000 to the B-register.
-	add edi, 8					; Add eight to the destination index.
-	loop .SetEntry				; Set the next entry.
+	mov %ebx, (%edi)		// Set the double word at the destination index to the B-register.
+	add $0x1000, %ebx				// Add 0x1000 to the B-register.
+	add $8, %edi					// Add eight to the destination index.
+	loop .SetEntry				// Set the next entry.
 
-	mov eax, cr4				; Set the A-register to control register 4.
-	or eax, 20h					; Set the PAE-bit, which is the 6th bit (bit 5).
-	mov cr4, eax				; Set control register 4 to the A-register.
+	mov %cr4, %eax				// Set the A-register to control register 4.
+	or $0x20, %eax					// Set the PAE-bit, which is the 6th bit (bit 5).
+	mov %eax, %cr4			// Set control register 4 to the A-register.
 
-	mov ecx, 0xC0000080			; Set the C-register to 0xC0000080, which is the EFER MSR.
-	rdmsr						; Read from the model-specific register.
-	or eax, 100h				; Set the LM-bit which is the 9th bit (bit 8).
-	wrmsr						; Write to the model-specific register.
+	mov $0xC0000080, %ecx			// Set the C-register to 0xC0000080, which is the EFER MSR.
+	rdmsr						// Read from the model-specific register.
+	or $0x100, %eax				// Set the LM-bit which is the 9th bit (bit 8).
+	wrmsr						// Write to the model-specific register.
 
-	mov eax, cr0				; Set the A-register to control register 0.
-	or eax, 0x80000000			; Set the PG-bit, which is the 32nd bit (bit 31).
-	mov cr0, eax				; Set control register 0 to the A-register.
+	mov %cr0, %eax				// Set the A-register to control register 0.
+	or $0x80000000, %eax			// Set the PG-bit, which is the 32nd bit (bit 31).
+	mov %eax, %cr0				// Set control register 0 to the A-register.
 
-	lgdt [GDT64.Pointer]
-    mov ax, 16
-    mov ss, ax
-	jmp (GDT64.Code - GDT64):x64_entry
+	lgdt GDT64.Pointer
+    mov $16, %ax
+    mov %ax, %ss
+	ljmp $8, $x64_entry
 
 .NoMultiboot:
-	mov eax, aNoMultiboot
+	mov $aNoMultiboot, %eax
 	jmp error
 
 .NoCPUID:
-	mov eax, aNoCPUID
+	mov $aNoCPUID, %eax
 	jmp error
 
 .NoLongMode:
-	mov eax, aNoLongMode
-;	jmp error
+	mov $aNoLongMode, %eax
+//	jmp error
 
 error:
-	mov edi, 0xB8000
+	mov $0xB8000, %edi
 .loop:
-	mov cl, [eax]
-	mov [edi], cl
-	mov byte [edi+1], 0x0C
-	inc eax
-	add edi, 2
-	test cl, cl
+	mov (%eax), %cl
+	mov %cl, (%edi)
+	movb $0x0C, 1(%edi)
+	inc %eax
+	add $2, %edi
+	test %cl, %cl
 	jnz .loop
 	jmp x64_entry.loop
+	
+.code64
 
 x64_entry:
 	call main
-.loop:
+x64_entry.loop:
 	hlt
 	jmp .loop
 
-__main: ; Fix for Windows builds
+__main: // Fix for Windows builds
 	ret
 
-section '.data'
-aNoMultiboot: db "This kernel can boot only from multiboot-compatible bootloader", 0
-aNoLongMode: db "Your CPU are not support x86_64 mode", 0
-aNoCPUID: db "Your CPU are not support CPUID instruction", 0
-	align 4
+aNoMultiboot: .ascii "This kernel can boot only from multiboot-compatible bootloader\0"
+aNoLongMode: .ascii "Your CPU are not support x86_64 mode\0"
+aNoCPUID: .ascii "Your CPU are not support CPUID instruction\0"
+	.align 4
 
 GDT64:
-.Null:
-	dq 0
-.Code:
-	dd 0
-	dd 00209800h
-.Data:
-	dd 0
-	dd 00009200h
-.Pointer:
-	dw $ - GDT64 - 1
-	dq GDT64
+GDT64.Null:
+	.quad 0
+GDT64.Code:
+	.long 0, 0x00209800
+GDT64.Data:
+	.long 0, 0x00009200
+GDT64.Pointer:
+	.short . - GDT64 - 1
+	.quad GDT64

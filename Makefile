@@ -26,6 +26,7 @@ endif
 
 CC=$(PREFIX)gcc
 LD=$(PREFIX)ld
+AS=$(PREFIX)as
 OBJCOPY=$(PREFIX)objcopy
 CFLAGS=-c -nostdlib -s -m64 -O2 -Wno-multichar -fno-exceptions -fno-rtti -Wall
 BIN=bin/pxkrnl
@@ -47,7 +48,7 @@ $(BIN): ${OBJECTS} obj/modules-linked.o
 obj/%.o: src/%.cpp obj
 	$(CC) $(CFLAGS) $< -o $@
 obj/%.o: src/%.s obj
-	fasm $< $@
+	$(AS) -c -s $< -o $@
 obj/smp_init.o: src/smp_init.s obj
 	fasm src/smp_init.s obj/smp_init.b
 	$(OBJCOPY) -Oelf64-x86-64 -Bi386 -Ibinary --rename-section .data=.smp_init obj/smp_init.b obj/smp_init.o
