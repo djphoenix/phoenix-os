@@ -29,7 +29,7 @@ void print(const char* str)
     while (display_lock);
     display_lock = 1;
 	_int64 i = 0; char c;
-	while(c = str[i++]){
+	while((c = str[i++])){
 		if(c == 0) return;
 		if(c == 10) display += 160 - (((_uint64)display - 0xB8000) % 160);
 		else if(c == 9) {
