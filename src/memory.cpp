@@ -62,25 +62,25 @@ void Memory::init()
 	if((_uint64)kernel_data.mmap_addr < 0x100000)
 		kernel_data.mmap_addr = (void*)((_uint64)kernel_data.mmap_addr + 0x100000);
 	
-	char cmdline[256], bl_name[256]; long cmdlinel = 0, blnamel = 0;
+	char cmdline[256]; long cmdlinel = 0;
 	if(((kernel_data.flags & 4) == 4) && (grub_data->pcmdline != 0)){
 		char* c = (char*)((_uint64)grub_data->pcmdline & 0xFFFFFFFF);
 		if((_uint64)c < 0x100000)
 			c = (char*)((_uint64)c + 0x100000);
 		int i = 0;
-		while((c[i] != 0)&&(i<255)) cmdline[i++] = c[i];
+		while((c[i] != 0)&&(i<255)) { cmdline[i] = c[i]; i++; }
 		cmdline[i] = 0;
 		cmdlinel = i+1;
 	}
 	if(((kernel_data.flags & 8) == 8) && (grub_data->mods_count != 0) && (kernel_data.mods != 0)){
         modules[grub_data->mods_count].start = 0;
 		PGRUBMODULE c = (PGRUBMODULE)kernel_data.mods;
-		for(int i = 0; i < grub_data->mods_count; i++){
+		for(unsigned int i = 0; i < grub_data->mods_count; i++){
 			modules[i].start = c->start;
 			modules[i].end = c->end;
 
 			(*(_uint64*)(get_page((void*)((_uint64)modules[i].start & 0xFFFFF000)))) &= ~4; // Set module pages as system
-			for(_uint64 addr = modules[i].start & 0xFFFFF000; addr < modules[i].end & 0xFFFFF000; addr += 0x1000)
+			for(_uint64 addr = (modules[i].start & 0xFFFFF000); addr < (modules[i].end & 0xFFFFF000); addr += 0x1000)
 				(*(_uint64*)(get_page((void*)addr))) &= ~4;
 
 			c = (PGRUBMODULE)((_uint64)c + 16);
@@ -212,7 +212,7 @@ void* Memory::salloc(void* mem)
 }
 void* Memory::palloc(char sys)
 {
-	void *addr; PPML4E page;
+	void *addr = 0; PPML4E page;
 	_uint64 i=last_page-1;
 	while(i<0xFFFFFFFFFF000){
 		i++;
