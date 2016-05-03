@@ -23,11 +23,19 @@ char* CPU::getVendor() {
     if (vendor[0]==0) {
         int eax=0, ebx, ecx, edx;
         asm("cpuid":"=a"(eax),"=b"(ebx),"=c"(ecx),"=d"(edx):"a"(eax));
-        *((int*)(&vendor[0])) = ebx;
-        *((int*)(&vendor[4])) = edx;
-        *((int*)(&vendor[8])) = ecx;
+        union {
+          char s[12];
+          int i[3];
+        } v;
+        v.i[0] = ebx;
+        v.i[1] = edx;
+        v.i[2] = ecx;
+        for (int i=0; i<12; i++) {
+          vendor[i] = v.s[i];
+        }
+        vendor[12] = 0;
     }
-    return &vendor[0];
+    return vendor;
 }
 
 _uint64 CPU::getFeatures(){
