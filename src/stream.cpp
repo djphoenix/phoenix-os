@@ -38,12 +38,12 @@ _uint64 MemoryStream::read(void* dest, _uint64 size){
     return size;
 }
 Stream* MemoryStream::substream(_uint64 offset, _uint64 limit){
-    if (offset == -1) offset = this->offset;
-    if ((limit == -1) || (limit > this->limit - offset)) limit = this->limit - offset;
+    if (offset == (_uint64)-1) offset = this->offset;
+    if ((limit == (_uint64)-1) || (limit > this->limit - offset)) limit = this->limit - offset;
     return new MemoryStream(&((char*)memory)[offset],limit);
 }
 char* MemoryStream::readstr(_uint64 offset){
-    if (offset == -1) offset = this->offset;
+    if (offset == (_uint64)-1) offset = this->offset;
     if (offset > limit) return 0;
     _uint64 len = strlen(&((char*)memory)[offset],limit-offset);
     char* res = (char*)Memory::alloc(len+1);
