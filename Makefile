@@ -29,7 +29,7 @@ LD=$(PREFIX)ld
 AS=$(PREFIX)as
 OBJCOPY=$(PREFIX)objcopy
 CFLAGS=-c -nostdlib -s -m64 -O2 -Wno-multichar -fno-exceptions -fno-rtti -Wall
-BIN=bin/pxkrnl
+BIN=obj/pxkrnl
 ASSEMBLY=$(shell ls src/*.s)
 SOURCES=$(shell ls src/*.cpp)
 OBJECTS=$(ASSEMBLY:src/%.s=obj/%.o) $(SOURCES:src/%.cpp=obj/%.o)
@@ -59,8 +59,13 @@ obj/modules-linked.o: obj
 	$(OBJCOPY) -Oelf64-x86-64 -Bi386 -Ibinary --rename-section .data=.modules $(@:.o=.b) $@
 
 clean:
-	rm -rf obj bin/pxkrnl.elf bin/pxkrnl
+	rm -rf obj $(BIN).elf $(BIN) phoenixos
 obj:
 	mkdir -p obj/mod
+images: phoenixos
+
+phoenixos: $(BIN)
+	cp $< $@
+
 launch:
 	$(QEMU) -kernel $(BIN) -smp 8 -cpu Nehalem

@@ -6,8 +6,8 @@ job1:
   only:
     - master
   script:
-    - make all
+    - make all images
   artifacts:
     name: "%CI_BUILD_REF_NAME"
     paths:
-      - bin/
+      - phoenixos
