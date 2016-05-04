@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-PREFIX=
+PREFIX=x86_64-linux-gnu-
 ifeq ($(OS),Windows_NT)
     PREFIX=x86_64-w64-mingw32-
 else
