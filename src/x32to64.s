@@ -21,6 +21,8 @@
 .global _start
 .global __main
 .extern grub_data
+.extern __text_start__
+.extern __modules_end__
 .extern __bss_start__
 .extern __bss_end__
 _start:
@@ -29,8 +31,15 @@ _start:
 	.align 4
 multiboot_header:
 	.long 0x1BADB002
-	.long 0x00000003
-	.long -(0x1BADB002+0x00000003)
+	.long 0x00010003
+	.long -(0x1BADB002+0x00010003)
+
+	.long multiboot_header
+	.long __text_start__
+	.long __modules_end__
+	.long __bss_end__
+	.long multiboot_entry
+
 
 multiboot_entry:
 	cli
