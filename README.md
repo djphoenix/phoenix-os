@@ -18,7 +18,7 @@
 
 В папке src содержатся файлы исходного кода (*.s - на языке Ассемблера, *.cpp и *.h - C/C++)
 
-Для компиляции необходимы [MAKE](http://www.gnu.org/software/make/), [GCC](http://gcc.gnu.org/) и [FASM](http://flatassembler.net/), а так же [MinGW](http://www.mingw.org/) / [Cygwin](http://www.cygwin.com/) для компиляции в среде OS Windows.
+Для компиляции необходимы [MAKE](http://www.gnu.org/software/make/), [GCC](http://gcc.gnu.org/), а так же [MinGW](http://www.mingw.org/) / [Cygwin](http://www.cygwin.com/) для компиляции в среде OS Windows.
 
 ## Тестирование
 
