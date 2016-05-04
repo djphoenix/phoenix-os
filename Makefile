@@ -40,7 +40,7 @@ ifeq ($(UNAME_S),Darwin)
     OBJCOPY=gobjcopy
 endif
 
-all: $(BIN) clean
+all: clean $(BIN)
 $(BIN): ${OBJECTS} obj/modules-linked.o
 	$(LD) -T ld.script -belf64-x86-64 -o $(BIN).elf -s --nostdlib $?
 	$(OBJCOPY) -Oelf32-i386 $(BIN).elf $(BIN)
