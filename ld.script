@@ -18,8 +18,9 @@
 OUTPUT_FORMAT(elf64-x86-64)
 SECTIONS
 {
-  .text 0x401000 :
+  .text 0x401000 : ALIGN(0)
   {
+    __text_start__ = . ;
     *(.init)
     *(.text32)
     *(.text)
@@ -33,8 +34,10 @@ SECTIONS
 			LONG (-1); LONG (-1); *(.dtors); *(.dtor); *(SORT(.dtors.*));  LONG (0); LONG (0);
     PROVIDE (etext = .);
      *(.fini)
+	. = ALIGN(0x1000);
+    __text_end__ = . ;
   }
-  .data BLOCK(0x1000) :
+  .data :
   {
     __data_start__ = . ;
     *(.data)
@@ -47,15 +50,14 @@ SECTIONS
     *(.rdata)
     *(SORT(.rdata$*))
     __data_end__ = . ;
-  }
-  .modules :
-  {
+
     __modules_start__ = . ;
     *(.modules)
     *(SORT(.modules$*))
+    . = ALIGN(0x1000);
     __modules_end__ = . ;
   }
-  .bss BLOCK(0x1000) :
+  .bss BLOCK(0) : AT(__modules_end__)
   {
     __bss_start__ = . ;
     *(.bss)
