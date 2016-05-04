@@ -1,5 +1,5 @@
 ***
-> PhoeniX OS [![build status](https://git.phoenix.dj/ci/projects/2/status.svg?ref=master)](https://git.phoenix.dj/phoenix/phoenix-os/builds)<br>
+> PhoeniX OS [![build status](https://git.phoenix.dj/phoenix/phoenix-os/badges/master/build.svg)](https://git.phoenix.dj/phoenix/phoenix-os/builds)<br>
 > © DJ PhoeniX, 2012-2015<br>
 > https://git.phoenix.dj/phoenix/phoenix-os
 
