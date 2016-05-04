@@ -1,4 +1,3 @@
 *.o
 obj/
-bin/menu.lst/*-*
-bin/pxkrnl.elf
+bin/

@@ -1,4 +1,0 @@
-DEFAULT PhoenixOS
-LABEL PhoenixOS
-KERNEL mboot.c32
-APPEND pxkrnl
