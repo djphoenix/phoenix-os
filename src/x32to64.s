@@ -26,12 +26,6 @@
 _start:
 	jmp multiboot_entry
 
-#	.align 64
-#multiboot2_header:
-#	.long 0xE85250D6
-#	.long 0x00000000
-#	.long 0x00000010
-#	.long -(0xE85250D6+0x00000000+0x00000010)
 	.align 4
 multiboot_header:
 	.long 0x1BADB002
