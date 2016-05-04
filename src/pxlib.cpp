@@ -53,32 +53,45 @@ void print(const char* str)
 	display_lock.release();
 }
 
+static inline char HEX_CHAR(char i) {
+	i &= 0xF;
+	if (i > 9) return 'A' + i - 10;
+	return '0' + (i & 0xF);
+}
+
+static inline void HEX_STR(_int64 val, int len, char* buf) {
+	for (int i = 0; i < len; i++) {
+		buf[i] = HEX_CHAR(val >> (4 * (len-i-1)));
+	}
+	buf[len] = 0;
+}
+
 void printb(char i)
 {
 	char c[3];
-	c[1] = (i & 0xF) > 9 ? 'A' + (i & 0xF) - 10 : '0' + (i & 0xF);
-	i = i >> 4;
-	c[0] = (i & 0xF) > 9 ? 'A' + (i & 0xF) - 10 : '0' + (i & 0xF);
-	c[2] = 0;
+	HEX_STR(i,2,c);
 	print(c);
 }
 
 void prints(short i)
 {
-	printb((i >> 8) & 0xFF);
-	printb(i & 0xFF);
+	char c[5];
+	HEX_STR(i,4,c);
+	print(c);
 }
 
 void printl(int i)
 {
-	prints((i >> 16) & 0xFFFF);
-	prints(i & 0xFFFF);
+	char c[9];
+	HEX_STR(i,8,c);
+	print(c);
 }
 
 void printq(_int64 i)
 {
-	printl((i >> 32) & 0xFFFFFFFF);
-	printl(i & 0xFFFFFFFF);
+	char c[17];
+	HEX_STR(i,16,c);
+	print(c);
 }
 
 _uint64 strlen(char* c, _uint64 limit)
