@@ -54,21 +54,21 @@ typedef struct {
 extern PGRUB grub_data;
 
 class Memory {
-    static PPTE pagetable;
-    static PALLOCTABLE allocs;
-    static void* first_free;
-    static _uint64 last_page;
-    static GRUBMODULE modules[256];
-    static PPML4E get_page(void* base_addr);
-    static void map();
+	static PPTE pagetable;
+	static PALLOCTABLE allocs;
+	static void* first_free;
+	static _uint64 last_page;
+	static GRUBMODULE modules[256];
+	static PPML4E get_page(void* base_addr);
+	static void map();
 public:
-    static void init();
-    static void* salloc(void* mem);
-    static void* palloc(char sys = 0);
-    static void* alloc(_uint64 size, int align = 4);
-    static void pfree(void* page);
-    static void free(void* addr);
-    static void copy(void* dest, void* src, _uint64 count);
+	static void init();
+	static void* salloc(void* mem);
+	static void* palloc(char sys = 0);
+	static void* alloc(_uint64 size, int align = 4);
+	static void pfree(void* page);
+	static void free(void* addr);
+	static void copy(void* dest, void* src, _uint64 count);
 };
 
 void __inline MmioWrite32(void *p, int data) { Memory::salloc(p); *(volatile int *)(p) = data; }

@@ -20,53 +20,53 @@ _uint64 countval = 0;
 
 void process_loop()
 {
-    for(;;) asm("hlt");
+	for(;;) asm("hlt");
 }
 
 Mutex* ProcessManager::processSwitchMutex = 0;
 ProcessManager* ProcessManager::manager = 0;
 ProcessManager* ProcessManager::getManager() {
-    if (manager) return manager;
-    processSwitchMutex = new Mutex();
-    Interrupts::addCallback(0x20,&ProcessManager::SwitchProcess);
-    return manager = new ProcessManager();
+	if (manager) return manager;
+	processSwitchMutex = new Mutex();
+	Interrupts::addCallback(0x20,&ProcessManager::SwitchProcess);
+	return manager = new ProcessManager();
 }
 void ProcessManager::SwitchProcess(){
-    processSwitchMutex->lock();
-    if (countval++ % 0x1001 != 0) {
-        processSwitchMutex->release();
-        return;
-    }
-    ACPI *acpi = ACPI::getController();
-    printl(acpi->getCPUIDOfLapic(acpi->getLapicID()));
-    print("->");
-    printq(countval);
-    print("\n");
-    processSwitchMutex->release();
+	processSwitchMutex->lock();
+	if (countval++ % 0x1001 != 0) {
+		processSwitchMutex->release();
+		return;
+	}
+	ACPI *acpi = ACPI::getController();
+	printl(acpi->getCPUIDOfLapic(acpi->getLapicID()));
+	print("->");
+	printq(countval);
+	print("\n");
+	processSwitchMutex->release();
 }
 
 _uint64 ProcessManager::RegisterProcess(Process* process){
-    if (this->processes == 0) {
-        this->processes = (Process**)Memory::alloc(sizeof(Process*)*2);
-        this->processes[0] = process;
-        this->processes[1] = 0;
-        return 1;
-    } else {
-        _uint64 pid = 1;
-        while (this->processes[pid-1] != 0) pid++;
-        Process** np = (Process**)Memory::alloc(sizeof(Process*)*pid);
-        Memory::copy(np, this->processes, sizeof(Process*)*(pid-2));
-        Memory::free(this->processes);
-        this->processes = np;
-        this->processes[pid-1] = process;
-        this->processes[pid] = 0;
-        return pid;
-    }
+	if (this->processes == 0) {
+		this->processes = (Process**)Memory::alloc(sizeof(Process*)*2);
+		this->processes[0] = process;
+		this->processes[1] = 0;
+		return 1;
+	} else {
+		_uint64 pid = 1;
+		while (this->processes[pid-1] != 0) pid++;
+		Process** np = (Process**)Memory::alloc(sizeof(Process*)*pid);
+		Memory::copy(np, this->processes, sizeof(Process*)*(pid-2));
+		Memory::free(this->processes);
+		this->processes = np;
+		this->processes[pid-1] = process;
+		this->processes[pid] = 0;
+		return pid;
+	}
 }
 
 Process::Process(PROCSTARTINFO psinfo){
-    suspend=true;
-    this->psinfo = psinfo;
-    this->id = (ProcessManager::getManager())->RegisterProcess(this);
-    print("Registered process: "); printq(this->id); print("\n");
+	suspend=true;
+	this->psinfo = psinfo;
+	this->id = (ProcessManager::getManager())->RegisterProcess(this);
+	print("Registered process: "); printq(this->id); print("\n");
 }

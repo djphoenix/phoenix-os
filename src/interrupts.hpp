@@ -51,17 +51,17 @@ typedef struct {unsigned char intr; intcb *cb;} intcbreg;
 
 class Interrupts {
 private:
-    static intcbreg* callbacks;
-    static char* handlers;
-    static PIDT idt;
-    static bool ints_set;
+	static intcbreg* callbacks;
+	static char* handlers;
+	static PIDT idt;
+	static bool ints_set;
 public:
-    static INTERRUPT32 interrupts32[256];
-    static void init();
-    static void handle(unsigned char intr, _uint64 stack);
-    static void maskIRQ(unsigned short mask);
-    static unsigned short getIRQmask();
-    static void addCallback(unsigned char intr, intcb* cb);
-    static void loadVector();
+	static INTERRUPT32 interrupts32[256];
+	static void init();
+	static void handle(unsigned char intr, _uint64 stack);
+	static void maskIRQ(unsigned short mask);
+	static unsigned short getIRQmask();
+	static void addCallback(unsigned char intr, intcb* cb);
+	static void loadVector();
 };
 #endif

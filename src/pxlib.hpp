@@ -21,13 +21,13 @@
 
 class Mutex {
 private:
-    bool state;
+	bool state;
 public:
-    Mutex() {
-        state = 0;
-    }
-    void lock();
-    void release();
+	Mutex() {
+		state = 0;
+	}
+	void lock();
+	void release();
 };
 
 typedef unsigned int uint;

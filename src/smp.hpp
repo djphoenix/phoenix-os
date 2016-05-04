@@ -21,9 +21,9 @@
 
 class SMP {
 private:
-    static void startup();
+	static void startup();
 public:
-    static void init();
+	static void init();
 };
 
 #endif

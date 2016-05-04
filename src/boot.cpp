@@ -24,9 +24,9 @@
 int main()
 {
 	clrscr();
-    Memory::init();
-    Interrupts::init();
-    SMP::init();
-    ModuleManager::init();
+	Memory::init();
+	Interrupts::init();
+	SMP::init();
+	ModuleManager::init();
 	process_loop();
 }

@@ -102,13 +102,13 @@ x64_entry:
 	shr $24, %rcx
 
 	mov 8+_smp_end-_smp_init(%rbp), %rax
-    xor %rdx, %rdx
+	xor %rdx, %rdx
 .getid:
-    cmp (%rax), %rcx
-    je .foundid
-    add $8, %rax
-    inc %rdx
-    jmp .getid
+	cmp (%rax), %rcx
+	je .foundid
+	add $8, %rax
+	inc %rdx
+	jmp .getid
 .foundid:
 
 	shl $3, %rdx

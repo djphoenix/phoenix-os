@@ -24,42 +24,42 @@
 typedef struct{
 	char *name, *version, *description, *requirements, *developer;
 	_uint64 size;
-    PROCSTARTINFO psinfo;
+	PROCSTARTINFO psinfo;
 } MODULEINFO, *PMODULEINFO;
 class ModuleManager {
 private:
-    static ModuleManager* manager;
-    void parseInternal();
-    void parseInitRD();
-    void loadStream(Stream *stream, bool start=0);
-    bool parseModuleInfo(PMODULEINFO mod, Stream *stream);
-    PMODULEINFO loadElf(Stream *stream);
+	static ModuleManager* manager;
+	void parseInternal();
+	void parseInitRD();
+	void loadStream(Stream *stream, bool start=0);
+	bool parseModuleInfo(PMODULEINFO mod, Stream *stream);
+	PMODULEINFO loadElf(Stream *stream);
 public:
-    ModuleManager();
-    static ModuleManager* getManager();
-    static void init();
+	ModuleManager();
+	static ModuleManager* getManager();
+	static void init();
 };
 
 typedef struct {
-    uint name, type;
-    _uint64 flags, addr, offset, size;
-    uint link, info;
-    _uint64 addralign, entsize;
+	uint name, type;
+	_uint64 flags, addr, offset, size;
+	uint link, info;
+	_uint64 addralign, entsize;
 } ELF64SECT;
 typedef struct{
 	uint name;
 	unsigned char info, other;
-    unsigned short shndx;
-    _uint64 value;
-    _uint64 size;
+	unsigned short shndx;
+	_uint64 value;
+	_uint64 size;
 } ELF64SYM;
 typedef struct{
 	_uint64 addr;
-    struct{ uint type, sym;} info;
-    _uint64 add;
+	struct{ uint type, sym;} info;
+	_uint64 add;
 } ELF64RELA;
 typedef struct{
 	_uint64 addr;
-    struct{ uint type, sym;} info;
+	struct{ uint type, sym;} info;
 } ELF64REL;
 #endif

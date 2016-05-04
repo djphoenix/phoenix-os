@@ -21,62 +21,62 @@ char* Interrupts::handlers = 0;
 INTERRUPT32 Interrupts::interrupts32[256];
 bool Interrupts::ints_set = 0;
 asm("\
-_interrupt_handler:\n\
-\
-push %rax\n\
-push %rcx\n\
-mov 16(%rsp), %ax\n\
-movq 8(%rsp), %rcx\n\
-movq %rcx,10(%rsp)\n\
-movq 0(%rsp), %rcx\n\
-movq %rcx,2(%rsp)\n\
-add $2, %rsp\n\
-movq %rsp, %rcx\n\
-addq $16, %rcx\n\
-push %rdx\n\
-push %rbx\n\
-push %rbp\n\
-push %rsi\n\
-push %rdi\n\
-push %r8\n\
-push %r9\n\
-push %r10\n\
-push %r11\n\
-push %r12\n\
-push %r13\n\
-push %r14\n\
-push %r15\n\
-\
-movq %rcx,%rdx\n\
-movl %eax,%ecx\n\
-movq %rcx,%rsi\n\
-movl %eax,%edi\n\
-call interrupt_handler\n\
-\
-popq %r15\n\
-popq %r14\n\
-popq %r13\n\
-popq %r12\n\
-popq %r11\n\
-popq %r10\n\
-popq %r9\n\
-popq %r8\n\
-popq %rdi\n\
-popq %rsi\n\
-popq %rbp\n\
-popq %rbx\n\
-popq %rdx\n\
-popq %rcx\n\
-movb $0x20, %al\n\
-outb %al, $0x20\n\
-popq %rax\n\
-\
-iretq\n\
-.align 16\n\
-interrupt_handler:\
-");
+	_interrupt_handler:\n\
+	\
+	push %rax\n\
+	push %rcx\n\
+	mov 16(%rsp), %ax\n\
+	movq 8(%rsp), %rcx\n\
+	movq %rcx,10(%rsp)\n\
+	movq 0(%rsp), %rcx\n\
+	movq %rcx,2(%rsp)\n\
+	add $2, %rsp\n\
+	movq %rsp, %rcx\n\
+	addq $16, %rcx\n\
+	push %rdx\n\
+	push %rbx\n\
+	push %rbp\n\
+	push %rsi\n\
+	push %rdi\n\
+	push %r8\n\
+	push %r9\n\
+	push %r10\n\
+	push %r11\n\
+	push %r12\n\
+	push %r13\n\
+	push %r14\n\
+	push %r15\n\
+	\
+	movq %rcx,%rdx\n\
+	movl %eax,%ecx\n\
+	movq %rcx,%rsi\n\
+	movl %eax,%edi\n\
+	call interrupt_handler\n\
+	\
+	popq %r15\n\
+	popq %r14\n\
+	popq %r13\n\
+	popq %r12\n\
+	popq %r11\n\
+	popq %r10\n\
+	popq %r9\n\
+	popq %r8\n\
+	popq %rdi\n\
+	popq %rsi\n\
+	popq %rbp\n\
+	popq %rbx\n\
+	popq %rdx\n\
+	popq %rcx\n\
+	movb $0x20, %al\n\
+	outb %al, $0x20\n\
+	popq %rax\n\
+	\
+	iretq\n\
+	.align 16\n\
+	interrupt_handler:\
+	");
 void interrupt_handler(unsigned char intr, _uint64 stack){
-    Interrupts::handle(intr,stack);
+	Interrupts::handle(intr,stack);
 }
 void Interrupts::handle(unsigned char intr, _uint64 stack){
 	if (!ints_set) return;
@@ -85,21 +85,21 @@ void Interrupts::handle(unsigned char intr, _uint64 stack){
 		print("\nKernel fault #"); printb(intr); print("h\nStack print:\n");
 		print("RSP=");printq((_uint64)rsp); print("h\n");
 		for(int i=0;i<7;i++)
-			{printq(rsp[i]); print("\n");}
+		{printq(rsp[i]); print("\n");}
 		for(;;);
-    } else if(intr == 0x21) {
-        print("KBD "); printb(inportb(0x60)); print("\n");
-    } else if(intr != 0x20) {
+	} else if(intr == 0x21) {
+		print("KBD "); printb(inportb(0x60)); print("\n");
+	} else if(intr != 0x20) {
 		print("INT "); prints(intr); print("h\n");
 	}
-    if (callbacks) {
-        _uint64 i = 0;
-        while ((callbacks[i].intr != 0) || ((callbacks[i].cb != 0))) {
-            if(callbacks[i].intr == intr) callbacks[i].cb();
-            i++;
-        }
-    }
-    ACPI::EOI();
+	if (callbacks) {
+		_uint64 i = 0;
+		while ((callbacks[i].intr != 0) || ((callbacks[i].cb != 0))) {
+			if(callbacks[i].intr == intr) callbacks[i].cb();
+			i++;
+		}
+	}
+	ACPI::EOI();
 }
 void Interrupts::init()
 {
@@ -131,27 +131,27 @@ void Interrupts::init()
 		idt->ints[i].offset_middle = ((_int64)(&handlers[9*i]) >> 16) & 0xFFFF;
 		idt->ints[i].offset_high = ((_int64)(&handlers[9*i]) >> 32) & 0xFFFFFFFF;
 	}
-    
-    outportb(0x20, 0x11);
-    outportb(0xA0, 0x11);
-    outportb(0x21, 0x20);
-    outportb(0xA1, 0x28);
-    outportb(0x21, 0x04);
-    outportb(0xA1, 0x02);
-    outportb(0x21, 0x01);
-    outportb(0xA1, 0x01);
-
-    loadVector();
-
-    if (!(ACPI::getController())->initAPIC()) {
+	
+	outportb(0x20, 0x11);
+	outportb(0xA0, 0x11);
+	outportb(0x21, 0x20);
+	outportb(0xA1, 0x28);
+	outportb(0x21, 0x04);
+	outportb(0xA1, 0x02);
+	outportb(0x21, 0x01);
+	outportb(0xA1, 0x01);
+	
+	loadVector();
+	
+	if (!(ACPI::getController())->initAPIC()) {
 		outportb(0x43, 0x34);
 		static const int rld = 0x000F;
 		outportb(0x40, rld & 0xFF);
 		outportb(0x40, (rld >> 8) & 0xFF);
-    }
+	}
 	maskIRQ(0);
-    interrupt_handler(0,0);
-    ints_set = 1;
+	interrupt_handler(0,0);
+	ints_set = 1;
 }
 
 void Interrupts::maskIRQ(unsigned short mask){
@@ -164,26 +164,26 @@ void Interrupts::loadVector(){
 }
 
 unsigned short Interrupts::getIRQmask(){
-    return inportb(0x21) | (inportb(0xA1) << 8);
+	return inportb(0x21) | (inportb(0xA1) << 8);
 }
 
 void Interrupts::addCallback(unsigned char intr, intcb* cb){
-    if (callbacks == 0) {
-        callbacks = (intcbreg*)Memory::alloc(sizeof(intcbreg)*2);
-        callbacks[0].intr = intr;
-        callbacks[0].cb = cb;
-        callbacks[1].intr = 0;
-        callbacks[1].cb = 0;
-    } else {
-        _uint64 cid = 0;
-        while ((callbacks[cid].intr != 0) || (callbacks[cid].cb != 0)) cid++;
-        intcbreg* nc = (intcbreg*)Memory::alloc(sizeof(intcbreg)*(cid+1));
-        Memory::copy(nc, callbacks, sizeof(intcbreg)*cid);
-        Memory::free(callbacks);
-        callbacks = nc;
-        callbacks[cid].intr = intr;
-        callbacks[cid].cb = cb;
-        callbacks[cid+1].intr = 0;
-        callbacks[cid+1].cb = 0;
-    }
+	if (callbacks == 0) {
+		callbacks = (intcbreg*)Memory::alloc(sizeof(intcbreg)*2);
+		callbacks[0].intr = intr;
+		callbacks[0].cb = cb;
+		callbacks[1].intr = 0;
+		callbacks[1].cb = 0;
+	} else {
+		_uint64 cid = 0;
+		while ((callbacks[cid].intr != 0) || (callbacks[cid].cb != 0)) cid++;
+		intcbreg* nc = (intcbreg*)Memory::alloc(sizeof(intcbreg)*(cid+1));
+		Memory::copy(nc, callbacks, sizeof(intcbreg)*cid);
+		Memory::free(callbacks);
+		callbacks = nc;
+		callbacks[cid].intr = intr;
+		callbacks[cid].cb = cb;
+		callbacks[cid+1].intr = 0;
+		callbacks[cid+1].cb = 0;
+	}
 }

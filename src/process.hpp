@@ -20,60 +20,60 @@
 #include "memory.hpp"
 extern void process_loop();
 typedef struct {
-    _uint64 offset;
-    _uint64 vaddr;
-    _uint64 size;
-    _uint64 fsize;
+	_uint64 offset;
+	_uint64 vaddr;
+	_uint64 size;
+	_uint64 fsize;
 } PROCSECT;
 typedef struct {
-    _uint64 offset;
-    uint type;
-    uint sym;
-    _uint64 add;
-    _uint64 sect;
+	_uint64 offset;
+	uint type;
+	uint sym;
+	_uint64 add;
+	_uint64 sect;
 } PROCREL;
 typedef struct {
-    _uint64 offset;
-    uint type;
-    uint sect;
-    char* name;
+	_uint64 offset;
+	uint type;
+	uint sect;
+	char* name;
 } PROCSYM;
 typedef struct {
-    _uint64 seg_cnt;
-    PROCSECT* segments;
-    _uint64 sect_cnt;
-    PROCSECT* sections;
-    _uint64 reloc_cnt;
-    PROCREL* relocs;
-    _uint64 sym_cnt;
-    PROCSYM* symbols;
-    _uint64 entry_sym;
+	_uint64 seg_cnt;
+	PROCSECT* segments;
+	_uint64 sect_cnt;
+	PROCSECT* sections;
+	_uint64 reloc_cnt;
+	PROCREL* relocs;
+	_uint64 sym_cnt;
+	PROCSYM* symbols;
+	_uint64 entry_sym;
 } PROCSTARTINFO, *PPROCSTARTINFO;
 class Process;
 class ProcessManager {
 private:
-    Process** processes;
-    static Mutex* processSwitchMutex;
-    static ProcessManager* manager;
-    static void SwitchProcess();
+	Process** processes;
+	static Mutex* processSwitchMutex;
+	static ProcessManager* manager;
+	static void SwitchProcess();
 public:
-    _uint64 RegisterProcess(Process* process);
-    static ProcessManager* getManager();
+	_uint64 RegisterProcess(Process* process);
+	static ProcessManager* getManager();
 };
 
 class Process {
 private:
-    _uint64 id;
-    PPTE pagetable;
-    PROCSTARTINFO psinfo;
-    struct {
-        _uint64 rax, rcx, rdx, rbx;
-        _uint64 rsi, rdi, rbp, rsp;
-        _uint64 rip, rflags;
-        _uint64 r8, r9, r10, r11, r12, r13, r14, r15;
-    } regs;
-    bool suspend;
+	_uint64 id;
+	PPTE pagetable;
+	PROCSTARTINFO psinfo;
+	struct {
+		_uint64 rax, rcx, rdx, rbx;
+		_uint64 rsi, rdi, rbp, rsp;
+		_uint64 rip, rflags;
+		_uint64 r8, r9, r10, r11, r12, r13, r14, r15;
+	} regs;
+	bool suspend;
 public:
-    Process(PROCSTARTINFO psinfo);
+	Process(PROCSTARTINFO psinfo);
 };
 #endif

@@ -26,8 +26,8 @@ void clrscr()
 }
 void print(const char* str)
 {
-    while (display_lock);
-    display_lock = 1;
+	while (display_lock);
+	display_lock = 1;
 	_int64 i = 0; char c;
 	while((c = str[i++])){
 		if(c == 0) return;
@@ -44,14 +44,14 @@ void print(const char* str)
 		if(display >= (char*)0xB8FA0) {
 			display = (char*)0xB8000;
 			while(display != (char*)0xB8F00) {
-			((_uint64*)(display))[0] = ((_uint64*)(display+160))[0];
-			display += 8;
+				((_uint64*)(display))[0] = ((_uint64*)(display+160))[0];
+				display += 8;
 			}
 			display = (char*)0xB8FA0;
 			while(display != (char*)0xB8F00) ((_uint64*)(display-=8))[0] = 0x0F000F000F000F00;
 		}
 	}
-    display_lock=0;
+	display_lock=0;
 }
 
 void printb(char i)
@@ -86,7 +86,7 @@ _uint64 strlen(char* c, _uint64 limit)
 {
 	for(_uint64 i = 0; i < limit; i++)
 		if(c[i] == 0) return i;
-    return 0;
+	return 0;
 }
 
 char* strcpy(char* c)
@@ -101,27 +101,27 @@ char* strcpy(char* c)
 
 bool strcmp(const char* a, char* b)
 {
-    int i = 0;
-    while (true) {
-        if (a[i] != b[i]) return false;
-        if (a[i] == 0) return true;
-        i++;
-    }
+	int i = 0;
+	while (true) {
+		if (a[i] != b[i]) return false;
+		if (a[i] == 0) return true;
+		i++;
+	}
 }
 
 extern "C" void __cxa_pure_virtual() { while (1); }
 
 void Mutex::lock()
 {
-    bool ret_val = 0,old_val = 0,new_val = 1;
-    do {
-        asm volatile("lock cmpxchgb %1,%2":
-                     "=a"(ret_val):
-                     "r"(new_val),"m"(state),"0"(old_val):
-                     "memory");
-    } while (ret_val);
+	bool ret_val = 0,old_val = 0,new_val = 1;
+	do {
+		asm volatile("lock cmpxchgb %1,%2":
+					 "=a"(ret_val):
+					 "r"(new_val),"m"(state),"0"(old_val):
+					 "memory");
+	} while (ret_val);
 }
 void Mutex::release()
 {
-    state = 0;
+	state = 0;
 }

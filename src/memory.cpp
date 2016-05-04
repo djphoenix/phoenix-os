@@ -46,7 +46,7 @@ void Memory::init()
 	// Buffering BIOS interrupts
 	for(int i=0; i<256; i++){
 		PINTERRUPT32 intr = (PINTERRUPT32)(((_uint64)i & 0xFF)*sizeof(INTERRUPT32));
-        Interrupts::interrupts32[i] = *intr;
+		Interrupts::interrupts32[i] = *intr;
 	}
 	// Buffering grub data
 	kernel_data.flags = grub_data->flags;
@@ -73,20 +73,20 @@ void Memory::init()
 		cmdlinel = i+1;
 	}
 	if(((kernel_data.flags & 8) == 8) && (grub_data->mods_count != 0) && (kernel_data.mods != 0)){
-        modules[grub_data->mods_count].start = 0;
+		modules[grub_data->mods_count].start = 0;
 		PGRUBMODULE c = (PGRUBMODULE)kernel_data.mods;
 		for(unsigned int i = 0; i < grub_data->mods_count; i++){
 			modules[i].start = c->start;
 			modules[i].end = c->end;
-
+			
 			(*(_uint64*)(get_page((void*)((_uint64)modules[i].start & 0xFFFFF000)))) &= ~4; // Set module pages as system
 			for(_uint64 addr = (modules[i].start & 0xFFFFF000); addr < (modules[i].end & 0xFFFFF000); addr += 0x1000)
 				(*(_uint64*)(get_page((void*)addr))) &= ~4;
-
+			
 			c = (PGRUBMODULE)((_uint64)c + 16);
 		}
 	} else kernel_data.mods = 0;
-
+	
 	// Initialization of pagetables
 	(*(_uint64*)(get_page((void*)0x00000000))) &= 0xFFFFFFFFFFFFFFF0; // BIOS Data
 	for(_uint64 addr = 0x0A0000; addr < 0x0C8000; addr += 0x1000) // Video data & VGA BIOS
@@ -282,11 +282,11 @@ void* Memory::alloc(_uint64 size, int align)
 				if(ne < as) continue;
 				if(ae < ns) continue;
 				if(
-					((ns>=as) and (ns<ae)) or	// NA starts in alloc
-					((ne>=as) and (ne<ae)) or	// NA ends in alloc
-					((ns>=as) and (ne<ae)) or	// NA inside alloc
-					((ns<=as) and (ne>ae))		// alloc inside NA
-				) {
+				   ((ns>=as) and (ns<ae)) or	// NA starts in alloc
+				   ((ne>=as) and (ne<ae)) or	// NA ends in alloc
+				   ((ns>=as) and (ne<ae)) or	// NA inside alloc
+				   ((ns<=as) and (ne>ae))		// alloc inside NA
+				   ) {
 					ns=ae;
 					if(ns%align != 0) ns = ns + align - (ns%align);
 					ne = ns + size;
@@ -350,7 +350,7 @@ void Memory::free(void* addr)
 	}
 }
 void Memory::copy(void *dest, void *src, _uint64 count) {
-    char *cdest = (char*)dest, *csrc = (char*)src;
+	char *cdest = (char*)dest, *csrc = (char*)src;
 	while(count){
 		*cdest = *csrc;
 		cdest++;
@@ -360,8 +360,8 @@ void Memory::copy(void *dest, void *src, _uint64 count) {
 }
 
 void* operator new(unsigned long a){
-    return Memory::alloc(a);
+	return Memory::alloc(a);
 }
 void operator delete(void* a){
-    return Memory::free(a);
+	return Memory::free(a);
 }
