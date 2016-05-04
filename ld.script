@@ -25,9 +25,6 @@ SECTIONS
     *(.text)
     *(SORT(.text$*))
      *(.text.*)
-	 _smp_init = . ;
-	 *(.smp_init)
-	 _smp_end = . ;
      *(.gnu.linkonce.t.*)
     . = ALIGN(8);
      ___CTOR_LIST__ = .; __CTOR_LIST__ = . ;
