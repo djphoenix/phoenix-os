@@ -144,8 +144,12 @@ void Interrupts::init()
     loadVector();
 
     if (!(ACPI::getController())->initAPIC()) {
-        maskIRQ(0);
+		outportb(0x43, 0x34);
+		static const int rld = 0x000F;
+		outportb(0x40, rld & 0xFF);
+		outportb(0x40, (rld >> 8) & 0xFF);
     }
+	maskIRQ(0);
     interrupt_handler(0,0);
     ints_set = 1;
 }
