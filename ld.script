@@ -19,7 +19,7 @@ OUTPUT_FORMAT(elf64-x86-64)
 ENTRY(_efi_start)
 SECTIONS
 {
-  .text 0x401000 : ALIGN(0)
+  .text 0x401000 : ALIGN(1)
   {
     __text_start__ = . ;
     *(.init)
@@ -35,10 +35,9 @@ SECTIONS
 			LONG (-1); LONG (-1); *(.dtors); *(.dtor); *(SORT(.dtors.*));  LONG (0); LONG (0);
     PROVIDE (etext = .);
      *(.fini)
-	. = ALIGN(0x1000);
     __text_end__ = . ;
   }
-  .data :
+  .data BLOCK(1) : ALIGN(1)
   {
     __data_start__ = . ;
     *(.data)
@@ -55,10 +54,9 @@ SECTIONS
     __modules_start__ = . ;
     *(.modules)
     *(SORT(.modules$*))
-    . = ALIGN(0x1000);
     __modules_end__ = . ;
   }
-  .bss BLOCK(0) : AT(__modules_end__)
+  .bss BLOCK(1) : ALIGN(1)
   {
     __bss_start__ = . ;
     *(.bss)
