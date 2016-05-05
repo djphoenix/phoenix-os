@@ -20,6 +20,7 @@
 .extern main
 .global _start
 .global __main
+.global _efi_start
 .extern grub_data
 .extern __text_start__
 .extern __modules_end__
@@ -115,7 +116,7 @@ multiboot_entry:
 	mov $0x20000, %edi			# Set the destination index to 0x10000.
 	mov %edi, %cr3				# Set control register 3 to the destination index.
 	xor %eax, %eax				# Nullify the A-register.
-	mov $7168, %ecx				# Set the C-register to 7168.
+	mov $0x1C00, %ecx			# Set the C-register to 7168.
 	rep stosl					# Clear the memory.
 	mov %cr3, %edi				# Set the destination index to control register 3.
 
@@ -130,7 +131,7 @@ multiboot_entry:
 	add $0x1000, %edi			# Add 0x1000 to the destination index.
 
 	mov $0x00000007, %ebx		# Set the B-register to 0x00000007.
-	mov $2048, %ecx				# Set the C-register to 2048.
+	mov $0x800, %ecx			# Set the C-register to 2048.
 
 .SetEntry:
 	mov %ebx, (%edi)			# Set the double word at the destination index to the B-register.
@@ -181,6 +182,9 @@ error:
 	jmp x64_entry.loop
 	
 .code64
+
+_efi_start: # EFI
+	jmp .
 
 x64_entry:
 	call main
