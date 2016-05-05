@@ -69,3 +69,5 @@ phoenixos: $(BIN)
 
 launch:
 	$(QEMU) -kernel $(BIN) -smp 8 -cpu Nehalem
+launch-efi: OVMF.fd
+	$(QEMU) -kernel $(BIN) -smp 8 -cpu Nehalem -bios OVMF.fd
