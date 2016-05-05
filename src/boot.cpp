@@ -29,4 +29,5 @@ int main()
 	SMP::init();
 	ModuleManager::init();
 	process_loop();
+	return 0;
 }
