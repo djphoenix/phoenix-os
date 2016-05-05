@@ -68,6 +68,6 @@ phoenixos: $(BIN)
 	cp $< $@
 
 launch:
-	$(QEMU) -kernel $(BIN) -smp 8 -cpu Nehalem
+	$(QEMU) -kernel $(BIN) -smp cores=2,threads=2 -cpu Nehalem
 launch-efi: OVMF.fd
-	$(QEMU) -kernel $(BIN) -smp 8 -cpu Nehalem -bios OVMF.fd
+	$(QEMU) -kernel $(BIN) -smp cores=2,threads=2 -cpu Nehalem -bios OVMF.fd
