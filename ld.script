@@ -38,6 +38,7 @@ SECTIONS
 			LONG (-1); LONG (-1); *(.dtors); *(.dtor); *(SORT(.dtors.*));  LONG (0); LONG (0);
     PROVIDE (etext = .);
      *(.fini)
+	. = ALIGN(64);
     __text_end__ = . ;
   }
   .data BLOCK(1) : ALIGN(1)
@@ -57,6 +58,7 @@ SECTIONS
     __modules_start__ = . ;
     *(.modules)
     *(SORT(.modules$*))
+	. = ALIGN(64);
     __modules_end__ = . ;
   }
   .bss BLOCK(1) : ALIGN(1)
