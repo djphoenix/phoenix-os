@@ -19,8 +19,7 @@ PIDT Interrupts::idt = 0;
 intcbreg* Interrupts::callbacks = 0;
 char* Interrupts::handlers = 0;
 INTERRUPT32 Interrupts::interrupts32[256];
-bool Interrupts::ints_set = 0;
-asm("\
+asm volatile ("\
 	_interrupt_handler:\n\
 	\
 	push %rax\n\
@@ -75,11 +74,10 @@ asm("\
 	.align 16\n\
 	interrupt_handler:\
 	");
-void interrupt_handler(unsigned char intr, _uint64 stack){
+volatile void interrupt_handler(unsigned char intr, _uint64 stack){
 	Interrupts::handle(intr,stack);
 }
 void Interrupts::handle(unsigned char intr, _uint64 stack){
-	if (!ints_set) return;
 	_int64 *rsp = (_int64*)stack;
 	if(intr<0x20){
 		print("\nKernel fault #"); printb(intr); print("h\nStack print:\n");
@@ -150,8 +148,6 @@ void Interrupts::init()
 		outportb(0x40, (rld >> 8) & 0xFF);
 	}
 	maskIRQ(0);
-	interrupt_handler(0,0);
-	ints_set = 1;
 }
 
 void Interrupts::maskIRQ(unsigned short mask){

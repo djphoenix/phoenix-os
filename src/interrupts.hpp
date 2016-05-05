@@ -54,7 +54,6 @@ private:
 	static intcbreg* callbacks;
 	static char* handlers;
 	static PIDT idt;
-	static bool ints_set;
 public:
 	static INTERRUPT32 interrupts32[256];
 	static void init();
