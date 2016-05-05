@@ -23,6 +23,9 @@ SECTIONS
   {
     __text_start__ = . ;
     *(.init)
+	__init_start__ = . ;
+	KEEP (*(.init_array*))
+	__init_end__ = . ;
     *(.text32)
     *(.text)
     *(SORT(.text$*))

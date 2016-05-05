@@ -125,6 +125,19 @@ bool strcmp(const char* a, char* b)
 
 extern "C" void __cxa_pure_virtual() { while (1); }
 
+extern "C"
+{
+	extern void (**__init_start__)();
+	extern void (**__init_end__)();
+	
+}
+
+void static_init()
+{
+	for (void (**p)() = __init_start__; p < __init_end__; ++p)
+		(*p)();
+}
+
 void Mutex::lock()
 {
 	bool ret_val = 0,old_val = 0,new_val = 1;

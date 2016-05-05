@@ -23,6 +23,7 @@
 
 int main()
 {
+	static_init();
 	clrscr();
 	Memory::init();
 	Interrupts::init();
