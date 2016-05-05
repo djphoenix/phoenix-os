@@ -115,7 +115,9 @@ x64_entry:
 	add 16+_smp_end-_smp_init(%rbp), %rdx
 	mov (%rdx), %rsp
 
-	callq *24+_smp_end-_smp_init(%rbp)
+	mov 24+_smp_end-_smp_init(%rbp), %rax
+	mov %rbp, %rsp
+	callq *%rax
 .loop:
 	hlt
 	jmp .loop

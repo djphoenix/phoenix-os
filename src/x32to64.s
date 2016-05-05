@@ -187,10 +187,11 @@ _efi_start: # EFI
 	jmp .
 
 x64_entry:
+	mov %rsp, %rbp
 	call main
 x64_entry.loop:
 	hlt
-	jmp .loop
+	jmp x64_entry.loop
 
 __main: # Fix for Windows builds
 	ret
