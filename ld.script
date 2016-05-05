@@ -23,8 +23,9 @@ SECTIONS
   {
     __text_start__ = . ;
     *(.text32)
-    __init_start__ = . ;
     *(.init)
+	. = ALIGN(64);
+	__init_start__ = . ;
     KEEP (*(.init_array*))
     __init_end__ = . ;
     *(.text)
