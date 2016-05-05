@@ -20,9 +20,11 @@ char* display = (char*)0xB8000;
 Mutex display_lock = Mutex();
 void clrscr()
 {
+	display_lock.lock();
 	display = (char*)0xB8FA0;
 	while(display != (char*)0xB8000)
 		((_uint64*)(display-=8))[0] = 0x0F000F000F000F00;
+	display_lock.release();
 }
 void print(const char* str)
 {
