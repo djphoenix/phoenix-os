@@ -169,27 +169,37 @@ void Memory::init()
 }
 void Memory::map()
 {
-	char *m = (char*)0xB8000;
+	clrscr();
 	_uint64 i;
-	for(i = 0; i < 0x7D0000; i+=0x1000) {
+	char c = 0, nc = 0;
+	for(i = 0; i < 0xFFFFF000; i+=0x1000) {
 		void *p = get_page((void*)i);
-		char c = 0, cl;
-		if(p != 0) c = (*(_uint64*)(p)) & 0xF;
-		cl = 15;
-		if(c & 1) {
-			if(c & 4){
-				c = 'U'; cl = 0x20;
+		if(p != 0) nc = (*(_uint64*)(p)) & 0xF;
+		if(nc & 1) {
+			if(nc & 4){
+				nc = 'U';
 			} else {
-				c = 'S'; cl = 0x40;
+				nc = 'S';
 			}
 		} else {
-			c = 'E'; cl = 7;
+			nc = 'E';
 		}
-		*m = c;
-		m++;
-		*m = cl;
-		m++;
+		if (nc != c) {
+			if (c != 0) {
+				printl(i);
+				print("\n");
+			}
+			c = nc;
+			char buf[3];
+			buf[0] = c;
+			buf[1] = ':';
+			buf[2] = 0;
+			print(buf);
+			printl(i); print(" - ");
+		}
 	}
+	printl(i);
+	print("\n");
 }
 void* Memory::salloc(void* mem)
 {
