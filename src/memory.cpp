@@ -34,6 +34,12 @@ PPML4E Memory::get_page(void* base_addr)
 	if(page == 0) return 0;
 	return &page[i & 0x1FF];
 }
+
+static inline _uint64 ALIGN(_uint64 base, _uint64 align) {
+	if (base % align == 0) return base;
+	return base + align - (base % align);
+}
+
 void Memory::init()
 {
 	asm("movabs $_start, %q0":"=a"(kernel_data.kernel)); kernel_data.stack = 0x1000; kernel_data.stack_top = 0x2000;
@@ -95,13 +101,13 @@ void Memory::init()
 		(*(_uint64*)(get_page((void*)addr))) &= ~4;
 	for(_uint64 addr = 0x0F0000; addr < 0x100000; addr += 0x1000) // BIOS Code
 		(*(_uint64*)(get_page((void*)addr))) &= ~4;
-	for(_uint64 addr = kernel_data.stack; addr <= ((kernel_data.stack_top-1) & 0xFFFFFFFFFFFFF000); addr += 0x1000) // PXOS Stack
+	for(_uint64 addr = kernel_data.stack & 0xFFFFFFFFFFFFF000; addr < ALIGN(kernel_data.stack_top,0x1000); addr += 0x1000) // PXOS Stack
 		(*(_uint64*)(get_page((void*)addr))) &= ~4;
-	for(_uint64 addr = kernel_data.kernel; addr <= ((kernel_data.data_top-1) & 0xFFFFFFFFFFFFF000); addr += 0x1000) // PXOS Code & Data
+	for(_uint64 addr = kernel_data.kernel & 0xFFFFFFFFFFFFF000; addr < ALIGN(kernel_data.data_top,0x1000); addr += 0x1000) // PXOS Code & Data
 		(*(_uint64*)(get_page((void*)addr))) &= ~4;
-	for(_uint64 addr = kernel_data.modules; addr <= ((kernel_data.modules_top-1) & 0xFFFFFFFFFFFFF000); addr += 0x1000) // PXOS Modules
+	for(_uint64 addr = kernel_data.modules & 0xFFFFFFFFFFFFF000; addr < ALIGN(kernel_data.modules_top,0x1000); addr += 0x1000) // PXOS Modules
 		(*(_uint64*)(get_page((void*)addr))) &= ~4;
-	for(_uint64 addr = kernel_data.bss; addr <= ((kernel_data.bss_top-1) & 0xFFFFFFFFFFFFF000); addr += 0x1000) // PXOS BSS
+	for(_uint64 addr = kernel_data.bss & 0xFFFFFFFFFFFFF000; addr < ALIGN(kernel_data.bss_top,0x1000); addr += 0x1000) // PXOS BSS
 		(*(_uint64*)(get_page((void*)addr))) &= ~4;
 	(*(_uint64*)(get_page((void*)pagetable))) &= ~4; // Setting pagetable pages as system
 	for(short i = 0; i < 512; i++) {
