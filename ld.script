@@ -22,11 +22,11 @@ SECTIONS
   .text 0x401000 : ALIGN(1)
   {
     __text_start__ = . ;
-    *(.init)
-	__init_start__ = . ;
-	KEEP (*(.init_array*))
-	__init_end__ = . ;
     *(.text32)
+    __init_start__ = . ;
+    *(.init)
+    KEEP (*(.init_array*))
+    __init_end__ = . ;
     *(.text)
     *(SORT(.text$*))
      *(.text.*)
