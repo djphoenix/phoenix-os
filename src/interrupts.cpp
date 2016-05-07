@@ -16,10 +16,10 @@
 
 #include "interrupts.hpp"
 PIDT Interrupts::idt = 0;
-intcbreg* Interrupts::callbacks = 0;
+intcbreg *Interrupts::callbacks[256];
+Mutex Interrupts::callback_locks[256];
 int_handler* Interrupts::handlers = 0;
 INTERRUPT32 Interrupts::interrupts32[256];
-Mutex int_callbacks = Mutex();
 asm volatile ("\
 	__interrupt_wrap:\n\
 	\
@@ -93,15 +93,18 @@ void Interrupts::handle(unsigned char intr, _uint64 stack){
 	} else if(intr != 0x20) {
 		print("INT "); prints(intr); print("h\n");
 	}
-	int_callbacks.lock();
-	if (callbacks) {
-		_uint64 i = 0;
-		while ((callbacks[i].intr != 0) || ((callbacks[i].cb != 0))) {
-			if(callbacks[i].intr == intr) callbacks[i].cb();
-			i++;
-		}
-	}
-	int_callbacks.release();
+	callback_locks[intr].lock();
+	intcbreg *reg = callbacks[intr];
+	intcb *cb;
+	if (reg != 0) cb = reg->cb;
+	callback_locks[intr].release();
+	while (reg != 0) {
+		if (cb != 0) cb();
+		callback_locks[intr].lock();
+		reg = reg->next;
+		if (reg != 0) cb = reg->cb;
+		callback_locks[intr].release();
+	};
 	ACPI::EOI();
 }
 void Interrupts::init()
@@ -130,6 +133,9 @@ void Interrupts::init()
 		idt->ints[i].offset_low = (hptr >> 0) & 0xFFFF;
 		idt->ints[i].offset_middle = (hptr >> 16) & 0xFFFF;
 		idt->ints[i].offset_high = (hptr >> 32) & 0xFFFFFFFF;
+		
+		callbacks[i] = 0;
+		callback_locks[i] = Mutex();
 	}
 	
 	outportb(0x20, 0x11);
@@ -167,21 +173,21 @@ unsigned short Interrupts::getIRQmask(){
 
 void Interrupts::addCallback(unsigned char intr, intcb* cb){
 	asm volatile("cli");
-	int_callbacks.lock();
-
-	intcbreg *_old = callbacks, *_new;
-	_uint64 cid = 0;
-	while (callbacks != 0 && ((callbacks[cid].intr != 0) || (callbacks[cid].cb != 0))) cid++;
-	_new = (intcbreg*)Memory::alloc(sizeof(intcbreg)*(cid+2));
-	Memory::copy(_new, callbacks, sizeof(intcbreg)*cid);
-	_new[cid].intr = intr;
-	_new[cid].cb = cb;
-	_new[cid+1].intr = 0;
-	_new[cid+1].cb = 0;
 	
-	callbacks = _new;
-	if (_old != 0) Memory::free(_old);
+	intcbreg *reg = (intcbreg*)Memory::alloc(sizeof(intcbreg));
+	reg->cb = cb;
+	reg->next = 0;
+	reg->prev = 0;
 	
-	int_callbacks.release();
+	callback_locks[intr].lock();
+	intcbreg *last = callbacks[intr];
+	if (last == 0) {
+		callbacks[intr] = reg;
+	} else {
+		while (last->next != 0) last = last->next;
+		reg->prev = last;
+		last->next = reg;
+	}
+	callback_locks[intr].release();
 	asm volatile("sti");
 }

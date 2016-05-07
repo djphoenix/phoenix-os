@@ -40,16 +40,6 @@ typedef struct {
 	short limit;
 	void* addr;
 } IDTR, *PIDTR;
-#pragma pack(pop)
-typedef struct {
-	INTERRUPT64 ints[256];
-	IDTR rec;
-} IDT, *PIDT;
-
-typedef void intcb();
-typedef struct {unsigned char intr; intcb *cb;} intcbreg;
-
-#pragma pack(push,1)
 struct int_handler {
 	// 68 04 03 02 01  pushq  ${int_num}
 	// e9 46 ec 3f 00  jmp . + {diff}
@@ -59,10 +49,22 @@ struct int_handler {
 	unsigned int diff;
 };
 #pragma pack(pop)
+typedef struct {
+	INTERRUPT64 ints[256];
+	IDTR rec;
+} IDT, *PIDT;
+
+typedef void intcb();
+struct _intcbreg;
+typedef struct _intcbreg {
+	intcb *cb;
+	_intcbreg *prev, *next;
+} intcbreg;
 
 class Interrupts {
 private:
-	static intcbreg* callbacks;
+	static intcbreg *callbacks[256];
+	static Mutex callback_locks[256];
 	static int_handler* handlers;
 	static PIDT idt;
 public:
