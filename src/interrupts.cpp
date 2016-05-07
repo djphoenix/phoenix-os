@@ -19,6 +19,7 @@ PIDT Interrupts::idt = 0;
 intcbreg* Interrupts::callbacks = 0;
 int_handler* Interrupts::handlers = 0;
 INTERRUPT32 Interrupts::interrupts32[256];
+Mutex int_callbacks = Mutex();
 asm volatile ("\
 	__interrupt_wrap:\n\
 	\
@@ -92,6 +93,7 @@ void Interrupts::handle(unsigned char intr, _uint64 stack){
 	} else if(intr != 0x20) {
 		print("INT "); prints(intr); print("h\n");
 	}
+	int_callbacks.lock();
 	if (callbacks) {
 		_uint64 i = 0;
 		while ((callbacks[i].intr != 0) || ((callbacks[i].cb != 0))) {
@@ -99,6 +101,7 @@ void Interrupts::handle(unsigned char intr, _uint64 stack){
 			i++;
 		}
 	}
+	int_callbacks.release();
 	ACPI::EOI();
 }
 void Interrupts::init()
@@ -163,6 +166,8 @@ unsigned short Interrupts::getIRQmask(){
 }
 
 void Interrupts::addCallback(unsigned char intr, intcb* cb){
+	int_callbacks.lock();
+
 	intcbreg *_old = callbacks, *_new;
 	_uint64 cid = 0;
 	while (callbacks != 0 && ((callbacks[cid].intr != 0) || (callbacks[cid].cb != 0))) cid++;
@@ -175,4 +180,6 @@ void Interrupts::addCallback(unsigned char intr, intcb* cb){
 	
 	callbacks = _new;
 	if (_old != 0) Memory::free(_old);
+	
+	int_callbacks.release();
 }
