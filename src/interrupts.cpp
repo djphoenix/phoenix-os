@@ -71,10 +71,12 @@ asm volatile ("\
 	popq %rax\n\
 	\
 	iretq\n\
-	.align 16\n\
-	interrupt_handler:\
-	");
-volatile void interrupt_handler(unsigned char intr, _uint64 stack){
+	.align 16\
+");
+extern "C" {
+	void volatile interrupt_handler(unsigned char intr, _uint64 stack);
+}
+void volatile interrupt_handler(unsigned char intr, _uint64 stack){
 	Interrupts::handle(intr,stack);
 }
 void Interrupts::handle(unsigned char intr, _uint64 stack){
