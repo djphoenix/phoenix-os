@@ -18,7 +18,6 @@
 ACPI* ACPI::controller = 0;
 unsigned char ACPI::activeCpuCount = 0;
 _uint64 ACPI::busfreq = 0;
-Mutex* ACPI::cpuCountMutex = 0;
 
 static const char* ACPI_FIND_START = (const char*)0x000e0000;
 static const char* ACPI_FIND_TOP = (const char*)0x000fffff;
@@ -27,7 +26,6 @@ static const long ACPI_SIG_CIPA = 0x43495041;
 
 ACPI* ACPI::getController() {
 	if (controller) return controller;
-	ACPI::cpuCountMutex = new Mutex();
 	return controller = new ACPI();
 }
 
@@ -239,9 +237,8 @@ void ACPI::activateCPU() {
 	LapicOut(LAPIC_LVT_TMR,0x20 | TMR_PERIODIC);
 	LapicOut(LAPIC_TMRDIV,3);
 	EOI();
-	cpuCountMutex->lock();
-	activeCpuCount++;
-	cpuCountMutex->release();
+	int ret_val;
+	asm volatile ("lock incq %1":"=a"(ret_val):"m"(activeCpuCount):"memory");
 }
 void ACPI::sendCPUInit(int id) {
 	if (!localApicAddr) return;

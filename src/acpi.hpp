@@ -132,7 +132,6 @@ private:
 	static unsigned char activeCpuCount;
 	static _uint64 busfreq;
 	static ACPI *controller;
-	static Mutex *cpuCountMutex;
 	bool ParseRsdp(char* rsdp);
 	void ParseRsdt(AcpiHeader* rsdt);
 	void ParseXsdt(AcpiHeader* xsdt);
