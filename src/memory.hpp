@@ -60,6 +60,8 @@ class Memory {
 	static _uint64 last_page;
 	static GRUBMODULE modules[256];
 	static PPML4E get_page(void* base_addr);
+	static Mutex page_mutex, heap_mutex;
+	static void* _palloc(char sys = 0);
 public:
 	static void map();
 	static void init();

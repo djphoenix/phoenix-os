@@ -21,6 +21,8 @@ PPTE Memory::pagetable = (PPTE)0x20000;
 PALLOCTABLE Memory::allocs = 0;
 void* Memory::first_free = (void*)0x2000;
 _uint64 Memory::last_page = 1;
+Mutex Memory::page_mutex = Mutex();
+Mutex Memory::heap_mutex = Mutex();
 GRUBMODULE Memory::modules[256];
 
 PPML4E Memory::get_page(void* base_addr)
@@ -196,6 +198,7 @@ void Memory::init()
 }
 void Memory::map()
 {
+	page_mutex.lock();
 	clrscr();
 	_uint64 i;
 	char c = 0, nc = 0;
@@ -227,27 +230,30 @@ void Memory::map()
 	}
 	printl(i);
 	print("\n");
+	page_mutex.release();
 }
 void* Memory::salloc(void* mem)
 {
+	page_mutex.lock();
 	_uint64 i = (_uint64)(mem) >> 12;
 	void *addr = (void*)(i << 12);
 	PDE pde = (PDE)((_uint64)pagetable[(i >> 27) & 0x1FF] & 0xFFFFFFFFFFFFF000);
 	if(pde == 0){
-		pagetable[(i >> 27) & 0x1FF] = (PPDE)((_uint64)(pde = (PDE)((_uint64)palloc(1))) | 3);
+		pagetable[(i >> 27) & 0x1FF] = (PPDE)((_uint64)(pde = (PDE)((_uint64)_palloc(1))) | 3);
 	}
 	PDPE pdpe = (PDPE)((_uint64)pde[(i >> 18) & 0x1FF] & 0xFFFFFFFFFFFFF000);
 	if(pdpe == 0){
-		pde[(i >> 18) & 0x1FF] = (PPML4E)((_uint64)(pdpe = (PDPE)((_uint64)palloc(1))) | 3);
+		pde[(i >> 18) & 0x1FF] = (PPML4E)((_uint64)(pdpe = (PDPE)((_uint64)_palloc(1))) | 3);
 	}
 	PPML4E page = (PPML4E)((_uint64)pdpe[(i >> 9) & 0x1FF] & 0xFFFFFFFFFFFFF000);
 	if(page == 0){
-		pdpe[(i >> 9) & 0x1FF] = (void*)((_uint64)(page = (PPML4E)((_uint64)palloc(1))) | 3);
+		pdpe[(i >> 9) & 0x1FF] = (void*)((_uint64)(page = (PPML4E)((_uint64)_palloc(1))) | 3);
 	}
 	page[i & 0x1FF] = (void*)(((_uint64)addr) | 3);
+	page_mutex.release();
 	return addr;
 }
-void* Memory::palloc(char sys)
+void* Memory::_palloc(char sys)
 {
 start:
 	void *addr = 0; PPML4E page;
@@ -284,16 +290,25 @@ start:
 		((_uint64*)addr)[i] = 0;
 	return addr;
 }
+void* Memory::palloc(char sys) {
+	page_mutex.lock();
+	void* ret = _palloc(sys);
+	page_mutex.release();
+	return ret;
+}
 void Memory::pfree(void* page){
+	page_mutex.lock();
 	PPML4E pdata = get_page(page);
 	if((pdata != 0) && ((*(_uint64*)pdata & 5) == 1)){
 		*(_uint64*)pdata &= 0xFFFFFFFFFFFFFFF0;
 		if(((_uint64)page >> 12) < last_page) last_page = (_uint64)page >> 12;
 	}
+	page_mutex.release();
 }
 void* Memory::alloc(_uint64 size, int align)
 {
 	if(size == 0) return (void*)0;
+	heap_mutex.lock();
 	_uint64 ns = (_uint64)first_free, ne; char f;
 	PALLOCTABLE t;
 	while(1){
@@ -369,10 +384,12 @@ void* Memory::alloc(_uint64 size, int align)
 	if(((_uint64)first_free < ns) && (align == 4)){
 		first_free = (void*) (ns + size);
 	}
+	heap_mutex.release();
 	return (void*) ns;
 }
 void Memory::free(void* addr)
 {
+	heap_mutex.lock();
 	PALLOCTABLE t = allocs;
 	while(true){
 		for(int i = 0; i < 255; i++)
@@ -386,7 +403,8 @@ void Memory::free(void* addr)
 		if(t->next == 0) goto end;
 		t = (PALLOCTABLE)t->next;
 	}
-end: ;
+end:
+	heap_mutex.release();
 }
 void Memory::copy(void *dest, void *src, _uint64 count) {
 	char *cdest = (char*)dest, *csrc = (char*)src;
