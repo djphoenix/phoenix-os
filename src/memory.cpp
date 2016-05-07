@@ -40,20 +40,36 @@ static inline _uint64 ALIGN(_uint64 base, _uint64 align) {
 	return base + align - (base % align);
 }
 
+static const void *__stack_start__ = (void*)0x1000;
+static const void *__stack_end__ = (void*)0x2000;
+static const _uint64 KBTS4 = 0xFFFFFFFFFFFFF000;
+
+extern "C" {
+	void *__text_start__, *__text_end__;
+	void *__data_start__, *__data_end__;
+	void *__modules_start__, *__modules_end__;
+	void *__bss_start__, *__bss_end__;
+}
+
 void Memory::init()
 {
-	asm("movabs $_start, %q0":"=a"(kernel_data.kernel)); kernel_data.stack = 0x1000; kernel_data.stack_top = 0x2000;
-	asm("movabs $__data_start__, %q0":"=a"(kernel_data.data));
-	asm("movabs $__data_end__, %q0":"=a"(kernel_data.data_top));
-	asm("movabs $__bss_start__, %q0":"=a"(kernel_data.bss));
-	asm("movabs $__bss_end__, %q0":"=a"(kernel_data.bss_top));
-	asm("movabs $__modules_start__, %q0":"=a"(kernel_data.modules));
-	asm("movabs $__modules_end__, %q0":"=a"(kernel_data.modules_top));
+	// Filling kernel addresses
+	kernel_data.kernel = (_uint64)&__text_start__;
+	kernel_data.stack = (_uint64)__stack_start__;
+	kernel_data.stack_top = (_uint64)__stack_end__;
+	kernel_data.data = (_uint64)&__data_start__;
+	kernel_data.data_top = (_uint64)&__data_end__;
+	kernel_data.modules = (_uint64)&__modules_start__;
+	kernel_data.modules_top = (_uint64)&__modules_end__;
+	kernel_data.bss = (_uint64)&__bss_start__;
+	kernel_data.bss_top = (_uint64)&__bss_end__;
+	
 	// Buffering BIOS interrupts
 	for(int i=0; i<256; i++){
 		PINTERRUPT32 intr = (PINTERRUPT32)(((_uint64)i & 0xFF)*sizeof(INTERRUPT32));
 		Interrupts::interrupts32[i] = *intr;
 	}
+	
 	// Buffering grub data
 	kernel_data.flags = grub_data->flags;
 	kernel_data.mem_lower = grub_data->mem_lower;
@@ -94,40 +110,45 @@ void Memory::init()
 	} else kernel_data.mods = 0;
 	
 	// Initialization of pagetables
-	(*(_uint64*)(get_page((void*)0x00000000))) &= 0xFFFFFFFFFFFFFFF0; // BIOS Data
+	
+	*(_uint64*)(get_page((void*)0x00000000)) &= 0xFFFFFFFFFFFFFFF0; // BIOS Data
+	
 	for(_uint64 addr = 0x0A0000; addr < 0x0C8000; addr += 0x1000) // Video data & VGA BIOS
-		(*(_uint64*)(get_page((void*)addr))) &= ~4;
+		*(_uint64*)(get_page((void*)addr)) &= ~4;
 	for(_uint64 addr = 0x0C8000; addr < 0x0F0000; addr += 0x1000) // Reserved for many systems
-		(*(_uint64*)(get_page((void*)addr))) &= ~4;
+		*(_uint64*)(get_page((void*)addr)) &= ~4;
 	for(_uint64 addr = 0x0F0000; addr < 0x100000; addr += 0x1000) // BIOS Code
-		(*(_uint64*)(get_page((void*)addr))) &= ~4;
-	for(_uint64 addr = kernel_data.stack & 0xFFFFFFFFFFFFF000; addr < ALIGN(kernel_data.stack_top,0x1000); addr += 0x1000) // PXOS Stack
-		(*(_uint64*)(get_page((void*)addr))) &= ~4;
-	for(_uint64 addr = kernel_data.kernel & 0xFFFFFFFFFFFFF000; addr < ALIGN(kernel_data.data_top,0x1000); addr += 0x1000) // PXOS Code & Data
-		(*(_uint64*)(get_page((void*)addr))) &= ~4;
-	for(_uint64 addr = kernel_data.modules & 0xFFFFFFFFFFFFF000; addr < ALIGN(kernel_data.modules_top,0x1000); addr += 0x1000) // PXOS Modules
-		(*(_uint64*)(get_page((void*)addr))) &= ~4;
-	for(_uint64 addr = kernel_data.bss & 0xFFFFFFFFFFFFF000; addr < ALIGN(kernel_data.bss_top,0x1000); addr += 0x1000) // PXOS BSS
-		(*(_uint64*)(get_page((void*)addr))) &= ~4;
-	(*(_uint64*)(get_page((void*)pagetable))) &= ~4; // Setting pagetable pages as system
+		*(_uint64*)(get_page((void*)addr)) &= ~4;
+	
+	for(_uint64 addr = kernel_data.stack & KBTS4; addr < ALIGN(kernel_data.stack_top,0x1000); addr += 0x1000) // PXOS Stack
+		*(_uint64*)(get_page((void*)addr)) &= ~4;
+	for(_uint64 addr = kernel_data.kernel & KBTS4; addr < ALIGN(kernel_data.data_top,0x1000); addr += 0x1000) // PXOS Code & Data
+		*(_uint64*)(get_page((void*)addr)) &= ~4;
+	for(_uint64 addr = kernel_data.modules & KBTS4; addr < ALIGN(kernel_data.modules_top,0x1000); addr += 0x1000) // PXOS Modules
+		*(_uint64*)(get_page((void*)addr)) &= ~4;
+	for(_uint64 addr = kernel_data.bss & KBTS4; addr < ALIGN(kernel_data.bss_top,0x1000); addr += 0x1000) // PXOS BSS
+		*(_uint64*)(get_page((void*)addr)) &= ~4;
+	*(_uint64*)(get_page((void*)pagetable)) &= ~4; // Setting pagetable pages as system
+	
 	for(short i = 0; i < 512; i++) {
 		PPDE pde = pagetable[i];
 		if(((_uint64)pde & 1) == 0) continue;
-		pde = (PPDE)((_uint64)pde & 0xFFFFFFFFFFFFF000);
-		(*(_uint64*)(get_page((void*)pde))) &= ~4;
+		pde = (PPDE)((_uint64)pde & KBTS4);
+		*(_uint64*)(get_page((void*)pde)) &= ~4;
 		for(short j = 0; j < 512; j++) {
 			PPDPE pdpe = pde[j];
 			if(((_uint64)pdpe & 1) == 0) continue;
-			pdpe = (PPDPE)((_uint64)pdpe & 0xFFFFFFFFFFFFF000);
-			(*(_uint64*)(get_page((void*)pdpe))) &= ~4;
+			pdpe = (PPDPE)((_uint64)pdpe & KBTS4);
+			*(_uint64*)(get_page((void*)pdpe)) &= ~4;
 			for(short k = 0; k < 512; k++) {
 				PPML4E pml4e = pdpe[k];
 				if(((_uint64)pml4e & 1) == 0) continue;
-				pml4e = (PPML4E)((_uint64)pml4e & 0xFFFFFFFFFFFFF000);
-				(*(_uint64*)(get_page((void*)pml4e))) &= ~4;
+				pml4e = (PPML4E)((_uint64)pml4e & KBTS4);
+				*(_uint64*)(get_page((void*)pml4e)) &= ~4;
 			}
 		}
 	}
+	
 	// Clearing unused pages
 	for(short i = 0; i < 512; i++) {
 		PPDE pde = pagetable[i];
@@ -228,6 +249,7 @@ void* Memory::salloc(void* mem)
 }
 void* Memory::palloc(char sys)
 {
+start:
 	void *addr = 0; PPML4E page;
 	_uint64 i=last_page-1;
 	while(i<0xFFFFFFFFFF000){
@@ -247,7 +269,7 @@ void* Memory::palloc(char sys)
 		pde[(i >> 18) & 0x1FF] = (void**)((_uint64)addr | 3);
 		for(short j=0; j<0x200; j++)
 			((_uint64*)addr)[j] = 0;
-		return palloc(sys);
+		goto start;
 	}
 	if(((_uint64)pdpen[((i+1) >> 9) & 0x1FF] & 1) == 0){
 		page[i & 0x1FF] = (void*)((_uint64)addr | 3);
@@ -255,7 +277,7 @@ void* Memory::palloc(char sys)
 		pdpen[(i >> 9) & 0x1FF] = (void*)((_uint64)addr | 3);
 		for(short j=0; j<0x200; j++)
 			((_uint64*)addr)[j] = ((_uint64)addr + (j+1)*0x1000);
-		return palloc(sys);
+		goto start;
 	}
 	page[i & 0x1FF] = (void*)(((_uint64)addr) | (sys == 0 ? 7 : 3));
 	for(i=0; i<0x200; i++)
@@ -359,11 +381,12 @@ void Memory::free(void* addr)
 				t->allocs[i].size = 0;
 				if((_uint64)addr < (_uint64)first_free)
 					first_free = addr;
-				return;
+				goto end;
 			}
-		if(t->next == 0) return;
+		if(t->next == 0) goto end;
 		t = (PALLOCTABLE)t->next;
 	}
+end: ;
 }
 void Memory::copy(void *dest, void *src, _uint64 count) {
 	char *cdest = (char*)dest, *csrc = (char*)src;
