@@ -166,6 +166,7 @@ unsigned short Interrupts::getIRQmask(){
 }
 
 void Interrupts::addCallback(unsigned char intr, intcb* cb){
+	asm volatile("cli");
 	int_callbacks.lock();
 
 	intcbreg *_old = callbacks, *_new;
@@ -182,4 +183,5 @@ void Interrupts::addCallback(unsigned char intr, intcb* cb){
 	if (_old != 0) Memory::free(_old);
 	
 	int_callbacks.release();
+	asm volatile("sti");
 }
