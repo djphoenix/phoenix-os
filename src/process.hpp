@@ -20,34 +20,34 @@
 #include "memory.hpp"
 extern void process_loop();
 typedef struct {
-	_uint64 offset;
-	_uint64 vaddr;
-	_uint64 size;
-	_uint64 fsize;
+	size_t offset;
+	size_t vaddr;
+	size_t size;
+	size_t fsize;
 } PROCSECT;
 typedef struct {
-	_uint64 offset;
-	uint type;
-	uint sym;
-	_uint64 add;
-	_uint64 sect;
+	size_t offset;
+	size_t type;
+	size_t sym;
+	size_t add;
+	size_t sect;
 } PROCREL;
 typedef struct {
-	_uint64 offset;
-	uint type;
-	uint sect;
+	size_t offset;
+	uint32_t type;
+	uint32_t sect;
 	char* name;
 } PROCSYM;
 typedef struct {
-	_uint64 seg_cnt;
+	size_t seg_cnt;
 	PROCSECT* segments;
-	_uint64 sect_cnt;
+	size_t sect_cnt;
 	PROCSECT* sections;
-	_uint64 reloc_cnt;
+	size_t reloc_cnt;
 	PROCREL* relocs;
-	_uint64 sym_cnt;
+	size_t sym_cnt;
 	PROCSYM* symbols;
-	_uint64 entry_sym;
+	uint64_t entry_sym;
 } PROCSTARTINFO, *PPROCSTARTINFO;
 class Process;
 class ProcessManager {
@@ -63,14 +63,14 @@ public:
 
 class Process {
 private:
-	_uint64 id;
+	uint64_t id;
 	PPTE pagetable;
 	PROCSTARTINFO psinfo;
 	struct {
-		_uint64 rax, rcx, rdx, rbx;
-		_uint64 rsi, rdi, rbp, rsp;
-		_uint64 rip, rflags;
-		_uint64 r8, r9, r10, r11, r12, r13, r14, r15;
+		uint64_t rax, rcx, rdx, rbx;
+		uint64_t rsi, rdi, rbp, rsp;
+		uint64_t rip, rflags;
+		uint64_t r8, r9, r10, r11, r12, r13, r14, r15;
 	} regs;
 	bool suspend;
 public:

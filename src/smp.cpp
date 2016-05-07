@@ -24,37 +24,37 @@ void SMP::startup() {
 
 void SMP::init() {
 	ACPI* acpi = ACPI::getController();
-	_uint64 localId = acpi->getLapicID();
-	int cpuCount = acpi->getCPUCount();
+	uint32_t localId = acpi->getLapicID();
+	uint32_t cpuCount = acpi->getCPUCount();
 	if (cpuCount == 1) return;
 	
 	char* smp_init_code = (char*)Memory::palloc(1);
-	char smp_init_vector = (((_uint64)smp_init_code) >> 12) & 0xFF;
+	char smp_init_vector = (((uintptr_t)smp_init_code) >> 12) & 0xFF;
 	char* smp_s; asm("movabs $_smp_init,%q0":"=a"(smp_s):);
 	char* smp_e; asm("movabs $_smp_end,%q0":"=a"(smp_e):);
 	while(smp_s < smp_e) *(smp_init_code++) = *(smp_s++);
-	*((_uint64*)smp_init_code) = (_uint64)acpi->getLapicAddr(); smp_init_code += 8;
-	_uint64 *stacks = (_uint64*)Memory::alloc(sizeof(_uint64)*cpuCount);
-	_uint64 *cpuids = (_uint64*)Memory::alloc(sizeof(_uint64)*cpuCount);
-	int nullcpus = 0;
-	for(int i = 0; i < cpuCount; i++) {
+	*((uintptr_t*)smp_init_code) = (uintptr_t)acpi->getLapicAddr(); smp_init_code += 8;
+	uintptr_t *stacks = (uintptr_t*)Memory::alloc(sizeof(uintptr_t)*cpuCount);
+	uintptr_t *cpuids = (uintptr_t*)Memory::alloc(sizeof(uintptr_t)*cpuCount);
+	uint32_t nullcpus = 0;
+	for(uint32_t i = 0; i < cpuCount; i++) {
 		cpuids[i] = acpi->getLapicIDOfCPU(i);
 		if(cpuids[i] != localId)
-			stacks[i] = ((_uint64)Memory::palloc(1))+0x1000;
+			stacks[i] = ((uintptr_t)Memory::palloc(1))+0x1000;
 		else nullcpus++;
 	}
 	if (nullcpus > 0) nullcpus--;
-	*((_uint64*)smp_init_code) = (_uint64)cpuids; smp_init_code += 8;
-	*((_uint64*)smp_init_code) = (_uint64)stacks; smp_init_code += 8;
-	*((_uint64*)smp_init_code) = (_uint64)(&SMP::startup);
+	*((uintptr_t*)smp_init_code) = (uintptr_t)cpuids; smp_init_code += 8;
+	*((uintptr_t*)smp_init_code) = (uintptr_t)stacks; smp_init_code += 8;
+	*((uintptr_t*)smp_init_code) = (uintptr_t)(&SMP::startup);
 	
-	for(int i = 0; i < cpuCount; i++)
+	for(uint32_t i = 0; i < cpuCount; i++)
 		if(cpuids[i] != localId) acpi->sendCPUInit(cpuids[i]);
 	asm("hlt");
-	for(int i = 0; i < cpuCount; i++)
+	for(uint32_t i = 0; i < cpuCount; i++)
 		if(cpuids[i] != localId) acpi->sendCPUStartup(cpuids[i],smp_init_vector);
 	asm("hlt");
-	for(int i = 0; i < cpuCount; i++)
+	for(uint32_t i = 0; i < cpuCount; i++)
 		if(cpuids[i] != localId) acpi->sendCPUStartup(cpuids[i],smp_init_vector);
 	while (cpuCount - nullcpus != acpi->getActiveCPUCount()) asm("hlt");
 	

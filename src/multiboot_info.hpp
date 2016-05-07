@@ -25,14 +25,14 @@ typedef struct {
 } MODULE, *PMODULE;
 
 typedef struct {
-	long flags;
-	long mem_lower, mem_upper;
-	long boot_device;
+	uint32_t flags;
+	uint32_t mem_lower, mem_upper;
+	uint32_t boot_device;
 	char* cmdline;
 	PMODULE mods;
-	long mmap_length; void *mmap_addr;
+	uint32_t mmap_length; void *mmap_addr;
 	char* boot_loader_name;
-	_uint64 kernel, stack, stack_top, data, data_top, bss, bss_top, modules, modules_top;
+	uintptr_t kernel, stack, stack_top, data, data_top, bss, bss_top, modules, modules_top;
 } GRUBDATA, *PGRUBDATA;
 
 extern GRUBDATA kernel_data;

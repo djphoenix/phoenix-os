@@ -61,76 +61,75 @@ enum IOAPIC_REGS {
 	IOAPIC_REDTBL       = 0x10,
 };
 
-typedef unsigned int *uintptr_t;
 typedef struct
 {
-	int signature;
-	int length;
-	char revision;
-	char checksum;
-	char oem[6];
-	char oemTableId[8];
-	int oemRevision;
-	int creatorId;
-	int creatorRevision;
+	uint32_t signature;
+	uint32_t length;
+	uint8_t revision;
+	uint8_t checksum;
+	uint8_t oem[6];
+	uint8_t oemTableId[8];
+	uint32_t oemRevision;
+	uint32_t creatorId;
+	uint32_t creatorRevision;
 } AcpiHeader;
 typedef struct AcpiMadt
 {
 	AcpiHeader header;
-	int localApicAddr;
-	int flags;
+	uint32_t localApicAddr;
+	uint32_t flags;
 } AcpiMadt;
 typedef struct ApicHeader
 {
-	char type;
-	char length;
+	uint8_t type;
+	uint8_t length;
 } ApicHeader;
 typedef struct ApicLocalApic
 {
 	ApicHeader header;
-	unsigned char acpiProcessorId;
-	unsigned char apicId;
-	unsigned int flags;
+	uint8_t acpiProcessorId;
+	uint8_t apicId;
+	uint32_t flags;
 } ApicLocalApic;
 typedef struct ApicIoApic
 {
 	ApicHeader header;
-	char ioApicId;
-	char reserved;
-	int ioApicAddress;
-	int globalSystemInterruptBase;
+	uint8_t ioApicId;
+	uint8_t reserved;
+	uint32_t ioApicAddress;
+	uint32_t globalSystemInterruptBase;
 } ApicIoApic;
 typedef struct ApicInterruptOverride
 {
 	ApicHeader header;
-	char bus;
-	char source;
-	int interrupt;
-	short flags;
+	uint8_t bus;
+	uint8_t source;
+	uint32_t interrupt;
+	uint16_t flags;
 } ApicInterruptOverride;
 
 typedef struct {
-	char vector: 8;
-	char deliveryMode: 3;
+	uint8_t vector: 8;
+	uint8_t deliveryMode: 3;
 	bool destinationMode: 1;
 	bool deliveryStatus: 1;
 	bool pinPolarity: 1;
 	bool remoteIRR: 1;
 	bool triggerMode: 1;
 	bool mask: 1;
-	_uint64 reserved: 39;
-	char destination: 8;
+	uint64_t reserved: 39;
+	uint8_t destination: 8;
 } ioapic_redir;
 
 class ACPI {
 private:
 	AcpiMadt *madt;
-	long* localApicAddr, *ioApicAddr;
-	char ioApicMaxCount;
-	int acpiCpuIds[256];
-	unsigned char acpiCpuCount;
-	static unsigned char activeCpuCount;
-	static _uint64 busfreq;
+	uint32_t* localApicAddr, *ioApicAddr;
+	uint8_t ioApicMaxCount;
+	uint32_t acpiCpuIds[256];
+	uint8_t acpiCpuCount;
+	static uint8_t activeCpuCount;
+	static uint64_t busfreq;
 	static ACPI *controller;
 	bool ParseRsdp(char* rsdp);
 	void ParseRsdt(AcpiHeader* rsdt);
@@ -141,21 +140,21 @@ private:
 public:
 	ACPI();
 	static ACPI* getController();
-	int getLapicID();
+	uint32_t getLapicID();
 	void* getLapicAddr();
-	int getCPUCount();
-	int getActiveCPUCount();
-	int LapicIn(int reg);
-	void LapicOut(int reg, int data);
-	int IOapicIn(int reg);
-	void IOapicOut(int reg, int data);
-	void IOapicMap(int idx, ioapic_redir r);
-	ioapic_redir IOapicReadMap(int idx);
+	uint32_t getCPUCount();
+	uint32_t getActiveCPUCount();
+	uint32_t LapicIn(uint32_t reg);
+	void LapicOut(uint32_t reg, uint32_t data);
+	uint32_t IOapicIn(uint32_t reg);
+	void IOapicOut(uint32_t reg, uint32_t data);
+	void IOapicMap(uint32_t idx, ioapic_redir r);
+	ioapic_redir IOapicReadMap(uint32_t idx);
 	void activateCPU();
-	int getLapicIDOfCPU(int cpuId);
-	int getCPUIDOfLapic(int lapicId);
-	void sendCPUInit(int id);
-	void sendCPUStartup(int id, char vector);
+	uint32_t getLapicIDOfCPU(uint32_t cpuId);
+	uint32_t getCPUIDOfLapic(uint32_t lapicId);
+	void sendCPUInit(uint32_t id);
+	void sendCPUStartup(uint32_t id, uint8_t vector);
 	bool initAPIC();
 	static void EOI();
 };

@@ -21,32 +21,32 @@
 #include "acpi.hpp"
 #pragma pack(push,1)
 typedef struct {
-	short offset_low;
-	short selector;
-	char zero;
-	char type;
-	short offset_middle;
+	uint16_t offset_low;
+	uint16_t selector;
+	uint8_t zero;
+	uint8_t type;
+	uint16_t offset_middle;
 } INTERRUPT32, *PINTERRUPT32;
 typedef struct {
-	short offset_low;
-	short selector;
-	char zero;
-	char type;
-	short offset_middle;
-	uint offset_high;
-	uint reserved;
+	uint16_t offset_low;
+	uint16_t selector;
+	uint8_t zero;
+	uint8_t type;
+	uint16_t offset_middle;
+	uint32_t offset_high;
+	uint32_t reserved;
 } INTERRUPT64, *PINTERRUPT64;
 typedef struct {
-	short limit;
+	uint16_t limit;
 	void* addr;
 } IDTR, *PIDTR;
 struct int_handler {
 	// 68 04 03 02 01  pushq  ${int_num}
 	// e9 46 ec 3f 00  jmp . + {diff}
-	unsigned char push; // == 0x68
-	unsigned int int_num;
-	unsigned char reljmp; // == 0xE9
-	unsigned int diff;
+	uint8_t push; // == 0x68
+	uint32_t int_num;
+	uint8_t reljmp; // == 0xE9
+	uint32_t diff;
 };
 #pragma pack(pop)
 typedef struct {
@@ -70,10 +70,10 @@ private:
 public:
 	static INTERRUPT32 interrupts32[256];
 	static void init();
-	static void handle(unsigned char intr, _uint64 stack);
-	static void maskIRQ(unsigned short mask);
-	static unsigned short getIRQmask();
-	static void addCallback(unsigned char intr, intcb* cb);
+	static void handle(uint8_t intr, uint64_t stack);
+	static void maskIRQ(uint16_t mask);
+	static uint16_t getIRQmask();
+	static void addCallback(uint8_t intr, intcb* cb);
 	static void loadVector();
 };
 #endif

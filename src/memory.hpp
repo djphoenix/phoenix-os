@@ -24,32 +24,32 @@ typedef PPML4E PDPE, *PPDPE;
 typedef PPDPE PDE, *PPDE;
 typedef PPDE PTE, *PPTE;
 typedef struct {
-	uint start;
-	uint end;
+	uint32_t start;
+	uint32_t end;
 } GRUBMODULE, *PGRUBMODULE;
 
 typedef struct {
-	uint flags;
-	uint mem_lower, mem_upper;
-	uint boot_device;
-	uint pcmdline;
-	uint mods_count; long pmods_addr;
-	uint syms[3];
-	uint mmap_length; long pmmap_addr;
-	uint drives_length; long pdrives_addr;
-	uint pconfig_table;
-	uint pboot_loader_name;
-	uint papm_table;
-	uint pvbe_control_info, pvbe_mode_info, pvbe_mode, pvbe_interface_seg, pvbe_interface_off, pvbe_interface_len;
+	uint32_t flags;
+	uint32_t mem_lower, mem_upper;
+	uint32_t boot_device;
+	uint32_t pcmdline;
+	uint32_t mods_count; long pmods_addr;
+	uint32_t syms[3];
+	uint32_t mmap_length; long pmmap_addr;
+	uint32_t drives_length; long pdrives_addr;
+	uint32_t pconfig_table;
+	uint32_t pboot_loader_name;
+	uint32_t papm_table;
+	uint64_t pvbe_control_info, pvbe_mode_info, pvbe_mode, pvbe_interface_seg, pvbe_interface_off, pvbe_interface_len;
 } GRUB, *PGRUB;
 typedef struct {
 	void* addr;
-	_int64 size;
+	size_t size;
 } ALLOC, *PALLOC;
 typedef struct {
 	ALLOC allocs[255];
 	void* next;
-	_int64 reserved;
+	int64_t reserved;
 } ALLOCTABLE, *PALLOCTABLE;
 extern PGRUB grub_data;
 
@@ -61,19 +61,19 @@ class Memory {
 	static GRUBMODULE modules[256];
 	static PPML4E get_page(void* base_addr);
 	static Mutex page_mutex, heap_mutex;
-	static void* _palloc(char sys = 0);
+	static void* _palloc(bool sys = false);
 public:
 	static void map();
 	static void init();
 	static void* salloc(void* mem);
-	static void* palloc(char sys = 0);
-	static void* alloc(_uint64 size, int align = 4);
+	static void* palloc(bool sys = false);
+	static void* alloc(size_t size, size_t align = 4);
 	static void pfree(void* page);
 	static void free(void* addr);
-	static void copy(void* dest, void* src, _uint64 count);
+	static void copy(void* dest, void* src, size_t count);
 };
 
-void __inline MmioWrite32(void *p, int data) { Memory::salloc(p); *(volatile int *)(p) = data; }
-int __inline MmioRead32(void *p) { Memory::salloc(p); return *(volatile int *)(p); }
+void __inline MmioWrite32(void *p, uint32_t data) { Memory::salloc(p); *(volatile int *)(p) = data; }
+uint32_t __inline MmioRead32(void *p) { Memory::salloc(p); return *(volatile int *)(p); }
 
 #endif

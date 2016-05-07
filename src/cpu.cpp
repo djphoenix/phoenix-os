@@ -17,22 +17,20 @@
 #include "cpu.hpp"
 
 char CPU::vendor[13] = "";
-_uint64 CPU::features = 0;
+uint64_t CPU::features = 0;
 
 char* CPU::getVendor() {
 	if (vendor[0]==0) {
 		int eax=0, ebx, ecx, edx;
 		asm("cpuid":"=a"(eax),"=b"(ebx),"=c"(ecx),"=d"(edx):"a"(eax));
-		union {
+		typedef union {
 			char s[12];
 			int i[3];
-		} v;
-		v.i[0] = ebx;
-		v.i[1] = edx;
-		v.i[2] = ecx;
-		for (int i=0; i<12; i++) {
-			vendor[i] = v.s[i];
-		}
+		} u;
+		u *v = (u*)&vendor;
+		v->i[0] = ebx;
+		v->i[1] = edx;
+		v->i[2] = ecx;
 		vendor[12] = 0;
 	}
 	return vendor;
@@ -40,7 +38,7 @@ char* CPU::getVendor() {
 
 _uint64 CPU::getFeatures(){
 	if (features == 0) {
-		int eax=1, ebx, ecx, edx;
+		uint32_t eax=1, ebx, ecx, edx;
 		asm("cpuid":"=a"(eax),"=b"(ebx),"=c"(ecx),"=d"(edx):"a"(eax));
 		features = ecx;
 		features <<= 32;
@@ -50,7 +48,7 @@ _uint64 CPU::getFeatures(){
 }
 
 void __inline cf(char*d, const char*f){
-	_uint64 p = 0, l = 0;
+	uint64_t p = 0, l = 0;
 	while(d[p] != 0) p++;
 	if (p != 0) d[p++] = ' ';
 	while(f[l] != 0) {d[p+(l)] = f[l]; l++;}
@@ -59,7 +57,7 @@ void __inline cf(char*d, const char*f){
 
 char* CPU::getFeaturesStr(){
 	char* res;
-	_uint64 f = CPU::getFeatures(), l = 0;
+	uint64_t f = getFeatures(), l = 0;
 	
 	if (f & CPUID_FEAT_SSE3) l += 5;
 	if (f & CPUID_FEAT_PCLMUL) l += 7;

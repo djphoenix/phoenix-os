@@ -21,26 +21,26 @@
 
 class Stream {
 public:
-	virtual _uint64 read(void* dest, _uint64 size)=0;
-	virtual _uint64 size()=0;
-	virtual _uint64 seek(_uint64 offset, char base = 0)=0;
-	virtual Stream* substream(_uint64 offset=-1, _uint64 limit=-1)=0;
+	virtual size_t read(void* dest, size_t size)=0;
+	virtual size_t size()=0;
+	virtual size_t seek(int64_t offset, char base = 0)=0;
+	virtual Stream* substream(int64_t offset=-1, size_t limit=-1)=0;
 	virtual bool eof()=0;
-	virtual char* readstr(_uint64 offset=-1)=0;
+	virtual char* readstr(int64_t offset=-1)=0;
 };
 
 class MemoryStream:public Stream {
 private:
-	_uint64 offset;
-	_uint64 limit;
+	size_t offset;
+	size_t limit;
 	void* memory;
 public:
-	MemoryStream(void* memory, _uint64 limit);
-	_uint64 read(void* dest, _uint64 size);
-	_uint64 size();
-	_uint64 seek(_uint64 offset, char base = 0);
-	Stream* substream(_uint64 offset=-1, _uint64 limit=-1);
-	char* readstr(_uint64 offset=-1);
+	MemoryStream(void* memory, size_t limit);
+	size_t read(void* dest, size_t size);
+	size_t size();
+	size_t seek(int64_t offset, char base = 0);
+	Stream* substream(int64_t offset=-1, size_t limit=-1);
+	char* readstr(int64_t offset=-1);
 	bool eof();
 };
 

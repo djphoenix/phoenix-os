@@ -16,7 +16,7 @@
 
 #include "process.hpp"
 
-_uint64 countval = 0;
+uint64_t countval = 0;
 
 void process_loop()
 {
@@ -38,21 +38,18 @@ void ProcessManager::SwitchProcess(){
 		return;
 	}
 	ACPI *acpi = ACPI::getController();
-	printl(acpi->getCPUIDOfLapic(acpi->getLapicID()));
-	print("->");
-	printq(countval);
-	print("\n");
+	printf("%08x -> %08x\n",acpi->getCPUIDOfLapic(acpi->getLapicID()),countval);
 	processSwitchMutex->release();
 }
 
-_uint64 ProcessManager::RegisterProcess(Process* process){
+uint64_t ProcessManager::RegisterProcess(Process* process){
 	if (this->processes == 0) {
 		this->processes = (Process**)Memory::alloc(sizeof(Process*)*2);
 		this->processes[0] = process;
 		this->processes[1] = 0;
 		return 1;
 	} else {
-		_uint64 pid = 1;
+		uint64_t pid = 1;
 		while (this->processes[pid-1] != 0) pid++;
 		Process** np = (Process**)Memory::alloc(sizeof(Process*)*pid);
 		Memory::copy(np, this->processes, sizeof(Process*)*(pid-2));
@@ -68,5 +65,5 @@ Process::Process(PROCSTARTINFO psinfo){
 	suspend=true;
 	this->psinfo = psinfo;
 	this->id = (ProcessManager::getManager())->RegisterProcess(this);
-	print("Registered process: "); printq(this->id); print("\n");
+	printf("Registered process: %016zx\n",this->id);
 }

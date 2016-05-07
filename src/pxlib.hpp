@@ -17,7 +17,11 @@
 #ifndef PXLIB_H
 #define PXLIB_H
 
-#define MAX(A,B) ((A)>(B))?(A):(B)
+#include <stdarg.h>
+#include <stdint.h>
+
+#define MAX(A,B) (((A)>(B))?(A):(B))
+#define ABS(A) ((A)<0?-(A):(A))
 
 class Mutex {
 private:
@@ -30,26 +34,25 @@ public:
 	void release();
 };
 
-typedef unsigned int uint;
-typedef long long int _int64;
-typedef unsigned long long int _uint64;
+typedef uint64_t _uint64;
+typedef uint64_t size_t;
+
 extern "C" {
-	extern void print(const char*);
-	extern void printb(char i);
-	extern void prints(short i);
-	extern void printl(int i);
-	extern void printq(_int64 i);
+	extern size_t itoa(uint64_t value, char * str, uint8_t base = 10);
+	extern size_t printf(const char *fmt, ...);
+	extern size_t vprintf(const char *fmt, va_list args);
+	
 	extern void clrscr();
-	extern _uint64 strlen(char*,_uint64 limit=-1);
-	extern char* strcpy(char*);
+	extern size_t strlen(const char*,size_t limit=-1);
+	extern char* strcpy(const char*);
 	extern bool strcmp(const char*,char*);
 	extern void static_init();
-	char __inline inportb(short port){ char c; asm("inb %w1, %b0":"=a"(c):"d"(port)); return c; }
-	short __inline inports(short port){ short c; asm("inw %w1, %w0":"=a"(c):"d"(port)); return c; }
-	uint __inline inportl(short port){ uint c; asm("inl %w1, %d0":"=a"(c):"d"(port)); return c; }
-	void __inline outportb(short port, char c){ asm("outb %b0, %w1"::"a"(c),"d"(port)); }
-	void __inline outports(short port, short c){ asm("outw %w0, %w1"::"a"(c),"d"(port)); }
-	void __inline outportl(short port, uint c){ asm("outl %d0, %w1"::"a"(c),"d"(port)); }
-	_uint64 __inline rdtsc() { unsigned long eax, edx; asm("rdtsc":"=a"(eax),"=d"(edx)); _uint64 ret; ret = edx; ret <<= 32; ret |= eax; return ret; }
+	uint8_t __inline inportb(uint16_t port){ uint8_t c; asm("inb %w1, %b0":"=a"(c):"d"(port)); return c; }
+	uint16_t __inline inports(uint16_t port){ uint16_t c; asm("inw %w1, %w0":"=a"(c):"d"(port)); return c; }
+	uint32_t __inline inportl(uint16_t port){ uint32_t c; asm("inl %w1, %d0":"=a"(c):"d"(port)); return c; }
+	void __inline outportb(uint16_t port, uint8_t c){ asm("outb %b0, %w1"::"a"(c),"d"(port)); }
+	void __inline outports(uint16_t port, uint16_t c){ asm("outw %w0, %w1"::"a"(c),"d"(port)); }
+	void __inline outportl(uint16_t port, uint32_t c){ asm("outl %d0, %w1"::"a"(c),"d"(port)); }
+	uint64_t __inline rdtsc() { uint32_t eax, edx; asm("rdtsc":"=a"(eax),"=d"(edx)); uint64_t ret; ret = edx; ret <<= 32; ret |= eax; return ret; }
 }
 #endif

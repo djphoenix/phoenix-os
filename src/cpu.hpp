@@ -82,10 +82,10 @@ enum {
 class CPU {
 private:
 	static char vendor[13];
-	static _uint64 features;
+	static uint64_t features;
 public:
 	static char* getVendor();
-	static _uint64 getFeatures();
+	static uint64_t getFeatures();
 	static char* getFeaturesStr();
 };
 

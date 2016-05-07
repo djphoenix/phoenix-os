@@ -19,12 +19,12 @@
 PMODULEINFO ModuleManager::loadElf(Stream *stream){
 #pragma pack(push,1)
 	struct {
-		struct {uint magic; char eclass,data,version,osabi,abiversion,pad,rsvd[6];} ident;
-		unsigned short type, machine;
-		uint version;
-		_uint64 entry, phoff, shoff;
-		uint flags;
-		unsigned short ehsize, phentsize, phnum, shentsize, shnum, shstrndx;
+		struct {uint32_t magic; uint8_t eclass,data,version,osabi,abiversion,pad,rsvd[6];} ident;
+		uint16_t type, machine;
+		uint32_t version;
+		uint64_t entry, phoff, shoff;
+		uint32_t flags;
+		uint16_t ehsize, phentsize, phnum, shentsize, shnum, shstrndx;
 	} Elf;
 	ELF64SECT *Sections;
 #pragma pack(pop)
@@ -51,9 +51,9 @@ PMODULEINFO ModuleManager::loadElf(Stream *stream){
 	mod->psinfo.reloc_cnt = 0;
 	PROCSECT *segments = (PROCSECT*)Memory::alloc(sizeof(PROCSECT)*Elf.shnum);
 	PROCSECT *sections = (PROCSECT*)Memory::alloc(sizeof(PROCSECT)*Elf.shnum);
-	int* secmap = (int*)Memory::alloc(sizeof(int)*Elf.shnum);
-	_uint64 symoff = 0, symcount = 0, symnsoff = 0;
-	for(int s = 0; s < Elf.shnum; s++){
+	uint32_t* secmap = (uint32_t*)Memory::alloc(sizeof(uint32_t)*Elf.shnum);
+	uint64_t symoff = 0, symcount = 0, symnsoff = 0;
+	for(uint32_t s = 0; s < Elf.shnum; s++){
 		mod->size = MAX(mod->size,Sections[s].offset+Sections[s].size);
 		if (Sections[s].type == 2) {
 			symoff = Sections[s].offset;
@@ -99,13 +99,13 @@ PMODULEINFO ModuleManager::loadElf(Stream *stream){
 	
 	if (mod->psinfo.reloc_cnt != 0) {
 		mod->psinfo.relocs = (PROCREL*)Memory::alloc(sizeof(PROCREL)*mod->psinfo.reloc_cnt);
-		int r = 0;
-		for (int s = 0; s < Elf.shnum; s++) {
+		uint32_t r = 0;
+		for (uint32_t s = 0; s < Elf.shnum; s++) {
 			if (Sections[s].type == 4) {
 				ELF64RELA *rel = (ELF64RELA*)Memory::alloc(Sections[s].size);
 				stream->seek(Sections[s].offset,-1);
 				stream->read(rel,Sections[s].size);
-				for (unsigned int i = 0; i < Sections[s].size/sizeof(ELF64RELA); i++){
+				for (uint32_t i = 0; i < Sections[s].size/sizeof(ELF64RELA); i++){
 					mod->psinfo.relocs[r].offset = rel[i].addr;
 					mod->psinfo.relocs[r].type = rel[i].info.type;
 					mod->psinfo.relocs[r].sym = rel[i].info.sym;
@@ -119,7 +119,7 @@ PMODULEINFO ModuleManager::loadElf(Stream *stream){
 				ELF64REL *rel = (ELF64REL*)Memory::alloc(Sections[s].size);
 				stream->seek(Sections[s].offset,-1);
 				stream->read(rel,Sections[s].size);
-				for (unsigned int i = 0; i < Sections[s].size/sizeof(ELF64REL); i++){
+				for (uint32_t i = 0; i < Sections[s].size/sizeof(ELF64REL); i++){
 					mod->psinfo.relocs[r].offset = rel[i].addr;
 					mod->psinfo.relocs[r].type = rel[i].info.type;
 					mod->psinfo.relocs[r].sym = rel[i].info.sym;
@@ -161,7 +161,7 @@ PMODULEINFO ModuleManager::loadElf(Stream *stream){
 	return mod;
 }
 bool ModuleManager::parseModuleInfo(PMODULEINFO mod, Stream *stream){
-	for (unsigned int i = 0; i < mod->psinfo.sym_cnt; i++) {
+	for (uint32_t i = 0; i < mod->psinfo.sym_cnt; i++) {
 		if (mod->psinfo.symbols[i].name == 0) continue;
 		if (strcmp("module",mod->psinfo.symbols[i].name)) {
 			mod->psinfo.entry_sym = i;
@@ -175,12 +175,12 @@ bool ModuleManager::parseModuleInfo(PMODULEINFO mod, Stream *stream){
 			  strcmp("module_developer",mod->psinfo.symbols[i].name)))
 			continue;
 		_uint64 sect = mod->psinfo.symbols[i].sect, off = mod->psinfo.sections[sect].offset + mod->psinfo.symbols[i].offset;
-		for (unsigned int r = 0; r < mod->psinfo.reloc_cnt; r++) {
+		for (uint32_t r = 0; r < mod->psinfo.reloc_cnt; r++) {
 			if (mod->psinfo.relocs[r].sect != sect) continue;
 			if (mod->psinfo.sections[sect].offset + mod->psinfo.relocs[r].offset != off) continue;
 			switch (mod->psinfo.relocs[r].type) {
 				default:
-					print("Unknown reloc type: "); printb(mod->psinfo.relocs[r].type); print("\n");
+					printf("Unknown reloc type: %02x\n",mod->psinfo.relocs[r].type);
 					break;
 				case(1):
 					_uint64 sym = mod->psinfo.relocs[r].sym, add = mod->psinfo.relocs[r].add;
@@ -233,6 +233,7 @@ bool ModuleManager::parseModuleInfo(PMODULEINFO mod, Stream *stream){
 ModuleManager* ModuleManager::manager = 0;
 void ModuleManager::loadStream(Stream *stream, bool start){
 	PMODULEINFO mod;
+parse:
 	mod = loadElf(stream);
 	if (mod == 0) {
 		return;
@@ -241,7 +242,7 @@ void ModuleManager::loadStream(Stream *stream, bool start){
 		if(mod->psinfo.segments) Memory::free(mod->psinfo.segments);
 		if(mod->psinfo.sections) Memory::free(mod->psinfo.sections);
 		if(mod->psinfo.relocs) Memory::free(mod->psinfo.relocs);
-		for (unsigned int i=1;i<mod->psinfo.sym_cnt;i++)
+		for (uint32_t i=1;i<mod->psinfo.sym_cnt;i++)
 			if (mod->psinfo.symbols[i].name) Memory::free(mod->psinfo.symbols[i].name);
 		if(mod->psinfo.symbols) Memory::free(mod->psinfo.symbols);
 		Memory::free(mod);
@@ -250,8 +251,8 @@ void ModuleManager::loadStream(Stream *stream, bool start){
 	if(start) new Process(mod->psinfo);
 	stream->seek(mod->size,-1);
 	if (!stream->eof()){
-		Stream *sub = stream->substream();
-		loadStream(sub,start);
+		stream = stream->substream();
+		goto parse;
 	}
 }
 void ModuleManager::parseInternal(){

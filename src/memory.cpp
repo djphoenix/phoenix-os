@@ -20,24 +20,24 @@ PGRUB grub_data;
 PPTE Memory::pagetable = (PPTE)0x20000;
 PALLOCTABLE Memory::allocs = 0;
 void* Memory::first_free = (void*)0x2000;
-_uint64 Memory::last_page = 1;
+uintptr_t Memory::last_page = 1;
 Mutex Memory::page_mutex = Mutex();
 Mutex Memory::heap_mutex = Mutex();
 GRUBMODULE Memory::modules[256];
 
 PPML4E Memory::get_page(void* base_addr)
 {
-	_uint64 i = (_uint64) base_addr >> 12;
-	PDE pde = (PDE)((_uint64)pagetable[(i >> 27) & 0x1FF] & 0xFFFFFFFFFFFFF000);
+	uintptr_t i = (uintptr_t) base_addr >> 12;
+	PDE pde = (PDE)((uintptr_t)pagetable[(i >> 27) & 0x1FF] & 0xFFFFFFFFFFFFF000);
 	if(pde == 0) return 0;
-	PDPE pdpe = (PDPE)((_uint64)pde[(i >> 18) & 0x1FF] & 0xFFFFFFFFFFFFF000);
+	PDPE pdpe = (PDPE)((uintptr_t)pde[(i >> 18) & 0x1FF] & 0xFFFFFFFFFFFFF000);
 	if(pdpe == 0) return 0;
-	PPML4E page = (PPML4E)((_uint64)pdpe[(i >> 9) & 0x1FF] & 0xFFFFFFFFFFFFF000);
+	PPML4E page = (PPML4E)((uintptr_t)pdpe[(i >> 9) & 0x1FF] & 0xFFFFFFFFFFFFF000);
 	if(page == 0) return 0;
 	return &page[i & 0x1FF];
 }
 
-static inline _uint64 ALIGN(_uint64 base, _uint64 align) {
+static inline uintptr_t ALIGN(uintptr_t base, size_t align) {
 	if (base % align == 0) return base;
 	return base + align - (base % align);
 }
@@ -56,20 +56,19 @@ extern "C" {
 void Memory::init()
 {
 	// Filling kernel addresses
-	kernel_data.kernel = (_uint64)&__text_start__;
-	kernel_data.stack = (_uint64)__stack_start__;
-	kernel_data.stack_top = (_uint64)__stack_end__;
-	kernel_data.data = (_uint64)&__data_start__;
-	kernel_data.data_top = (_uint64)&__data_end__;
-	kernel_data.modules = (_uint64)&__modules_start__;
-	kernel_data.modules_top = (_uint64)&__modules_end__;
-	kernel_data.bss = (_uint64)&__bss_start__;
-	kernel_data.bss_top = (_uint64)&__bss_end__;
+	kernel_data.kernel = (uintptr_t)&__text_start__;
+	kernel_data.stack = (uintptr_t)__stack_start__;
+	kernel_data.stack_top = (uintptr_t)__stack_end__;
+	kernel_data.data = (uintptr_t)&__data_start__;
+	kernel_data.data_top = (uintptr_t)&__data_end__;
+	kernel_data.modules = (uintptr_t)&__modules_start__;
+	kernel_data.modules_top = (uintptr_t)&__modules_end__;
+	kernel_data.bss = (uintptr_t)&__bss_start__;
+	kernel_data.bss_top = (uintptr_t)&__bss_end__;
 	
 	// Buffering BIOS interrupts
 	for(int i=0; i<256; i++){
-		PINTERRUPT32 intr = (PINTERRUPT32)(((_uint64)i & 0xFF)*sizeof(INTERRUPT32));
-		Interrupts::interrupts32[i] = *intr;
+		Interrupts::interrupts32[i] = ((PINTERRUPT32)0)[i];
 	}
 	
 	// Buffering grub data
@@ -78,19 +77,19 @@ void Memory::init()
 	kernel_data.mem_upper = grub_data->mem_upper;
 	kernel_data.boot_device = grub_data->boot_device;
 	kernel_data.boot_device = grub_data->boot_device;
-	kernel_data.mods = (PMODULE)((_uint64)grub_data->pmods_addr & 0xFFFFFFFF);
-	if((_uint64)kernel_data.mods < 0x100000)
-		kernel_data.mods = (PMODULE)((_uint64)kernel_data.mods + 0x100000);
+	kernel_data.mods = (PMODULE)((uintptr_t)grub_data->pmods_addr & 0xFFFFFFFF);
+	if((uintptr_t)kernel_data.mods < 0x100000)
+		kernel_data.mods = (PMODULE)((uintptr_t)kernel_data.mods + 0x100000);
 	kernel_data.mmap_length = grub_data->mmap_length;
-	kernel_data.mmap_addr = (void*)((_uint64)grub_data->pmmap_addr & 0xFFFFFFFF);
-	if((_uint64)kernel_data.mmap_addr < 0x100000)
-		kernel_data.mmap_addr = (void*)((_uint64)kernel_data.mmap_addr + 0x100000);
+	kernel_data.mmap_addr = (void*)((uintptr_t)grub_data->pmmap_addr & 0xFFFFFFFF);
+	if((uintptr_t)kernel_data.mmap_addr < 0x100000)
+		kernel_data.mmap_addr = (void*)((uintptr_t)kernel_data.mmap_addr + 0x100000);
 	
 	char cmdline[256]; long cmdlinel = 0;
 	if(((kernel_data.flags & 4) == 4) && (grub_data->pcmdline != 0)){
-		char* c = (char*)((_uint64)grub_data->pcmdline & 0xFFFFFFFF);
+		char* c = (char*)((uintptr_t)grub_data->pcmdline & 0xFFFFFFFF);
 		if((_uint64)c < 0x100000)
-			c = (char*)((_uint64)c + 0x100000);
+			c = (char*)((uintptr_t)c + 0x100000);
 		int i = 0;
 		while((c[i] != 0)&&(i<255)) { cmdline[i] = c[i]; i++; }
 		cmdline[i] = 0;
@@ -103,70 +102,70 @@ void Memory::init()
 			modules[i].start = c->start;
 			modules[i].end = c->end;
 			
-			(*(_uint64*)(get_page((void*)((_uint64)modules[i].start & 0xFFFFF000)))) &= ~4; // Set module pages as system
-			for(_uint64 addr = (modules[i].start & 0xFFFFF000); addr < (modules[i].end & 0xFFFFF000); addr += 0x1000)
-				(*(_uint64*)(get_page((void*)addr))) &= ~4;
+			(*(uintptr_t*)(get_page((void*)((uintptr_t)modules[i].start & 0xFFFFF000)))) &= ~4; // Set module pages as system
+			for(uintptr_t addr = (modules[i].start & 0xFFFFF000); addr < (modules[i].end & 0xFFFFF000); addr += 0x1000)
+				(*(uintptr_t*)(get_page((void*)addr))) &= ~4;
 			
-			c = (PGRUBMODULE)((_uint64)c + 16);
+			c = (PGRUBMODULE)((uintptr_t)c + 16);
 		}
 	} else kernel_data.mods = 0;
 	
 	// Initialization of pagetables
 	
-	*(_uint64*)(get_page((void*)0x00000000)) &= 0xFFFFFFFFFFFFFFF0; // BIOS Data
+	*(uintptr_t*)(get_page((void*)0x00000000)) &= 0xFFFFFFFFFFFFFFF0; // BIOS Data
 	
-	for(_uint64 addr = 0x0A0000; addr < 0x0C8000; addr += 0x1000) // Video data & VGA BIOS
-		*(_uint64*)(get_page((void*)addr)) &= ~4;
-	for(_uint64 addr = 0x0C8000; addr < 0x0F0000; addr += 0x1000) // Reserved for many systems
-		*(_uint64*)(get_page((void*)addr)) &= ~4;
-	for(_uint64 addr = 0x0F0000; addr < 0x100000; addr += 0x1000) // BIOS Code
-		*(_uint64*)(get_page((void*)addr)) &= ~4;
+	for(uintptr_t addr = 0x0A0000; addr < 0x0C8000; addr += 0x1000) // Video data & VGA BIOS
+		*(uintptr_t*)(get_page((void*)addr)) &= ~4;
+	for(uintptr_t addr = 0x0C8000; addr < 0x0F0000; addr += 0x1000) // Reserved for many systems
+		*(uintptr_t*)(get_page((void*)addr)) &= ~4;
+	for(uintptr_t addr = 0x0F0000; addr < 0x100000; addr += 0x1000) // BIOS Code
+		*(uintptr_t*)(get_page((void*)addr)) &= ~4;
 	
-	for(_uint64 addr = kernel_data.stack & KBTS4; addr < ALIGN(kernel_data.stack_top,0x1000); addr += 0x1000) // PXOS Stack
-		*(_uint64*)(get_page((void*)addr)) &= ~4;
-	for(_uint64 addr = kernel_data.kernel & KBTS4; addr < ALIGN(kernel_data.data_top,0x1000); addr += 0x1000) // PXOS Code & Data
-		*(_uint64*)(get_page((void*)addr)) &= ~4;
-	for(_uint64 addr = kernel_data.modules & KBTS4; addr < ALIGN(kernel_data.modules_top,0x1000); addr += 0x1000) // PXOS Modules
-		*(_uint64*)(get_page((void*)addr)) &= ~4;
-	for(_uint64 addr = kernel_data.bss & KBTS4; addr < ALIGN(kernel_data.bss_top,0x1000); addr += 0x1000) // PXOS BSS
-		*(_uint64*)(get_page((void*)addr)) &= ~4;
-	*(_uint64*)(get_page((void*)pagetable)) &= ~4; // Setting pagetable pages as system
+	for(uintptr_t addr = kernel_data.stack & KBTS4; addr < ALIGN(kernel_data.stack_top,0x1000); addr += 0x1000) // PXOS Stack
+		*(uintptr_t*)(get_page((void*)addr)) &= ~4;
+	for(uintptr_t addr = kernel_data.kernel & KBTS4; addr < ALIGN(kernel_data.data_top,0x1000); addr += 0x1000) // PXOS Code & Data
+		*(uintptr_t*)(get_page((void*)addr)) &= ~4;
+	for(uintptr_t addr = kernel_data.modules & KBTS4; addr < ALIGN(kernel_data.modules_top,0x1000); addr += 0x1000) // PXOS Modules
+		*(uintptr_t*)(get_page((void*)addr)) &= ~4;
+	for(uintptr_t addr = kernel_data.bss & KBTS4; addr < ALIGN(kernel_data.bss_top,0x1000); addr += 0x1000) // PXOS BSS
+		*(uintptr_t*)(get_page((void*)addr)) &= ~4;
+	*(uintptr_t*)(get_page((void*)pagetable)) &= ~4; // Setting pagetable pages as system
 	
-	for(short i = 0; i < 512; i++) {
+	for(uint16_t i = 0; i < 512; i++) {
 		PPDE pde = pagetable[i];
-		if(((_uint64)pde & 1) == 0) continue;
-		pde = (PPDE)((_uint64)pde & KBTS4);
-		*(_uint64*)(get_page((void*)pde)) &= ~4;
-		for(short j = 0; j < 512; j++) {
+		if(((uintptr_t)pde & 1) == 0) continue;
+		pde = (PPDE)((uintptr_t)pde & KBTS4);
+		*(uintptr_t*)(get_page((void*)pde)) &= ~4;
+		for(uint32_t j = 0; j < 512; j++) {
 			PPDPE pdpe = pde[j];
-			if(((_uint64)pdpe & 1) == 0) continue;
-			pdpe = (PPDPE)((_uint64)pdpe & KBTS4);
-			*(_uint64*)(get_page((void*)pdpe)) &= ~4;
-			for(short k = 0; k < 512; k++) {
+			if(((uintptr_t)pdpe & 1) == 0) continue;
+			pdpe = (PPDPE)((uintptr_t)pdpe & KBTS4);
+			*(uintptr_t*)(get_page((void*)pdpe)) &= ~4;
+			for(uint16_t k = 0; k < 512; k++) {
 				PPML4E pml4e = pdpe[k];
-				if(((_uint64)pml4e & 1) == 0) continue;
-				pml4e = (PPML4E)((_uint64)pml4e & KBTS4);
-				*(_uint64*)(get_page((void*)pml4e)) &= ~4;
+				if(((uintptr_t)pml4e & 1) == 0) continue;
+				pml4e = (PPML4E)((uintptr_t)pml4e & KBTS4);
+				*(uintptr_t*)(get_page((void*)pml4e)) &= ~4;
 			}
 		}
 	}
 	
 	// Clearing unused pages
-	for(short i = 0; i < 512; i++) {
+	for(uint16_t i = 0; i < 512; i++) {
 		PPDE pde = pagetable[i];
-		if(((_uint64)pde & 1) == 0) continue;
-		pde = (PPDE)((_uint64)pde & 0xFFFFFFFFFFFFF000);
-		for(short j = 0; j < 512; j++) {
+		if(((uintptr_t)pde & 1) == 0) continue;
+		pde = (PPDE)((uintptr_t)pde & 0xFFFFFFFFFFFFF000);
+		for(uint16_t j = 0; j < 512; j++) {
 			PPDPE pdpe = pde[j];
-			if(((_uint64)pdpe & 1) == 0) continue;
-			pdpe = (PPDPE)((_uint64)pdpe & 0xFFFFFFFFFFFFF000);
-			for(short k = 0; k < 512; k++) {
+			if(((uintptr_t)pdpe & 1) == 0) continue;
+			pdpe = (PPDPE)((uintptr_t)pdpe & 0xFFFFFFFFFFFFF000);
+			for(uint16_t k = 0; k < 512; k++) {
 				PPML4E pml4e = pdpe[k];
-				if(((_uint64)pml4e & 1) == 0) continue;
-				pml4e = (PPML4E)((_uint64)pml4e & 0xFFFFFFFFFFFFF000);
-				for(short l = 0; l < 512; l++) {
+				if(((uintptr_t)pml4e & 1) == 0) continue;
+				pml4e = (PPML4E)((uintptr_t)pml4e & 0xFFFFFFFFFFFFF000);
+				for(uint16_t l = 0; l < 512; l++) {
 					void* addr = pml4e[l];
-					if(((_uint64)addr & 4) != 0)
+					if(((uintptr_t)addr & 4) != 0)
 						pml4e[l] = 0;
 				}
 			}
@@ -187,8 +186,8 @@ void Memory::init()
 		mod->next = 0;
 		int i=0;
 		while(modules[i].start != 0){
-			mod->start = (void*)((_uint64)modules[i].start & 0xFFFFFFFF);
-			mod->end = (void*)((_uint64)modules[i].end & 0xFFFFFFFF);
+			mod->start = (void*)((uintptr_t)modules[i].start & 0xFFFFFFFF);
+			mod->end = (void*)((uintptr_t)modules[i].end & 0xFFFFFFFF);
 			i++;
 			if(modules[i].start != 0)
 				mod = (PMODULE)(mod->next = (void*)alloc(sizeof(MODULE)));
@@ -202,9 +201,10 @@ void Memory::map()
 	clrscr();
 	_uint64 i;
 	char c = 0, nc = 0;
+	_uint64 start = 0;
 	for(i = 0; i < 0xFFFFF000; i+=0x1000) {
 		void *p = get_page((void*)i);
-		if(p != 0) nc = (*(_uint64*)(p)) & 0xF;
+		if(p != 0) nc = (*(uintptr_t*)(p)) & 0xF;
 		if(nc & 1) {
 			if(nc & 4){
 				nc = 'U';
@@ -215,82 +215,74 @@ void Memory::map()
 			nc = 'E';
 		}
 		if (nc != c) {
-			if (c != 0) {
-				printl(i);
-				print("\n");
-			}
+			if (c != 0)
+				printf("%c: %016x - %016x\n",c,start,i);
 			c = nc;
-			char buf[3];
-			buf[0] = c;
-			buf[1] = ':';
-			buf[2] = 0;
-			print(buf);
-			printl(i); print(" - ");
+			start = i;
 		}
 	}
-	printl(i);
-	print("\n");
+	printf("%c: %016x - %016x\n",c,start,i);
 	page_mutex.release();
 }
 void* Memory::salloc(void* mem)
 {
 	page_mutex.lock();
-	_uint64 i = (_uint64)(mem) >> 12;
+	_uint64 i = (uintptr_t)(mem) >> 12;
 	void *addr = (void*)(i << 12);
-	PDE pde = (PDE)((_uint64)pagetable[(i >> 27) & 0x1FF] & 0xFFFFFFFFFFFFF000);
+	PDE pde = (PDE)((uintptr_t)pagetable[(i >> 27) & 0x1FF] & 0xFFFFFFFFFFFFF000);
 	if(pde == 0){
-		pagetable[(i >> 27) & 0x1FF] = (PPDE)((_uint64)(pde = (PDE)((_uint64)_palloc(1))) | 3);
+		pagetable[(i >> 27) & 0x1FF] = (PPDE)((uintptr_t)(pde = (PDE)((uintptr_t)_palloc(1))) | 3);
 	}
-	PDPE pdpe = (PDPE)((_uint64)pde[(i >> 18) & 0x1FF] & 0xFFFFFFFFFFFFF000);
+	PDPE pdpe = (PDPE)((uintptr_t)pde[(i >> 18) & 0x1FF] & 0xFFFFFFFFFFFFF000);
 	if(pdpe == 0){
-		pde[(i >> 18) & 0x1FF] = (PPML4E)((_uint64)(pdpe = (PDPE)((_uint64)_palloc(1))) | 3);
+		pde[(i >> 18) & 0x1FF] = (PPML4E)((uintptr_t)(pdpe = (PDPE)((uintptr_t)_palloc(1))) | 3);
 	}
-	PPML4E page = (PPML4E)((_uint64)pdpe[(i >> 9) & 0x1FF] & 0xFFFFFFFFFFFFF000);
+	PPML4E page = (PPML4E)((uintptr_t)pdpe[(i >> 9) & 0x1FF] & 0xFFFFFFFFFFFFF000);
 	if(page == 0){
-		pdpe[(i >> 9) & 0x1FF] = (void*)((_uint64)(page = (PPML4E)((_uint64)_palloc(1))) | 3);
+		pdpe[(i >> 9) & 0x1FF] = (void*)((uintptr_t)(page = (PPML4E)((uintptr_t)_palloc(1))) | 3);
 	}
-	page[i & 0x1FF] = (void*)(((_uint64)addr) | 3);
+	page[i & 0x1FF] = (void*)(((uintptr_t)addr) | 3);
 	page_mutex.release();
 	return addr;
 }
-void* Memory::_palloc(char sys)
+void* Memory::_palloc(bool sys)
 {
 start:
 	void *addr = 0; PPML4E page;
-	_uint64 i=last_page-1;
-	while(i<0xFFFFFFFFFF000){
+	uintptr_t i=last_page-1;
+	while(i<KBTS4){
 		i++;
 		addr = (void*)(i << 12);
 		page = get_page(addr);
-		if((page == 0) || (*(_uint64*)page & 1) == 0) break;
+		if((page == 0) || (*(uintptr_t*)page & 1) == 0) break;
 	}
 	last_page = i;
-	PDE pde = (PDE)((_uint64)pagetable[(i >> 27) & 0x1FF] & 0xFFFFFFFFFFFFF000);
-	PDPE pdpe = (PDPE)((_uint64)pde[(i >> 18) & 0x1FF] & 0xFFFFFFFFFFFFF000);
-	PDPE pdpen = (PDPE)((_uint64)pde[((i+1) >> 18) & 0x1FF] & 0xFFFFFFFFFFFFF000);
-	page = (PPML4E)((_uint64)pdpe[(i >> 9) & 0x1FF] & 0xFFFFFFFFFFFFF000);
-	if(((_uint64)pde[((i+2) >> 18) & 0x1FF] & 1) == 0){
-		page[i & 0x1FF] = (void*)((_uint64)addr | 3);
+	PDE pde = (PDE)((uintptr_t)pagetable[(i >> 27) & 0x1FF] & KBTS4);
+	PDPE pdpe = (PDPE)((uintptr_t)pde[(i >> 18) & 0x1FF] & KBTS4);
+	PDPE pdpen = (PDPE)((uintptr_t)pde[((i+1) >> 18) & 0x1FF] & KBTS4);
+	page = (PPML4E)((uintptr_t)pdpe[(i >> 9) & 0x1FF] & KBTS4);
+	if(((uintptr_t)pde[((i+2) >> 18) & 0x1FF] & 1) == 0){
+		page[i & 0x1FF] = (void*)((uintptr_t)addr | 3);
 		i++; i++;
-		pde[(i >> 18) & 0x1FF] = (void**)((_uint64)addr | 3);
-		for(short j=0; j<0x200; j++)
-			((_uint64*)addr)[j] = 0;
+		pde[(i >> 18) & 0x1FF] = (void**)((uintptr_t)addr | 3);
+		for(uint16_t j=0; j<0x200; j++)
+			((uintptr_t*)addr)[j] = 0;
 		goto start;
 	}
 	if(((_uint64)pdpen[((i+1) >> 9) & 0x1FF] & 1) == 0){
-		page[i & 0x1FF] = (void*)((_uint64)addr | 3);
+		page[i & 0x1FF] = (void*)((uintptr_t)addr | 3);
 		i++;
-		pdpen[(i >> 9) & 0x1FF] = (void*)((_uint64)addr | 3);
-		for(short j=0; j<0x200; j++)
-			((_uint64*)addr)[j] = ((_uint64)addr + (j+1)*0x1000);
+		pdpen[(i >> 9) & 0x1FF] = (void*)((uintptr_t)addr | 3);
+		for(uint16_t j=0; j<0x200; j++)
+			((uintptr_t*)addr)[j] = ((uintptr_t)addr + (j+1)*0x1000);
 		goto start;
 	}
-	page[i & 0x1FF] = (void*)(((_uint64)addr) | (sys == 0 ? 7 : 3));
+	page[i & 0x1FF] = (void*)(((uintptr_t)addr) | (sys == 0 ? 7 : 3));
 	for(i=0; i<0x200; i++)
 		((_uint64*)addr)[i] = 0;
 	return addr;
 }
-void* Memory::palloc(char sys) {
+void* Memory::palloc(bool sys) {
 	page_mutex.lock();
 	void* ret = _palloc(sys);
 	page_mutex.release();
@@ -299,26 +291,26 @@ void* Memory::palloc(char sys) {
 void Memory::pfree(void* page){
 	page_mutex.lock();
 	PPML4E pdata = get_page(page);
-	if((pdata != 0) && ((*(_uint64*)pdata & 5) == 1)){
-		*(_uint64*)pdata &= 0xFFFFFFFFFFFFFFF0;
-		if(((_uint64)page >> 12) < last_page) last_page = (_uint64)page >> 12;
+	if((pdata != 0) && ((*(uintptr_t*)pdata & 5) == 1)){
+		*(uintptr_t*)pdata &= 0xFFFFFFFFFFFFFFF0;
+		if(((uintptr_t)page >> 12) < last_page) last_page = (uintptr_t)page >> 12;
 	}
 	page_mutex.release();
 }
-void* Memory::alloc(_uint64 size, int align)
+void* Memory::alloc(size_t size, size_t align)
 {
 	if(size == 0) return (void*)0;
 	heap_mutex.lock();
-	_uint64 ns = (_uint64)first_free, ne; char f;
+	uintptr_t ns = (uintptr_t)first_free, ne; char f;
 	PALLOCTABLE t;
 	while(1){
 		if(ns%align != 0) ns = ns + align - (ns%align);
 		ne = ns + size;
 		f=0;
-		_uint64 ps = ns >> 12, pe = (ne >> 12) + (((ne & 0xFFF) !=0) ? 1 : 0);
+		uintptr_t ps = ns >> 12, pe = (ne >> 12) + (((ne & 0xFFF) !=0) ? 1 : 0);
 		for(_uint64 i=ps; i < pe; i++){
-			PPML4E pdata = get_page((void*)((_uint64)i << 12));
-			if((pdata!=0)&&((*(_uint64*)pdata & 1)==1)&&((*(_uint64*)pdata & 4)==0)){
+			PPML4E pdata = get_page((void*)((uintptr_t)i << 12));
+			if((pdata!=0)&&((*(uintptr_t*)pdata & 1)==1)&&((*(uintptr_t*)pdata & 4)==0)){
 				ns=(i+1) << 12;
 				if(ns%align != 0) ns = ns + align - (ns%align);
 				ne = ns + size;
@@ -331,7 +323,7 @@ void* Memory::alloc(_uint64 size, int align)
 		while(1){
 			for(int i=0;i<255;i++){
 				if(t->allocs[i].addr == 0) continue;
-				_uint64 as = (_uint64)t->allocs[i].addr, ae = as+(_uint64)t->allocs[i].size;
+				uintptr_t as = (uintptr_t)t->allocs[i].addr, ae = as+(uintptr_t)t->allocs[i].size;
 				if(ne < as) continue;
 				if(ae < ns) continue;
 				if(
@@ -350,11 +342,11 @@ void* Memory::alloc(_uint64 size, int align)
 			if(t->next == 0) break;
 			t = (PALLOCTABLE)t->next;
 		}
-		for(_uint64 i=ps; i < pe; i++){
+		for(uintptr_t i=ps; i < pe; i++){
 			PML4E page = get_page((void*)(i*0x1000));
-			if((page == 0)||(*(_uint64*)page & 1) == 0) {
+			if((page == 0)||(*(uintptr_t*)page & 1) == 0) {
 				void *t = palloc(0);
-				if((_uint64)t != (i * 0x1000)) {
+				if((uintptr_t)t != (i * 0x1000)) {
 					f=1;
 					break;
 				}
@@ -381,7 +373,7 @@ void* Memory::alloc(_uint64 size, int align)
 	}
 	t->allocs[ai].addr = (void*) ns;
 	t->allocs[ai].size = size;
-	if(((_uint64)first_free < ns) && (align == 4)){
+	if(((uintptr_t)first_free < ns) && (align == 4)){
 		first_free = (void*) (ns + size);
 	}
 	heap_mutex.release();
@@ -396,7 +388,7 @@ void Memory::free(void* addr)
 			if(t->allocs[i].addr == addr) {
 				t->allocs[i].addr = 0;
 				t->allocs[i].size = 0;
-				if((_uint64)addr < (_uint64)first_free)
+				if((uintptr_t)addr < (uintptr_t)first_free)
 					first_free = addr;
 				goto end;
 			}
@@ -406,7 +398,7 @@ void Memory::free(void* addr)
 end:
 	heap_mutex.release();
 }
-void Memory::copy(void *dest, void *src, _uint64 count) {
+void Memory::copy(void *dest, void *src, size_t count) {
 	char *cdest = (char*)dest, *csrc = (char*)src;
 	while(count){
 		*cdest = *csrc;

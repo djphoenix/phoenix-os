@@ -16,13 +16,13 @@
 
 #include "acpi.hpp"
 ACPI* ACPI::controller = 0;
-unsigned char ACPI::activeCpuCount = 0;
-_uint64 ACPI::busfreq = 0;
+uint8_t ACPI::activeCpuCount = 0;
+uint64_t ACPI::busfreq = 0;
 
 static const char* ACPI_FIND_START = (const char*)0x000e0000;
 static const char* ACPI_FIND_TOP = (const char*)0x000fffff;
-static const _uint64 ACPI_SIG_RTP_DSR = 0x2052545020445352;
-static const long ACPI_SIG_CIPA = 0x43495041;
+static const uint64_t ACPI_SIG_RTP_DSR = 0x2052545020445352;
+static const uint32_t ACPI_SIG_CIPA = 0x43495041;
 
 ACPI* ACPI::getController() {
 	if (controller) return controller;
@@ -43,8 +43,8 @@ ACPI::ACPI() {
 	while (p < end)
 	{
 		Memory::salloc(p);
-		Memory::salloc((_uint64*)p+1);
-		_uint64 signature = *(_uint64 *)p;
+		Memory::salloc((uint64_t*)p+1);
+		uint64_t signature = *(uint64_t *)p;
 		
 		if ((signature == ACPI_SIG_RTP_DSR) && ParseRsdp(p))
 			break;
@@ -60,25 +60,25 @@ void ACPI::ParseDT(AcpiHeader *header) {
 }
 void ACPI::ParseRsdt(AcpiHeader *rsdt) {
 	Memory::salloc(rsdt);
-	int *p = (int *)(rsdt + 1);
-	int *end = (int *)((char*)rsdt + rsdt->length);
+	uint32_t *p = (uint32_t *)(rsdt + 1);
+	uint32_t *end = (uint32_t *)((char*)rsdt + rsdt->length);
 	
 	while (p < end) {
 		Memory::salloc(p);
 		Memory::salloc((_uint64*)p+1);
-		_uint64 address = (_uint64)((int)(*p++) & 0xFFFFFFFF);
+		_uint64 address = (_uint64)((uint32_t)(*p++) & 0xFFFFFFFF);
 		ParseDT((AcpiHeader *)(uintptr_t)address);
 	}
 }
 void ACPI::ParseXsdt(AcpiHeader *xsdt) {
 	Memory::salloc(xsdt);
-	_uint64 *p = (_uint64 *)(xsdt + 1);
-	_uint64 *end = (_uint64 *)((char*)xsdt + xsdt->length);
+	uint64_t *p = (uint64_t *)(xsdt + 1);
+	uint64_t *end = (uint64_t *)((char*)xsdt + xsdt->length);
 	
 	while (p < end) {
 		Memory::salloc(p);
 		Memory::salloc((_uint64*)p+1);
-		_uint64 address = *p++;
+		uint64_t address = *p++;
 		ParseDT((AcpiHeader *)(uintptr_t)address);
 	}
 }
@@ -86,7 +86,7 @@ void ACPI::ParseApic(AcpiMadt *a_madt) {
 	Memory::salloc(a_madt);
 	madt = a_madt;
 	
-	localApicAddr = (long *)(uintptr_t)((_uint64)madt->localApicAddr & 0xFFFFFFFF);
+	localApicAddr = (uint32_t *)(uintptr_t)((_uint64)madt->localApicAddr & 0xFFFFFFFF);
 	Memory::salloc(localApicAddr);
 	
 	char *p = (char *)(madt + 1);
@@ -96,8 +96,8 @@ void ACPI::ParseApic(AcpiMadt *a_madt) {
 		ApicHeader *header = (ApicHeader *)p;
 		Memory::salloc(header);
 		Memory::salloc(header+1);
-		short type = header->type;
-		short length = header->length;
+		uint16_t type = header->type;
+		uint16_t length = header->length;
 		Memory::salloc(header);
 		if (type == 0) {
 			ApicLocalApic *s = (ApicLocalApic *)p;
@@ -108,7 +108,7 @@ void ACPI::ParseApic(AcpiMadt *a_madt) {
 			}
 		} else if (type == 1) {
 			ApicIoApic *s = (ApicIoApic *)p;
-			ioApicAddr = (long *)(uintptr_t)((_uint64)s->ioApicAddress & 0xFFFFFFFF);
+			ioApicAddr = (uint32_t *)(uintptr_t)((_uint64)s->ioApicAddress & 0xFFFFFFFF);
 			Memory::salloc(ioApicAddr);
 		} else if (type == 2) {
 			//ApicInterruptOverride *s = (ApicInterruptOverride *)p;
@@ -149,39 +149,39 @@ bool ACPI::ParseRsdp(char *p) {
 	
 	return true;
 }
-int ACPI::getLapicID() {
+uint32_t ACPI::getLapicID() {
 	if (!localApicAddr) return 0;
 	return LapicIn(LAPIC_APICID) >> 24;
 }
-int ACPI::getLapicIDOfCPU(int id) {
+uint32_t ACPI::getLapicIDOfCPU(uint32_t id) {
 	if (!localApicAddr) return 0;
 	return acpiCpuIds[id];
 }
-int ACPI::getCPUIDOfLapic(int id) {
+uint32_t ACPI::getCPUIDOfLapic(uint32_t id) {
 	if (!localApicAddr) return 0;
-	for (int i=0; i<256; i++) {
+	for (uint32_t i=0; i<256; i++) {
 		if (acpiCpuIds[i]==id) return i;
 	}
 	return 0;
 }
-int ACPI::LapicIn(int reg) {
+uint32_t ACPI::LapicIn(uint32_t reg) {
 	if (!localApicAddr) return 0;
 	Memory::salloc((char*)localApicAddr + reg);
 	return MmioRead32((char*)localApicAddr + reg);
 }
-void ACPI::LapicOut(int reg, int data) {
+void ACPI::LapicOut(uint32_t reg, uint32_t data) {
 	if (!localApicAddr) return;
 	Memory::salloc((char*)localApicAddr + reg);
 	MmioWrite32((char*)localApicAddr + reg, data);
 }
-int ACPI::IOapicIn(int reg) {
+uint32_t ACPI::IOapicIn(uint32_t reg) {
 	if (!ioApicAddr) return 0;
 	Memory::salloc((char*)ioApicAddr + IOAPIC_REGSEL);
 	Memory::salloc((char*)ioApicAddr + IOAPIC_REGWIN);
 	MmioWrite32((char*)ioApicAddr + IOAPIC_REGSEL, reg);
 	return MmioRead32((char*)ioApicAddr + IOAPIC_REGWIN);
 }
-void ACPI::IOapicOut(int reg, int data) {
+void ACPI::IOapicOut(uint32_t reg, uint32_t data) {
 	if (!ioApicAddr) return;
 	Memory::salloc((char*)ioApicAddr + IOAPIC_REGSEL);
 	Memory::salloc((char*)ioApicAddr + IOAPIC_REGWIN);
@@ -192,13 +192,13 @@ union ioapic_redir_ints {
 	ioapic_redir r;
 	int i[2];
 };
-void ACPI::IOapicMap(int idx, ioapic_redir r) {
+void ACPI::IOapicMap(uint32_t idx, ioapic_redir r) {
 	ioapic_redir_ints a;
 	a.r = r;
 	IOapicOut(IOAPIC_REDTBL + idx*2 +0, a.i[0]);
 	IOapicOut(IOAPIC_REDTBL + idx*2 +1, a.i[1]);
 }
-ioapic_redir ACPI::IOapicReadMap(int idx) {
+ioapic_redir ACPI::IOapicReadMap(uint32_t idx) {
 	ioapic_redir_ints a;
 	a.i[0] = IOapicIn(IOAPIC_REDTBL + idx*2 +0);
 	a.i[1] = IOapicIn(IOAPIC_REDTBL + idx*2 +1);
@@ -207,11 +207,11 @@ ioapic_redir ACPI::IOapicReadMap(int idx) {
 void* ACPI::getLapicAddr() {
 	return localApicAddr;
 }
-int ACPI::getCPUCount() {
+uint32_t ACPI::getCPUCount() {
 	if (!localApicAddr) return 1;
 	return acpiCpuCount;
 }
-int ACPI::getActiveCPUCount() {
+uint32_t ACPI::getActiveCPUCount() {
 	if (!localApicAddr) return 1;
 	return activeCpuCount;
 }
@@ -240,13 +240,13 @@ void ACPI::activateCPU() {
 	int ret_val;
 	asm volatile ("lock incq %1":"=a"(ret_val):"m"(activeCpuCount):"memory");
 }
-void ACPI::sendCPUInit(int id) {
+void ACPI::sendCPUInit(uint32_t id) {
 	if (!localApicAddr) return;
 	LapicOut(LAPIC_ICRH, id << 24);
 	LapicOut(LAPIC_ICRL, 0x00004500);
 	while (LapicIn(LAPIC_ICRL) & 0x00001000);
 }
-void ACPI::sendCPUStartup(int id, char vector) {
+void ACPI::sendCPUStartup(uint32_t id, uint8_t vector) {
 	if (!localApicAddr) return;
 	LapicOut(LAPIC_ICRH, id << 24);
 	LapicOut(LAPIC_ICRL, vector | 0x00004600);
@@ -296,14 +296,14 @@ bool ACPI::initAPIC(){
 	outportb(0x42,0x9B);
 	inportb(0x60);
 	outportb(0x42,0x2E);
-	char t = inportb(0x61) & 0xFE;
+	uint8_t t = inportb(0x61) & 0xFE;
 	outportb(0x61,t);
 	outportb(0x61,t|1);
 	LapicOut(LAPIC_TMRINITCNT,-1);
 	while ((inportb(0x61) & 0x20) == 0) ;
 	LapicOut(LAPIC_LVT_TMR,LAPIC_DISABLE);
 	acpi->busfreq = ((-1 - LapicIn(LAPIC_TMRCURRCNT)) << 4) * 100;
-	_uint64 c = (ACPI::busfreq / 1000) >> 4;
+	uint64_t c = (ACPI::busfreq / 1000) >> 4;
 	if (c < 0x10) c = 0x10;
 	
 	LapicOut(LAPIC_TMRINITCNT,c & 0xFFFFFFFF);

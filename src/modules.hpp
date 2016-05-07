@@ -41,25 +41,25 @@ public:
 };
 
 typedef struct {
-	uint name, type;
-	_uint64 flags, addr, offset, size;
-	uint link, info;
-	_uint64 addralign, entsize;
+	uint32_t name, type;
+	uint64_t flags, addr, offset, size;
+	uint32_t link, info;
+	uint64_t addralign, entsize;
 } ELF64SECT;
 typedef struct{
-	uint name;
-	unsigned char info, other;
-	unsigned short shndx;
-	_uint64 value;
-	_uint64 size;
+	uint32_t name;
+	uint8_t info, other;
+	uint16_t shndx;
+	uint64_t value;
+	uint64_t size;
 } ELF64SYM;
 typedef struct{
-	_uint64 addr;
-	struct{ uint type, sym;} info;
-	_uint64 add;
+	uint64_t addr;
+	struct{ uint32_t type, sym;} info;
+	uint64_t add;
 } ELF64RELA;
 typedef struct{
-	_uint64 addr;
-	struct{ uint type, sym;} info;
+	uint64_t addr;
+	struct{ uint32_t type, sym;} info;
 } ELF64REL;
 #endif

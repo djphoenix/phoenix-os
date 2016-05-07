@@ -75,23 +75,22 @@ asm volatile ("\
 	.align 16\
 ");
 extern "C" {
-	void volatile __attribute__((sysv_abi)) interrupt_handler(_uint64 intr, _uint64 stack);
+	void volatile __attribute__((sysv_abi)) interrupt_handler(uint64_t intr, uint64_t stack);
 }
-void volatile __attribute__((sysv_abi)) interrupt_handler(_uint64 intr, _uint64 stack){
+void volatile __attribute__((sysv_abi)) interrupt_handler(uint64_t intr, uint64_t stack){
 	Interrupts::handle(intr,stack);
 }
-void Interrupts::handle(unsigned char intr, _uint64 stack){
-	_int64 *rsp = (_int64*)stack;
+void Interrupts::handle(unsigned char intr, uint64_t stack){
+	uint64_t *rsp = (uint64_t*)stack;
 	if(intr<0x20){
-		print("\nKernel fault #"); printb(intr); print("h\nStack print:\n");
-		print("RSP=");printq((_uint64)rsp); print("h\n");
-		for(int i=0;i<7;i++)
-		{printq(rsp[i]); print("\n");}
+		printf("\nKernel fault #%02xh\nStack print:\n",intr);
+		printf("RSP=%016ph\n",rsp);
+		for(int i=0;i<7;i++) printf("%016x\n",rsp[i]);
 		for(;;);
 	} else if(intr == 0x21) {
-		print("KBD "); printb(inportb(0x60)); print("\n");
+		printf("KBD %02xh\n",inportb(0x60));
 	} else if(intr != 0x20) {
-		print("INT "); prints(intr); print("h\n");
+		printf("INT %02xh\n",intr);
 	}
 	callback_locks[intr].lock();
 	intcbreg *reg = callbacks[intr];
@@ -116,15 +115,15 @@ void Interrupts::init()
 	void* addr;
 	asm("movabs $__interrupt_wrap,%q0":"=a"(addr));
 	for(int i=0; i<256; i++){
-		_uint64 jmp_from = (_uint64)&(handlers[i].reljmp);
-		_uint64 jmp_to = (_uint64)addr;
-		_uint64 diff = jmp_to - jmp_from - 5;
+		uintptr_t jmp_from = (uintptr_t)&(handlers[i].reljmp);
+		uintptr_t jmp_to = (uintptr_t)addr;
+		uintptr_t diff = jmp_to - jmp_from - 5;
 		handlers[i].push = 0x68;
 		handlers[i].int_num = i;
 		handlers[i].reljmp = 0xE9;
 		handlers[i].diff = diff;
 		
-		_uint64 hptr = (_uint64)(&handlers[i]);
+		uintptr_t hptr = (uintptr_t)(&handlers[i]);
 		
 		idt->ints[i].zero = 0;
 		idt->ints[i].reserved = 0;
@@ -151,14 +150,14 @@ void Interrupts::init()
 	
 	if (!(ACPI::getController())->initAPIC()) {
 		outportb(0x43, 0x34);
-		static const int rld = 0x000F;
+		static const uint16_t rld = 0x000F;
 		outportb(0x40, rld & 0xFF);
 		outportb(0x40, (rld >> 8) & 0xFF);
 	}
 	maskIRQ(0);
 }
 
-void Interrupts::maskIRQ(unsigned short mask){
+void Interrupts::maskIRQ(uint16_t mask){
 	outportb(0x21, mask & 0xFF);
 	outportb(0xA1, (mask >> 8) & 0xFF);
 }
@@ -167,11 +166,11 @@ void Interrupts::loadVector(){
 	asm volatile( "lidtq %0\nsti"::"m"(idt->rec));
 }
 
-unsigned short Interrupts::getIRQmask(){
+uint16_t Interrupts::getIRQmask(){
 	return inportb(0x21) | (inportb(0xA1) << 8);
 }
 
-void Interrupts::addCallback(unsigned char intr, intcb* cb){
+void Interrupts::addCallback(uint8_t intr, intcb* cb){
 	asm volatile("cli");
 	
 	intcbreg *reg = (intcbreg*)Memory::alloc(sizeof(intcbreg));
