@@ -166,22 +166,16 @@ unsigned short Interrupts::getIRQmask(){
 }
 
 void Interrupts::addCallback(unsigned char intr, intcb* cb){
-	if (callbacks == 0) {
-		callbacks = (intcbreg*)Memory::alloc(sizeof(intcbreg)*2);
-		callbacks[0].intr = intr;
-		callbacks[0].cb = cb;
-		callbacks[1].intr = 0;
-		callbacks[1].cb = 0;
-	} else {
-		_uint64 cid = 0;
-		while ((callbacks[cid].intr != 0) || (callbacks[cid].cb != 0)) cid++;
-		intcbreg* nc = (intcbreg*)Memory::alloc(sizeof(intcbreg)*(cid+1));
-		Memory::copy(nc, callbacks, sizeof(intcbreg)*cid);
-		Memory::free(callbacks);
-		callbacks = nc;
-		callbacks[cid].intr = intr;
-		callbacks[cid].cb = cb;
-		callbacks[cid+1].intr = 0;
-		callbacks[cid+1].cb = 0;
-	}
+	intcbreg *_old = callbacks, *_new;
+	_uint64 cid = 0;
+	while (callbacks != 0 && ((callbacks[cid].intr != 0) || (callbacks[cid].cb != 0))) cid++;
+	_new = (intcbreg*)Memory::alloc(sizeof(intcbreg)*(cid+2));
+	Memory::copy(_new, callbacks, sizeof(intcbreg)*cid);
+	_new[cid].intr = intr;
+	_new[cid].cb = cb;
+	_new[cid+1].intr = 0;
+	_new[cid+1].cb = 0;
+	
+	callbacks = _new;
+	if (_old != 0) Memory::free(_old);
 }
