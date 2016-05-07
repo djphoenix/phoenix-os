@@ -17,21 +17,23 @@
 #include "interrupts.hpp"
 PIDT Interrupts::idt = 0;
 intcbreg* Interrupts::callbacks = 0;
-char* Interrupts::handlers = 0;
+int_handler* Interrupts::handlers = 0;
 INTERRUPT32 Interrupts::interrupts32[256];
 asm volatile ("\
-	_interrupt_handler:\n\
+	__interrupt_wrap:\n\
 	\
 	push %rax\n\
 	push %rcx\n\
-	mov 16(%rsp), %ax\n\
-	movq 8(%rsp), %rcx\n\
-	movq %rcx,10(%rsp)\n\
-	movq 0(%rsp), %rcx\n\
-	movq %rcx,2(%rsp)\n\
-	add $2, %rsp\n\
-	movq %rsp, %rcx\n\
-	addq $16, %rcx\n\
+	\
+	mov 16(%rsp), %rax\n\
+	mov 8(%rsp), %rcx\n\
+	mov %rcx, 16(%rsp)\n\
+	mov 0(%rsp), %rcx\n\
+	mov %rcx, 8(%rsp)\n\
+	add $8, %rsp\n\
+	mov %rsp, %rcx\n\
+	add $16, %rcx\n\
+	\
 	push %rdx\n\
 	push %rbx\n\
 	push %rbp\n\
@@ -46,10 +48,8 @@ asm volatile ("\
 	push %r14\n\
 	push %r15\n\
 	\
-	movq %rcx,%rdx\n\
-	movl %eax,%ecx\n\
-	movq %rcx,%rsi\n\
-	movl %eax,%edi\n\
+	mov %rcx,%rsi\n\
+	mov %rax,%rdi\n\
 	call interrupt_handler\n\
 	\
 	popq %r15\n\
@@ -74,9 +74,9 @@ asm volatile ("\
 	.align 16\
 ");
 extern "C" {
-	void volatile interrupt_handler(unsigned char intr, _uint64 stack);
+	void volatile __attribute__((sysv_abi)) interrupt_handler(_uint64 intr, _uint64 stack);
 }
-void volatile interrupt_handler(unsigned char intr, _uint64 stack){
+void volatile __attribute__((sysv_abi)) interrupt_handler(_uint64 intr, _uint64 stack){
 	Interrupts::handle(intr,stack);
 }
 void Interrupts::handle(unsigned char intr, _uint64 stack){
@@ -106,30 +106,27 @@ void Interrupts::init()
 	idt = (PIDT)Memory::alloc(sizeof(IDT),0x1000);
 	idt->rec.limit = sizeof(idt->ints) -1;
 	idt->rec.addr = &idt->ints[0];
-	handlers = (char*)Memory::alloc(9*256,0x1000);
+	handlers = (int_handler*)Memory::alloc(sizeof(int_handler)*256,0x1000);
 	void* addr;
-	asm("movabs $_interrupt_handler,%q0":"=a"(addr));
+	asm("movabs $__interrupt_wrap,%q0":"=a"(addr));
 	for(int i=0; i<256; i++){
-		_uint64 jmp_from = (_uint64)&handlers[9*i+ 4];
+		_uint64 jmp_from = (_uint64)&(handlers[i].reljmp);
 		_uint64 jmp_to = (_uint64)addr;
 		_uint64 diff = jmp_to - jmp_from - 5;
-		handlers[9*i+ 0] = 0x66;				// push
-		handlers[9*i+ 1] = 0x68;				// short
-		handlers[9*i+ 2] = i & 0xFF;			// int_num [2]
-		handlers[9*i+ 3] = 0x00;
-		handlers[9*i+ 4] = 0xE9;				// jmp rel
-		handlers[9*i+ 5] = (diff      ) & 0xFF;
-		handlers[9*i+ 6] = (diff >>  8) & 0xFF;
-		handlers[9*i+ 7] = (diff >> 16) & 0xFF;
-		handlers[9*i+ 8] = (diff >> 24) & 0xFF;
+		handlers[i].push = 0x68;
+		handlers[i].int_num = i;
+		handlers[i].reljmp = 0xE9;
+		handlers[i].diff = diff;
+		
+		_uint64 hptr = (_uint64)(&handlers[i]);
 		
 		idt->ints[i].zero = 0;
 		idt->ints[i].reserved = 0;
 		idt->ints[i].selector = 8;
 		idt->ints[i].type = 0x8E;	// P[7]=1, DPL[65]=0, S[4]=0, Type[3210] = E
-		idt->ints[i].offset_low = ((_int64)(&handlers[9*i]) >> 0) & 0xFFFF;
-		idt->ints[i].offset_middle = ((_int64)(&handlers[9*i]) >> 16) & 0xFFFF;
-		idt->ints[i].offset_high = ((_int64)(&handlers[9*i]) >> 32) & 0xFFFFFFFF;
+		idt->ints[i].offset_low = (hptr >> 0) & 0xFFFF;
+		idt->ints[i].offset_middle = (hptr >> 16) & 0xFFFF;
+		idt->ints[i].offset_high = (hptr >> 32) & 0xFFFFFFFF;
 	}
 	
 	outportb(0x20, 0x11);

@@ -49,10 +49,21 @@ typedef struct {
 typedef void intcb();
 typedef struct {unsigned char intr; intcb *cb;} intcbreg;
 
+#pragma pack(push,1)
+struct int_handler {
+	// 68 04 03 02 01  pushq  ${int_num}
+	// e9 46 ec 3f 00  jmp . + {diff}
+	unsigned char push; // == 0x68
+	unsigned int int_num;
+	unsigned char reljmp; // == 0xE9
+	unsigned int diff;
+};
+#pragma pack(pop)
+
 class Interrupts {
 private:
 	static intcbreg* callbacks;
-	static char* handlers;
+	static int_handler* handlers;
 	static PIDT idt;
 public:
 	static INTERRUPT32 interrupts32[256];
