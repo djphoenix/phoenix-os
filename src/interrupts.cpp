@@ -169,13 +169,12 @@ uint16_t Interrupts::getIRQmask() {
 }
 
 void Interrupts::addCallback(uint8_t intr, intcb* cb) {
-	asm volatile("pushfq; cli");
-	
 	intcbreg *reg = (intcbreg*)Memory::alloc(sizeof(intcbreg));
 	reg->cb = cb;
 	reg->next = 0;
 	reg->prev = 0;
 	
+	asm volatile("pushfq; cli");
 	callback_locks[intr].lock();
 	intcbreg *last = callbacks[intr];
 	if (last == 0) {
