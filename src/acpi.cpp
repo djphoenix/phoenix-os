@@ -215,7 +215,6 @@ uint32_t ACPI::getActiveCPUCount() {
 }
 void ACPI::activateCPU() {
 	if (!localApicAddr) return;
-	Interrupts::loadVector();
 	LapicOut(LAPIC_DFR, 0xFFFFFFFF);
 	LapicOut(LAPIC_LDR, (LapicIn(LAPIC_LDR)&0x00FFFFFF)|1);
 	LapicOut(LAPIC_LVT_TMR, LAPIC_DISABLE);
@@ -232,11 +231,13 @@ void ACPI::activateCPU() {
 	if (c < 0x10) c = 0x10;
 	
 	LapicOut(LAPIC_TMRINITCNT, c & 0xFFFFFFFF);
-	LapicOut(LAPIC_LVT_TMR, 0x20 | TMR_PERIODIC);
 	LapicOut(LAPIC_TMRDIV, 3);
-	EOI();
+	LapicOut(LAPIC_LVT_TMR, 0x20 | TMR_PERIODIC);
+	
 	int ret_val;
 	asm volatile("lock incq %1":"=a"(ret_val):"m"(activeCpuCount):"memory");
+	Interrupts::loadVector();
+	EOI();
 }
 void ACPI::sendCPUInit(uint32_t id) {
 	if (!localApicAddr) return;
@@ -303,8 +304,8 @@ bool ACPI::initAPIC() {
 	if (c < 0x10) c = 0x10;
 	
 	LapicOut(LAPIC_TMRINITCNT, c & 0xFFFFFFFF);
-	LapicOut(LAPIC_LVT_TMR, 0x20 | TMR_PERIODIC);
 	LapicOut(LAPIC_TMRDIV, 3);
+	LapicOut(LAPIC_LVT_TMR, 0x20 | TMR_PERIODIC);
 	initIOAPIC();
 	EOI();
 	return true;
