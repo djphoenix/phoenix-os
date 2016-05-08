@@ -347,5 +347,9 @@ void Mutex::lock() {
 	} while (ret_val);
 }
 void Mutex::release() {
-	state = 0;
+	bool ret_val = 0, new_val = 0;
+	asm volatile("lock xchgb %1,%2":
+				 "=a"(ret_val):
+				 "r"(new_val),"m"(state):
+				 "memory");
 }
