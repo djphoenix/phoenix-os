@@ -40,7 +40,7 @@ ifeq ($(UNAME_S),Darwin)
     OBJCOPY=gobjcopy
 endif
 
-all: clean $(BIN)
+all: clean check $(BIN)
 $(BIN): ${OBJECTS} obj/modules-linked.o
 	$(LD) -T ld.script -belf64-x86-64 -o $(BIN).elf -s --nostdlib $?
 	$(OBJCOPY) -Opei-x86-64 --subsystem efi-app --file-alignment 1 --section-alignment 1 $(BIN).elf $(BIN)
@@ -63,6 +63,8 @@ clean:
 obj:
 	mkdir -p obj/mod
 images: phoenixos
+check:
+	cpplint $(SOURCES) || echo "CPPLINT not found"
 
 phoenixos: $(BIN)
 	cp $< $@

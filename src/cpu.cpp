@@ -20,9 +20,9 @@ char CPU::vendor[13] = "";
 uint64_t CPU::features = 0;
 
 char* CPU::getVendor() {
-	if (vendor[0]==0) {
-		int eax=0, ebx, ecx, edx;
-		asm("cpuid":"=a"(eax),"=b"(ebx),"=c"(ecx),"=d"(edx):"a"(eax));
+	if (vendor[0] == 0) {
+		int eax = 0, ebx, ecx, edx;
+		asm("cpuid" : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) : "a"(eax));
 		typedef union {
 			char s[12];
 			int i[3];
@@ -36,10 +36,10 @@ char* CPU::getVendor() {
 	return vendor;
 }
 
-_uint64 CPU::getFeatures(){
+uint64_t CPU::getFeatures() {
 	if (features == 0) {
-		uint32_t eax=1, ebx, ecx, edx;
-		asm("cpuid":"=a"(eax),"=b"(ebx),"=c"(ecx),"=d"(edx):"a"(eax));
+		uint32_t eax = 1, ebx, ecx, edx;
+		asm("cpuid" : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) : "a"(eax));
 		features = ecx;
 		features <<= 32;
 		features |= edx;
@@ -47,15 +47,15 @@ _uint64 CPU::getFeatures(){
 	return features;
 }
 
-void __inline cf(char*d, const char*f){
+void __inline	cf(char*d, const char*f) {
 	uint64_t p = 0, l = 0;
 	while(d[p] != 0) p++;
 	if (p != 0) d[p++] = ' ';
 	while(f[l] != 0) {d[p+(l)] = f[l]; l++;}
-	d[p+l]=0;
+	d[p+l] = 0;
 }
 
-char* CPU::getFeaturesStr(){
+char* CPU::getFeaturesStr() {
 	char* res;
 	uint64_t f = getFeatures(), l = 0;
 	
@@ -118,62 +118,62 @@ char* CPU::getFeaturesStr(){
 	
 	res = (char*)Memory::alloc(l);
 	
-	if (f & CPUID_FEAT_SSE3) cf(res,"sse3");
-	if (f & CPUID_FEAT_PCLMUL) cf(res,"pclmul");
-	if (f & CPUID_FEAT_DTES64) cf(res,"dtes64");
-	if (f & CPUID_FEAT_MONITOR) cf(res,"monitor");
-	if (f & CPUID_FEAT_DS_CPL) cf(res,"ds_cpl");
-	if (f & CPUID_FEAT_VMX) cf(res,"vmx");
-	if (f & CPUID_FEAT_SMX) cf(res,"smx");
-	if (f & CPUID_FEAT_EST) cf(res,"est");
-	if (f & CPUID_FEAT_TM2) cf(res,"tm2");
-	if (f & CPUID_FEAT_SSSE3) cf(res,"ssse3");
-	if (f & CPUID_FEAT_CID) cf(res,"cid");
-	if (f & CPUID_FEAT_FMA) cf(res,"fma");
-	if (f & CPUID_FEAT_CX16) cf(res,"cx16");
-	if (f & CPUID_FEAT_ETPRD) cf(res,"etprd");
-	if (f & CPUID_FEAT_PDCM) cf(res,"pdcm");
-	if (f & CPUID_FEAT_DCA) cf(res,"dca");
-	if (f & CPUID_FEAT_SSE4_1) cf(res,"sse4_1");
-	if (f & CPUID_FEAT_SSE4_2) cf(res,"sse4_2");
-	if (f & CPUID_FEAT_x2APIC) cf(res,"x2apic");
-	if (f & CPUID_FEAT_MOVBE) cf(res,"movbe");
-	if (f & CPUID_FEAT_POPCNT) cf(res,"popcnt");
-	if (f & CPUID_FEAT_AES) cf(res,"aes");
-	if (f & CPUID_FEAT_XSAVE) cf(res,"xsave");
-	if (f & CPUID_FEAT_OSXSAVE) cf(res,"osxsave");
-	if (f & CPUID_FEAT_AVX) cf(res,"avx");
+	if (f & CPUID_FEAT_SSE3)	cf(res, "sse3");
+	if (f & CPUID_FEAT_PCLMUL)	cf(res, "pclmul");
+	if (f & CPUID_FEAT_DTES64)	cf(res, "dtes64");
+	if (f & CPUID_FEAT_MONITOR)	cf(res, "monitor");
+	if (f & CPUID_FEAT_DS_CPL)	cf(res, "ds_cpl");
+	if (f & CPUID_FEAT_VMX)		cf(res, "vmx");
+	if (f & CPUID_FEAT_SMX)		cf(res, "smx");
+	if (f & CPUID_FEAT_EST)		cf(res, "est");
+	if (f & CPUID_FEAT_TM2)		cf(res, "tm2");
+	if (f & CPUID_FEAT_SSSE3)	cf(res, "ssse3");
+	if (f & CPUID_FEAT_CID)		cf(res, "cid");
+	if (f & CPUID_FEAT_FMA)		cf(res, "fma");
+	if (f & CPUID_FEAT_CX16)	cf(res, "cx16");
+	if (f & CPUID_FEAT_ETPRD)	cf(res, "etprd");
+	if (f & CPUID_FEAT_PDCM)	cf(res, "pdcm");
+	if (f & CPUID_FEAT_DCA)		cf(res, "dca");
+	if (f & CPUID_FEAT_SSE4_1)	cf(res, "sse4_1");
+	if (f & CPUID_FEAT_SSE4_2)	cf(res, "sse4_2");
+	if (f & CPUID_FEAT_x2APIC)	cf(res, "x2apic");
+	if (f & CPUID_FEAT_MOVBE)	cf(res, "movbe");
+	if (f & CPUID_FEAT_POPCNT)	cf(res, "popcnt");
+	if (f & CPUID_FEAT_AES)		cf(res, "aes");
+	if (f & CPUID_FEAT_XSAVE)	cf(res, "xsave");
+	if (f & CPUID_FEAT_OSXSAVE)	cf(res, "osxsave");
+	if (f & CPUID_FEAT_AVX)		cf(res, "avx");
 	
-	if ((f >> 32) & CPUID_FEAT_FPU) cf(res,"fpu");
-	if ((f >> 32) & CPUID_FEAT_VME) cf(res,"vme");
-	if ((f >> 32) & CPUID_FEAT_DE) cf(res,"de");
-	if ((f >> 32) & CPUID_FEAT_PSE) cf(res,"pse");
-	if ((f >> 32) & CPUID_FEAT_TSC) cf(res,"tsc");
-	if ((f >> 32) & CPUID_FEAT_MSR) cf(res,"msr");
-	if ((f >> 32) & CPUID_FEAT_PAE) cf(res,"pae");
-	if ((f >> 32) & CPUID_FEAT_MCE) cf(res,"mce");
-	if ((f >> 32) & CPUID_FEAT_CX8) cf(res,"cx8");
-	if ((f >> 32) & CPUID_FEAT_APIC) cf(res,"apic");
-	if ((f >> 32) & CPUID_FEAT_SEP) cf(res,"sep");
-	if ((f >> 32) & CPUID_FEAT_MTRR) cf(res,"mtrr");
-	if ((f >> 32) & CPUID_FEAT_PGE) cf(res,"pge");
-	if ((f >> 32) & CPUID_FEAT_MCA) cf(res,"mca");
-	if ((f >> 32) & CPUID_FEAT_CMOV) cf(res,"cmov");
-	if ((f >> 32) & CPUID_FEAT_PAT) cf(res,"pat");
-	if ((f >> 32) & CPUID_FEAT_PSE36) cf(res,"pse36");
-	if ((f >> 32) & CPUID_FEAT_PSN) cf(res,"psn");
-	if ((f >> 32) & CPUID_FEAT_CLF) cf(res,"clf");
-	if ((f >> 32) & CPUID_FEAT_DTES) cf(res,"dtes");
-	if ((f >> 32) & CPUID_FEAT_ACPI) cf(res,"acpi");
-	if ((f >> 32) & CPUID_FEAT_MMX) cf(res,"mmx");
-	if ((f >> 32) & CPUID_FEAT_FXSR) cf(res,"fxsr");
-	if ((f >> 32) & CPUID_FEAT_SSE) cf(res,"sse");
-	if ((f >> 32) & CPUID_FEAT_SSE2) cf(res,"sse2");
-	if ((f >> 32) & CPUID_FEAT_SS) cf(res,"ss");
-	if ((f >> 32) & CPUID_FEAT_HTT) cf(res,"htt");
-	if ((f >> 32) & CPUID_FEAT_TM1) cf(res,"tm1");
-	if ((f >> 32) & CPUID_FEAT_IA64) cf(res,"ia64");
-	if ((f >> 32) & CPUID_FEAT_PBE) cf(res,"pbe");
+	if ((f >> 32) & CPUID_FEAT_FPU)		cf(res, "fpu");
+	if ((f >> 32) & CPUID_FEAT_VME)		cf(res, "vme");
+	if ((f >> 32) & CPUID_FEAT_DE)		cf(res, "de");
+	if ((f >> 32) & CPUID_FEAT_PSE)		cf(res, "pse");
+	if ((f >> 32) & CPUID_FEAT_TSC)		cf(res, "tsc");
+	if ((f >> 32) & CPUID_FEAT_MSR)		cf(res, "msr");
+	if ((f >> 32) & CPUID_FEAT_PAE)		cf(res, "pae");
+	if ((f >> 32) & CPUID_FEAT_MCE)		cf(res, "mce");
+	if ((f >> 32) & CPUID_FEAT_CX8)		cf(res, "cx8");
+	if ((f >> 32) & CPUID_FEAT_APIC)	cf(res, "apic");
+	if ((f >> 32) & CPUID_FEAT_SEP)		cf(res, "sep");
+	if ((f >> 32) & CPUID_FEAT_MTRR)	cf(res, "mtrr");
+	if ((f >> 32) & CPUID_FEAT_PGE)		cf(res, "pge");
+	if ((f >> 32) & CPUID_FEAT_MCA)		cf(res, "mca");
+	if ((f >> 32) & CPUID_FEAT_CMOV)	cf(res, "cmov");
+	if ((f >> 32) & CPUID_FEAT_PAT)		cf(res, "pat");
+	if ((f >> 32) & CPUID_FEAT_PSE36)	cf(res, "pse36");
+	if ((f >> 32) & CPUID_FEAT_PSN)		cf(res, "psn");
+	if ((f >> 32) & CPUID_FEAT_CLF)		cf(res, "clf");
+	if ((f >> 32) & CPUID_FEAT_DTES)	cf(res, "dtes");
+	if ((f >> 32) & CPUID_FEAT_ACPI)	cf(res, "acpi");
+	if ((f >> 32) & CPUID_FEAT_MMX)		cf(res, "mmx");
+	if ((f >> 32) & CPUID_FEAT_FXSR)	cf(res, "fxsr");
+	if ((f >> 32) & CPUID_FEAT_SSE)		cf(res, "sse");
+	if ((f >> 32) & CPUID_FEAT_SSE2)	cf(res, "sse2");
+	if ((f >> 32) & CPUID_FEAT_SS)		cf(res, "ss");
+	if ((f >> 32) & CPUID_FEAT_HTT)		cf(res, "htt");
+	if ((f >> 32) & CPUID_FEAT_TM1)		cf(res, "tm1");
+	if ((f >> 32) & CPUID_FEAT_IA64)	cf(res, "ia64");
+	if ((f >> 32) & CPUID_FEAT_PBE)		cf(res, "pbe");
 	
 	return res;
 }

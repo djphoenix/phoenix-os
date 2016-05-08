@@ -21,8 +21,7 @@
 #include "modules.hpp"
 #include "process.hpp"
 
-int main()
-{
+int main() {
 	static_init();
 	clrscr();
 	Memory::init();

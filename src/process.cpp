@@ -18,8 +18,7 @@
 
 uint64_t countval = 0;
 
-void process_loop()
-{
+void process_loop() {
 	for(;;) asm("hlt");
 }
 
@@ -28,21 +27,21 @@ ProcessManager* ProcessManager::manager = 0;
 ProcessManager* ProcessManager::getManager() {
 	if (manager) return manager;
 	processSwitchMutex = new Mutex();
-	Interrupts::addCallback(0x20,&ProcessManager::SwitchProcess);
+	Interrupts::addCallback(0x20, &ProcessManager::SwitchProcess);
 	return manager = new ProcessManager();
 }
-void ProcessManager::SwitchProcess(){
+void ProcessManager::SwitchProcess() {
 	processSwitchMutex->lock();
 	if (countval++ % 0x1001 != 0) {
 		processSwitchMutex->release();
 		return;
 	}
 	ACPI *acpi = ACPI::getController();
-	printf("%08x -> %08x\n",acpi->getCPUIDOfLapic(acpi->getLapicID()),countval);
+	printf("%08x -> %08x\n", acpi->getCPUIDOfLapic(acpi->getLapicID()), countval);
 	processSwitchMutex->release();
 }
 
-uint64_t ProcessManager::RegisterProcess(Process* process){
+uint64_t ProcessManager::RegisterProcess(Process* process) {
 	if (this->processes == 0) {
 		this->processes = (Process**)Memory::alloc(sizeof(Process*)*2);
 		this->processes[0] = process;
@@ -61,9 +60,9 @@ uint64_t ProcessManager::RegisterProcess(Process* process){
 	}
 }
 
-Process::Process(PROCSTARTINFO psinfo){
-	suspend=true;
+Process::Process(PROCSTARTINFO psinfo) {
+	suspend = true;
 	this->psinfo = psinfo;
 	this->id = (ProcessManager::getManager())->RegisterProcess(this);
-	printf("Registered process: %016zx\n",this->id);
+	printf("Registered process: %016zx\n", this->id);
 }

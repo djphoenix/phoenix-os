@@ -33,7 +33,8 @@ void SMP::init() {
 	char* smp_s; asm("movabs $_smp_init,%q0":"=a"(smp_s):);
 	char* smp_e; asm("movabs $_smp_end,%q0":"=a"(smp_e):);
 	while(smp_s < smp_e) *(smp_init_code++) = *(smp_s++);
-	*((uintptr_t*)smp_init_code) = (uintptr_t)acpi->getLapicAddr(); smp_init_code += 8;
+	*((uintptr_t*)smp_init_code) = (uintptr_t)acpi->getLapicAddr();
+	smp_init_code += 8;
 	uintptr_t *stacks = (uintptr_t*)Memory::alloc(sizeof(uintptr_t)*cpuCount);
 	uintptr_t *cpuids = (uintptr_t*)Memory::alloc(sizeof(uintptr_t)*cpuCount);
 	uint32_t nullcpus = 0;
@@ -41,7 +42,8 @@ void SMP::init() {
 		cpuids[i] = acpi->getLapicIDOfCPU(i);
 		if(cpuids[i] != localId)
 			stacks[i] = ((uintptr_t)Memory::palloc(1))+0x1000;
-		else nullcpus++;
+		else
+			nullcpus++;
 	}
 	if (nullcpus > 0) nullcpus--;
 	*((uintptr_t*)smp_init_code) = (uintptr_t)cpuids; smp_init_code += 8;
@@ -52,10 +54,10 @@ void SMP::init() {
 		if(cpuids[i] != localId) acpi->sendCPUInit(cpuids[i]);
 	asm("hlt");
 	for(uint32_t i = 0; i < cpuCount; i++)
-		if(cpuids[i] != localId) acpi->sendCPUStartup(cpuids[i],smp_init_vector);
+		if(cpuids[i] != localId) acpi->sendCPUStartup(cpuids[i], smp_init_vector);
 	asm("hlt");
 	for(uint32_t i = 0; i < cpuCount; i++)
-		if(cpuids[i] != localId) acpi->sendCPUStartup(cpuids[i],smp_init_vector);
+		if(cpuids[i] != localId) acpi->sendCPUStartup(cpuids[i], smp_init_vector);
 	while (cpuCount - nullcpus != acpi->getActiveCPUCount()) asm("hlt");
 	
 	Memory::free(cpuids);

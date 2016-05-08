@@ -18,22 +18,22 @@
 #include "memory.hpp"
 char* display = (char*)0xB8000;
 Mutex display_lock = Mutex();
-void clrscr()
-{
+void clrscr() {
 	display_lock.lock();
 	display = (char*)0xB8FA0;
 	while(display != (char*)0xB8000)
-		((_uint64*)(display-=8))[0] = 0x0F000F000F000F00;
+		((_uint64*)(display -= 8))[0] = 0x0F000F000F000F00;
 	display_lock.release();
 }
 void putc(const char c) {
 	if(c == 0) return;
-	if(c == 10) display += 160 - (((_uint64)display - 0xB8000) % 160);
-	else if(c == 9) {
-		do{
+	if(c == 10) {
+		display += 160 - (((_uint64)display - 0xB8000) % 160);
+	} else if (c == 9) {
+		do {
 			display[0] = ' ';
 			display+=2;
-		} while((_uint64)display % 8 != 0);
+		} while ((_uint64)display % 8 != 0);
 	} else {
 		display[0] = c;
 		display+=2;
@@ -45,7 +45,8 @@ void putc(const char c) {
 			display += 8;
 		}
 		display = (char*)0xB8FA0;
-		while(display != (char*)0xB8F00) ((_uint64*)(display-=8))[0] = 0x0F000F000F000F00;
+		while(display != (char*)0xB8F00)
+			((_uint64*)(display -= 8))[0] = 0x0F000F000F000F00;
 	}
 }
 
@@ -88,10 +89,13 @@ size_t itoa(uint64_t value, char * str, uint8_t base) {
 #define LEFTFORMATFLAG 0x00000200
 #define LEADZEROFLAG 0x00000400
 
-static char *longlong_to_string(char *buf, uint64_t n, size_t len, uint32_t flag) {
+static char *longlong_to_string(char *buf,
+								uint64_t n,
+								size_t len,
+								uint32_t flag) {
 	int pos = len;
 	int negative = 0;
-	if((flag & SIGNEDFLAG) && (long long)n < 0) {
+	if ((flag & SIGNEDFLAG) && (int64_t)n < 0) {
 		negative = 1;
 		n = -n;
 	}
@@ -103,22 +107,23 @@ static char *longlong_to_string(char *buf, uint64_t n, size_t len, uint32_t flag
 	}
 	buf[--pos] = n + '0';
 	if(negative) buf[--pos] = '-';
-	else if((flag & SHOWSIGNFLAG)) buf[--pos] = '+';
+	else if ((flag & SHOWSIGNFLAG)) buf[--pos] = '+';
 	return &buf[pos];
 }
-static char *longlong_to_hexstring(char *buf, uint64_t u, size_t len, uint32_t flag) {
+static char *longlong_to_hexstring(char *buf,
+								   uint64_t u,
+								   size_t len,
+								   uint32_t flag) {
 	int pos = len;
 	static const char hextable[] = "0123456789abcdef";
 	static const char hextable_caps[] = "0123456789ABCDEF";
-	const char *table;
-	if((flag & CAPSFLAG)) table = hextable_caps;
-	else table = hextable;
+	const char *table = (flag & CAPSFLAG) ? hextable_caps : hextable;
 	buf[--pos] = 0;
 	do {
 		unsigned int digit = u % 16;
 		u /= 16;
 		buf[--pos] = table[digit];
-	} while(u != 0);
+	} while (u != 0);
 	return &buf[pos];
 }
 
@@ -127,13 +132,17 @@ size_t vprintf(const char *fmt, va_list ap) {
 	char c;
 	unsigned char uc;
 	const char *s;
-	unsigned long long n;
+	uint64_t n;
 	void *ptr;
 	int flags;
 	unsigned int format_num;
 	size_t chars_written = 0;
 	char num_buffer[32];
-#define OUTPUT_CHAR(c) do { char _c = c; if(_c == 0) goto done; putc(_c); } while(0)
+#define OUTPUT_CHAR(c) do {\
+	char _c = c; \
+	if (_c == 0) goto done; \
+	putc(_c); \
+} while (0)
 	for(;;) {
 		while((c = *fmt++) != 0) {
 			if(c == '%')
@@ -197,12 +206,12 @@ size_t vprintf(const char *fmt, va_list ap) {
 				/* fallthrough */
 			case 'i':
 			case 'd':
-				n = (flags & LONGLONGFLAG) ? va_arg(ap, long long) :
-				(flags & LONGFLAG) ? va_arg(ap, long) :
-				(flags & HALFHALFFLAG) ? (signed char)va_arg(ap, int) :
-				(flags & HALFFLAG) ? (short)va_arg(ap, int) :
+				n = (flags & LONGLONGFLAG) ? va_arg(ap, int64_t) :
+				(flags & LONGFLAG) ? va_arg(ap, int32_t) :
+				(flags & HALFHALFFLAG) ? (int8_t)va_arg(ap, int32_t) :
+				(flags & HALFFLAG) ? (int16_t)va_arg(ap, int32_t) :
 				(flags & SIZETFLAG) ? va_arg(ap, size_t) :
-				va_arg(ap, int);
+				va_arg(ap, int32_t);
 				flags |= SIGNEDFLAG;
 				s = longlong_to_string(num_buffer, n, sizeof(num_buffer), flags);
 				goto _output_string;
@@ -210,12 +219,12 @@ size_t vprintf(const char *fmt, va_list ap) {
 				flags |= LONGFLAG;
 				/* fallthrough */
 			case 'u':
-				n = (flags & LONGLONGFLAG) ? va_arg(ap, unsigned long long) :
-				(flags & LONGFLAG) ? va_arg(ap, unsigned long) :
-				(flags & HALFHALFFLAG) ? (unsigned char)va_arg(ap, unsigned int) :
-				(flags & HALFFLAG) ? (unsigned short)va_arg(ap, unsigned int) :
-				(flags & SIZETFLAG) ? va_arg(ap, _uint64) :
-				va_arg(ap, unsigned int);
+				n = (flags & LONGLONGFLAG) ? va_arg(ap, uint64_t) :
+				(flags & LONGFLAG) ? va_arg(ap, uint32_t) :
+				(flags & HALFHALFFLAG) ? (uint8_t)va_arg(ap, uint32_t) :
+				(flags & HALFFLAG) ? (uint16_t)va_arg(ap, uint32_t) :
+				(flags & SIZETFLAG) ? va_arg(ap, size_t) :
+				va_arg(ap, uint32_t);
 				s = longlong_to_string(num_buffer, n, sizeof(num_buffer), flags);
 				goto _output_string;
 			case 'p':
@@ -226,12 +235,12 @@ size_t vprintf(const char *fmt, va_list ap) {
 				/* fallthrough */
 			hex:
 			case 'x':
-				n = (flags & LONGLONGFLAG) ? va_arg(ap, unsigned long long) :
-				(flags & LONGFLAG) ? va_arg(ap, unsigned long) :
-				(flags & HALFHALFFLAG) ? (unsigned char)va_arg(ap, unsigned int) :
-				(flags & HALFFLAG) ? (unsigned short)va_arg(ap, unsigned int) :
-				(flags & SIZETFLAG) ? va_arg(ap, _uint64) :
-				va_arg(ap, unsigned int);
+				n = (flags & LONGLONGFLAG) ? va_arg(ap, uint64_t) :
+				(flags & LONGFLAG) ? va_arg(ap, uint32_t) :
+				(flags & HALFHALFFLAG) ? (uint8_t)va_arg(ap, uint32_t) :
+				(flags & HALFFLAG) ? (uint16_t)va_arg(ap, uint32_t) :
+				(flags & SIZETFLAG) ? va_arg(ap, size_t) :
+				va_arg(ap, uint32_t);
 				s = longlong_to_hexstring(num_buffer, n, sizeof(num_buffer), flags);
 				if(flags & ALTFLAG) {
 					OUTPUT_CHAR('0');
@@ -241,17 +250,17 @@ size_t vprintf(const char *fmt, va_list ap) {
 			case 'n':
 				ptr = va_arg(ap, void *);
 				if(flags & LONGLONGFLAG)
-					*(long long *)ptr = chars_written;
-				else if(flags & LONGFLAG)
-					*(long *)ptr = chars_written;
-				else if(flags & HALFHALFFLAG)
-					*(signed char *)ptr = chars_written;
-				else if(flags & HALFFLAG)
-					*(short *)ptr = chars_written;
-				else if(flags & SIZETFLAG)
-					*(_uint64 *)ptr = chars_written;
+					*(int64_t *)ptr = chars_written;
+				else if (flags & LONGFLAG)
+					*(int32_t *)ptr = chars_written;
+				else if (flags & HALFHALFFLAG)
+					*(int8_t *)ptr = chars_written;
+				else if (flags & HALFFLAG)
+					*(int16_t *)ptr = chars_written;
+				else if (flags & SIZETFLAG)
+					*(size_t *)ptr = chars_written;
 				else
-					*(int *)ptr = chars_written;
+					*(int32_t *)ptr = chars_written;
 				break;
 			default:
 				OUTPUT_CHAR('%');
@@ -287,31 +296,28 @@ done:
 
 size_t printf(const char *fmt, ...) {
 	va_list args;
-	va_start(args,fmt);
+	va_start(args, fmt);
 	int len = vprintf(fmt, args);
 	va_end(args);
 	return len;
 }
 
-size_t strlen(const char* c, size_t limit)
-{
+size_t strlen(const char* c, size_t limit) {
 	for(size_t i = 0; i < limit; i++)
 		if(c[i] == 0) return i;
 	return 0;
 }
 
-char* strcpy(const char* c)
-{
+char* strcpy(const char* c) {
 	char* r = (char*)Memory::alloc(strlen(c)+1);
-	for(_uint64 i = 0; i < strlen(c); i++){
+	for(uint64_t i = 0; i < strlen(c); i++) {
 		r[i] = c[i];
 	}
 	r[strlen(c)] = 0;
 	return r;
 }
 
-bool strcmp(const char* a, char* b)
-{
+bool strcmp(const char* a, char* b) {
 	int i = 0;
 	while (true) {
 		if (a[i] != b[i]) return false;
@@ -320,24 +326,19 @@ bool strcmp(const char* a, char* b)
 	}
 }
 
-extern "C" void __cxa_pure_virtual() { while (1); }
-
-extern "C"
-{
+extern "C" {
+	void __cxa_pure_virtual() { while (1); }
 	extern void (*__init_start__)();
 	extern void (*__init_end__)();
-	
 }
 
-void static_init()
-{
+void static_init() {
 	for (void (**p)() = &__init_start__; p < &__init_end__; ++p)
 		(*p)();
 }
 
-void Mutex::lock()
-{
-	bool ret_val = 0,old_val = 0,new_val = 1;
+void Mutex::lock() {
+	bool ret_val = 0, old_val = 0, new_val = 1;
 	do {
 		asm volatile("lock cmpxchgb %1,%2":
 					 "=a"(ret_val):
@@ -345,7 +346,6 @@ void Mutex::lock()
 					 "memory");
 	} while (ret_val);
 }
-void Mutex::release()
-{
+void Mutex::release() {
 	state = 0;
 }

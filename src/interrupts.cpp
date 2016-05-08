@@ -20,77 +20,77 @@ intcbreg *Interrupts::callbacks[256];
 Mutex Interrupts::callback_locks[256];
 int_handler* Interrupts::handlers = 0;
 INTERRUPT32 Interrupts::interrupts32[256];
-asm volatile ("\
-	__interrupt_wrap:\n\
-	\
-	push %rax\n\
-	push %rcx\n\
-	\
-	mov 16(%rsp), %rax\n\
-	mov 8(%rsp), %rcx\n\
-	mov %rcx, 16(%rsp)\n\
-	mov 0(%rsp), %rcx\n\
-	mov %rcx, 8(%rsp)\n\
-	add $8, %rsp\n\
-	mov %rsp, %rcx\n\
-	add $16, %rcx\n\
-	\
-	push %rdx\n\
-	push %rbx\n\
-	push %rbp\n\
-	push %rsi\n\
-	push %rdi\n\
-	push %r8\n\
-	push %r9\n\
-	push %r10\n\
-	push %r11\n\
-	push %r12\n\
-	push %r13\n\
-	push %r14\n\
-	push %r15\n\
-	\
-	mov %rcx,%rsi\n\
-	mov %rax,%rdi\n\
-	call interrupt_handler\n\
-	\
-	popq %r15\n\
-	popq %r14\n\
-	popq %r13\n\
-	popq %r12\n\
-	popq %r11\n\
-	popq %r10\n\
-	popq %r9\n\
-	popq %r8\n\
-	popq %rdi\n\
-	popq %rsi\n\
-	popq %rbp\n\
-	popq %rbx\n\
-	popq %rdx\n\
-	popq %rcx\n\
-	movb $0x20, %al\n\
-	outb %al, $0x20\n\
-	popq %rax\n\
-	\
-	iretq\n\
-	.align 16\
-");
+asm volatile(
+			 "__interrupt_wrap:;"
+			 "push %rax;"
+			 "push %rcx;"
+			 
+			 "mov 16(%rsp), %rax;"
+			 "mov 8(%rsp), %rcx;"
+			 "mov %rcx, 16(%rsp);"
+			 "mov 0(%rsp), %rcx;"
+			 "mov %rcx, 8(%rsp);"
+			 "add $8, %rsp;"
+			 "mov %rsp, %rcx;"
+			 "add $16, %rcx;"
+			 
+			 "push %rdx;"
+			 "push %rbx;"
+			 "push %rbp;"
+			 "push %rsi;"
+			 "push %rdi;"
+			 "push %r8;"
+			 "push %r9;"
+			 "push %r10;"
+			 "push %r11;"
+			 "push %r12;"
+			 "push %r13;"
+			 "push %r14;"
+			 "push %r15;"
+			 
+			 "mov %rcx,%rsi;"
+			 "mov %rax,%rdi;"
+			 "call interrupt_handler;"
+			 
+			 "popq %r15;"
+			 "popq %r14;"
+			 "popq %r13;"
+			 "popq %r12;"
+			 "popq %r11;"
+			 "popq %r10;"
+			 "popq %r9;"
+			 "popq %r8;"
+			 "popq %rdi;"
+			 "popq %rsi;"
+			 "popq %rbp;"
+			 "popq %rbx;"
+			 "popq %rdx;"
+			 "popq %rcx;"
+			 "movb $0x20, %al;"
+			 "outb %al, $0x20;"
+			 "popq %rax;"
+			 
+			 "iretq;"
+			 ".align 16");
 extern "C" {
-	void volatile __attribute__((sysv_abi)) interrupt_handler(uint64_t intr, uint64_t stack);
+	void volatile __attribute__((sysv_abi)) interrupt_handler(uint64_t intr,
+															  uint64_t stack);
 }
-void volatile __attribute__((sysv_abi)) interrupt_handler(uint64_t intr, uint64_t stack){
-	Interrupts::handle(intr,stack);
+void volatile __attribute__((sysv_abi)) interrupt_handler(uint64_t intr,
+														  uint64_t stack) {
+	Interrupts::handle(intr, stack);
 }
-void Interrupts::handle(unsigned char intr, uint64_t stack){
+void Interrupts::handle(unsigned char intr, uint64_t stack) {
 	uint64_t *rsp = (uint64_t*)stack;
-	if(intr<0x20){
-		printf("\nKernel fault #%02xh\nStack print:\n",intr);
-		printf("RSP=%016ph\n",rsp);
-		for(int i=0;i<7;i++) printf("%016x\n",rsp[i]);
-		for(;;);
-	} else if(intr == 0x21) {
-		printf("KBD %02xh\n",inportb(0x60));
-	} else if(intr != 0x20) {
-		printf("INT %02xh\n",intr);
+	if (intr < 0x20) {
+		printf("\nKernel fault #%02xh\nStack print:\n", intr);
+		printf("RSP=%016ph\n", rsp);
+		for(int i = 0; i < 7; i++) printf("%016x\n", rsp[i]);
+		for(;;) asm("hlt");
+	} else if (intr == 0x21) {
+		printf("KBD %02xh\n", inportb(0x60));
+	} else if (intr != 0x20) {
+		printf("INT %02xh\n", intr);
 	}
 	callback_locks[intr].lock();
 	intcbreg *reg = callbacks[intr];
@@ -103,18 +103,17 @@ void Interrupts::handle(unsigned char intr, uint64_t stack){
 		reg = reg->next;
 		if (reg != 0) cb = reg->cb;
 		callback_locks[intr].release();
-	};
+	}
 	ACPI::EOI();
 }
-void Interrupts::init()
-{
-	idt = (PIDT)Memory::alloc(sizeof(IDT),0x1000);
+void Interrupts::init() {
+	idt = (PIDT)Memory::alloc(sizeof(IDT), 0x1000);
 	idt->rec.limit = sizeof(idt->ints) -1;
 	idt->rec.addr = &idt->ints[0];
-	handlers = (int_handler*)Memory::alloc(sizeof(int_handler)*256,0x1000);
+	handlers = (int_handler*)Memory::alloc(sizeof(int_handler)*256, 0x1000);
 	void* addr;
 	asm("movabs $__interrupt_wrap,%q0":"=a"(addr));
-	for(int i=0; i<256; i++){
+	for(int i = 0; i < 256; i++) {
 		uintptr_t jmp_from = (uintptr_t)&(handlers[i].reljmp);
 		uintptr_t jmp_to = (uintptr_t)addr;
 		uintptr_t diff = jmp_to - jmp_from - 5;
@@ -128,7 +127,7 @@ void Interrupts::init()
 		idt->ints[i].zero = 0;
 		idt->ints[i].reserved = 0;
 		idt->ints[i].selector = 8;
-		idt->ints[i].type = 0x8E;	// P[7]=1, DPL[65]=0, S[4]=0, Type[3210] = E
+		idt->ints[i].type = 0x8E;  // P[7]=1, DPL[65]=0, S[4]=0, Type[3210] = E
 		idt->ints[i].offset_low = (hptr >> 0) & 0xFFFF;
 		idt->ints[i].offset_middle = (hptr >> 16) & 0xFFFF;
 		idt->ints[i].offset_high = (hptr >> 32) & 0xFFFFFFFF;
@@ -157,20 +156,20 @@ void Interrupts::init()
 	maskIRQ(0);
 }
 
-void Interrupts::maskIRQ(uint16_t mask){
+void Interrupts::maskIRQ(uint16_t mask) {
 	outportb(0x21, mask & 0xFF);
 	outportb(0xA1, (mask >> 8) & 0xFF);
 }
 
-void Interrupts::loadVector(){
-	asm volatile( "lidtq %0\nsti"::"m"(idt->rec));
+void Interrupts::loadVector() {
+	asm volatile("lidtq %0\nsti"::"m"(idt->rec));
 }
 
-uint16_t Interrupts::getIRQmask(){
+uint16_t Interrupts::getIRQmask() {
 	return inportb(0x21) | (inportb(0xA1) << 8);
 }
 
-void Interrupts::addCallback(uint8_t intr, intcb* cb){
+void Interrupts::addCallback(uint8_t intr, intcb* cb) {
 	asm volatile("cli");
 	
 	intcbreg *reg = (intcbreg*)Memory::alloc(sizeof(intcbreg));
