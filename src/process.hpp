@@ -17,7 +17,7 @@
 #pragma once
 #include "pxlib.hpp"
 #include "memory.hpp"
-extern void process_loop();
+extern void __attribute__((noreturn)) process_loop();
 typedef struct {
 	size_t offset;
 	size_t vaddr;

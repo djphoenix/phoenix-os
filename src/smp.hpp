@@ -20,7 +20,7 @@
 
 class SMP {
 private:
-	static void startup();
+	static void __attribute__((noreturn)) startup();
 public:
 	static void init();
 };

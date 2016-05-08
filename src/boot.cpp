@@ -21,7 +21,7 @@
 #include "modules.hpp"
 #include "process.hpp"
 
-int main() {
+void __attribute__((noreturn)) main() {
 	static_init();
 	clrscr();
 	Memory::init();
@@ -29,5 +29,4 @@ int main() {
 	SMP::init();
 	ModuleManager::init();
 	process_loop();
-	return 0;
 }
