@@ -179,7 +179,9 @@ error:
 	add $2, %edi
 	test %cl, %cl
 	jnz .loop
-	jmp x64_entry.loop
+.hltlp:
+	hlt
+	jmp .hltlp
 	
 .code64
 
@@ -188,10 +190,7 @@ _efi_start: # EFI
 
 x64_entry:
 	mov %rsp, %rbp
-	call main
-x64_entry.loop:
-	hlt
-	jmp x64_entry.loop
+	jmp main
 
 __main: # Fix for Windows builds
 	ret

@@ -117,10 +117,7 @@ x64_entry:
 
 	mov 24+_smp_end-_smp_init(%rbp), %rax
 	mov %rsp, %rbp
-	callq *%rax
-.loop:
-	hlt
-	jmp .loop
+	jmpq *%rax
 
 
 GDT64:
