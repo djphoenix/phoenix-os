@@ -14,8 +14,7 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef SMP_H
-#define SMP_H
+#pragma once
 #include "memory.hpp"
 #include "acpi.hpp"
 
@@ -25,5 +24,3 @@ private:
 public:
 	static void init();
 };
-
-#endif

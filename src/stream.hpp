@@ -14,8 +14,7 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef STREAM_H
-#define STREAM_H
+#pragma once
 #include "pxlib.hpp"
 #include "memory.hpp"
 
@@ -43,5 +42,3 @@ public:
 	char* readstr(int64_t offset=-1);
 	bool eof();
 };
-
-#endif

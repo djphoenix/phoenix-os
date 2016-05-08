@@ -14,9 +14,7 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef PXLIB_H
-#define PXLIB_H
-
+#pragma once
 #include <stdarg.h>
 #include <stdint.h>
 
@@ -55,4 +53,3 @@ extern "C" {
 	void __inline outportl(uint16_t port, uint32_t c){ asm("outl %d0, %w1"::"a"(c),"d"(port)); }
 	uint64_t __inline rdtsc() { uint32_t eax, edx; asm("rdtsc":"=a"(eax),"=d"(edx)); uint64_t ret; ret = edx; ret <<= 32; ret |= eax; return ret; }
 }
-#endif

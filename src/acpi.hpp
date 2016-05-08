@@ -14,8 +14,7 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef ACPI_H
-#define ACPI_H
+#pragma once
 #include "pxlib.hpp"
 #include "memory.hpp"
 #include "cpu.hpp"
@@ -158,5 +157,3 @@ public:
 	bool initAPIC();
 	static void EOI();
 };
-
-#endif

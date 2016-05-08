@@ -14,8 +14,7 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef INTERRUPTS_H
-#define INTERRUPTS_H
+#pragma once
 #include "pxlib.hpp"
 #include "memory.hpp"
 #include "acpi.hpp"
@@ -76,4 +75,3 @@ public:
 	static void addCallback(uint8_t intr, intcb* cb);
 	static void loadVector();
 };
-#endif

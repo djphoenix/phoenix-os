@@ -14,8 +14,7 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef MEMORY_H
-#define MEMORY_H
+#pragma once
 #include "pxlib.hpp"
 #include "interrupts.hpp"
 #include "multiboot_info.hpp"
@@ -75,5 +74,3 @@ public:
 
 void __inline MmioWrite32(void *p, uint32_t data) { Memory::salloc(p); *(volatile int *)(p) = data; }
 uint32_t __inline MmioRead32(void *p) { Memory::salloc(p); return *(volatile int *)(p); }
-
-#endif

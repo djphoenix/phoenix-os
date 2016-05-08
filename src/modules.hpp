@@ -14,8 +14,7 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef MODULES_H
-#define MODULES_H
+#pragma once
 #include "pxlib.hpp"
 #include "multiboot_info.hpp"
 #include "process.hpp"
@@ -62,4 +61,3 @@ typedef struct{
 	uint64_t addr;
 	struct{ uint32_t type, sym;} info;
 } ELF64REL;
-#endif

@@ -14,8 +14,7 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef PROCESS_H
-#define PROCESS_H
+#pragma once
 #include "pxlib.hpp"
 #include "memory.hpp"
 extern void process_loop();
@@ -76,4 +75,3 @@ private:
 public:
 	Process(PROCSTARTINFO psinfo);
 };
-#endif

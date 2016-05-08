@@ -14,9 +14,7 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef CPU_H
-#define CPU_H
-
+#pragma once
 #include "pxlib.hpp"
 #include "memory.hpp"
 
@@ -88,5 +86,3 @@ public:
 	static uint64_t getFeatures();
 	static char* getFeaturesStr();
 };
-
-#endif

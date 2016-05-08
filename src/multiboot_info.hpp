@@ -14,8 +14,7 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef MULTIBOOT_INFO_H
-#define MULTIBOOT_INFO_H
+#pragma once
 #include "pxlib.hpp"
 #include "memory.hpp"
 typedef struct {
@@ -36,4 +35,3 @@ typedef struct {
 } GRUBDATA, *PGRUBDATA;
 
 extern GRUBDATA kernel_data;
-#endif
