@@ -128,6 +128,7 @@ static char *longlong_to_hexstring(char *buf,
 }
 
 size_t vprintf(const char *fmt, va_list ap) {
+	asm volatile("pushfq; cli");
 	display_lock.lock();
 	char c;
 	unsigned char uc;
@@ -291,6 +292,7 @@ done:
 #undef OUTPUT_CHAR
 #undef OUTPUT_CHAR_NOLENCHECK
 	display_lock.release();
+	asm volatile("popfq");
 	return chars_written;
 }
 

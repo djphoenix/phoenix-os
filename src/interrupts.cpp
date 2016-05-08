@@ -170,7 +170,7 @@ uint16_t Interrupts::getIRQmask() {
 }
 
 void Interrupts::addCallback(uint8_t intr, intcb* cb) {
-	asm volatile("cli");
+	asm volatile("pushfq; cli");
 	
 	intcbreg *reg = (intcbreg*)Memory::alloc(sizeof(intcbreg));
 	reg->cb = cb;
@@ -187,5 +187,5 @@ void Interrupts::addCallback(uint8_t intr, intcb* cb) {
 		last->next = reg;
 	}
 	callback_locks[intr].release();
-	asm volatile("sti");
+	asm volatile("popfq");
 }
