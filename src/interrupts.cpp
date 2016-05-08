@@ -105,13 +105,13 @@ void Interrupts::handle(unsigned char intr, uint64_t stack) {
 	}
 	ACPI::EOI();
 }
+extern "C" void *__interrupt_wrap;
 void Interrupts::init() {
 	idt = (PIDT)Memory::alloc(sizeof(IDT), 0x1000);
 	idt->rec.limit = sizeof(idt->ints) -1;
 	idt->rec.addr = &idt->ints[0];
 	handlers = (int_handler*)Memory::alloc(sizeof(int_handler)*256, 0x1000);
-	void* addr;
-	asm("movabs $__interrupt_wrap,%q0":"=a"(addr));
+	void* addr = (void*)&__interrupt_wrap;
 	for(int i = 0; i < 256; i++) {
 		uintptr_t jmp_from = (uintptr_t)&(handlers[i].reljmp);
 		uintptr_t jmp_to = (uintptr_t)addr;

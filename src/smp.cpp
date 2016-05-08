@@ -22,6 +22,10 @@ void SMP::startup() {
 	process_loop();
 }
 
+extern "C" {
+	extern void *_smp_init, *_smp_end;
+}
+
 void SMP::init() {
 	ACPI* acpi = ACPI::getController();
 	uint32_t localId = acpi->getLapicID();
@@ -30,8 +34,8 @@ void SMP::init() {
 	
 	char* smp_init_code = (char*)Memory::palloc(1);
 	char smp_init_vector = (((uintptr_t)smp_init_code) >> 12) & 0xFF;
-	char* smp_s; asm("movabs $_smp_init,%q0":"=a"(smp_s):);
-	char* smp_e; asm("movabs $_smp_end,%q0":"=a"(smp_e):);
+	char* smp_s = (char*)&_smp_init;
+	char* smp_e = (char*)&_smp_end;
 	while(smp_s < smp_e) *(smp_init_code++) = *(smp_s++);
 	*((uintptr_t*)smp_init_code) = (uintptr_t)acpi->getLapicAddr();
 	smp_init_code += 8;

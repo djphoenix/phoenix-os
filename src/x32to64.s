@@ -21,9 +21,13 @@
 .global _start
 .global __main
 .global _efi_start
+.global GDT64
+.global GDT64_PTR
 .extern grub_data
 .extern __text_start__
 .extern __modules_end__
+.extern __stack_end__
+.extern __pagetable__
 .extern __bss_start__
 .extern __bss_end__
 _start:
@@ -84,7 +88,7 @@ multiboot_entry:
 	cmp $0xB8FA0, %eax
 	jnz ._clr_loop
 	
-	mov $0x2000, %esp
+	mov $__stack_end__, %esp
 
 	pushfl						# Store the FLAGS-register.
 	pop %eax					# Restore the A-register.
@@ -113,21 +117,21 @@ multiboot_entry:
 	and $0x7FFFFFFF, %eax		# Clear the PG-bit, which is bit 31.
 	mov %eax, %cr0				# Set control register 0 to the A-register.
 
-	mov $0x20000, %edi			# Set the destination index to 0x10000.
+	mov $__pagetable__, %edi	# Set the destination index to 0x10000.
 	mov %edi, %cr3				# Set control register 3 to the destination index.
 	xor %eax, %eax				# Nullify the A-register.
 	mov $0x1C00, %ecx			# Set the C-register to 7168.
 	rep stosl					# Clear the memory.
 	mov %cr3, %edi				# Set the destination index to control register 3.
 
-	movl $0x21003, (%edi)		# Set the double word at the destination index to 0x2003.
+	movl $__pagetable__ + 0x1003, (%edi)		# Set the double word at the destination index to 0x2003.
 	add $0x1000, %edi			# Add 0x1000 to the destination index.
-	movl $0x22003, (%edi)		# Set the double word at the destination index to 0x3003.
+	movl $__pagetable__ + 0x2003, (%edi)		# Set the double word at the destination index to 0x3003.
 	add $0x1000, %edi			# Add 0x1000 to the destination index.
-	movl $0x23003, 0x00(%edi)	# Set the double word at the destination index to 0x4003.
-	movl $0x24003, 0x08(%edi)	# Set the double word at the destination index to 0x5003.
-	movl $0x25003, 0x10(%edi)	# Set the double word at the destination index to 0x6003.
-	movl $0x26003, 0x18(%edi)	# Set the double word at the destination index to 0x7003.
+	movl $__pagetable__ + 0x3003, 0x00(%edi)	# Set the double word at the destination index to 0x4003.
+	movl $__pagetable__ + 0x4003, 0x08(%edi)	# Set the double word at the destination index to 0x5003.
+	movl $__pagetable__ + 0x5003, 0x10(%edi)	# Set the double word at the destination index to 0x6003.
+	movl $__pagetable__ + 0x6003, 0x18(%edi)	# Set the double word at the destination index to 0x7003.
 	add $0x1000, %edi			# Add 0x1000 to the destination index.
 
 	mov $0x00000007, %ebx		# Set the B-register to 0x00000007.
@@ -200,6 +204,11 @@ aNoLongMode: .ascii "Your CPU are not support x86_64 mode\0"
 aNoCPUID: .ascii "Your CPU are not support CPUID instruction\0"
 	.align 4
 
+GDT64_PTR:
+GDT64.Pointer:
+	.short GDT64 - GDT64.End - 1
+	.quad GDT64
+
 GDT64:
 GDT64.Null:
 	.quad 0
@@ -207,6 +216,4 @@ GDT64.Code:
 	.long 0, 0x00209800
 GDT64.Data:
 	.long 0, 0x00009200
-GDT64.Pointer:
-	.short . - GDT64 - 1
-	.quad GDT64
+GDT64.End:

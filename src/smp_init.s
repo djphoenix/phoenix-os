@@ -61,19 +61,19 @@ _protected:
 	mov %ax, %ss
 
 	mov %ebp, %eax
-	add $(GDT64 - _smp_init), %eax
-	mov %eax, 2+GDT64.Pointer-_smp_init(%ebp)
-	
-	add $(x64_entry - GDT64), %eax
+
+	add $(x64_entry - _smp_init), %eax
 	mov %eax, 1+.jmp64-_smp_init(%ebp)
 
-	lgdt GDT64.Pointer-_smp_init(%ebp)
+	.extern GDT64_PTR
+	lgdt GDT64_PTR
 
 	mov %cr0, %eax
 	and $0x7FFFFFFF, %eax
 	mov %eax, %cr0
 
-	mov $0x20000, %edi
+	.extern __pagetable__
+	mov $__pagetable__, %edi
 	mov %edi, %cr3
 
 	mov %cr4, %eax
@@ -118,17 +118,5 @@ x64_entry:
 	mov 24+_smp_end-_smp_init(%rbp), %rax
 	mov %rsp, %rbp
 	jmpq *%rax
-
-
-GDT64:
-GDT64.Null:
-	.quad 0
-GDT64.Code:
-	.long 0, 0x00209800
-GDT64.Data:
-	.long 0, 0x00009200
-GDT64.Pointer:
-	.short . - GDT64 - 1
-	.quad GDT64 - _smp_init
 
 _smp_end:

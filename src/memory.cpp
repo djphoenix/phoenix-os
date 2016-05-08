@@ -17,9 +17,21 @@
 #include "memory.hpp"
 PGRUB grub_data;
 
-PPTE Memory::pagetable = (PPTE)0x20000;
+static const _uint64 KBTS4 = 0xFFFFFFFFFFFFF000;
+
+extern "C" {
+	extern void *__first_page__;
+	extern void *__pagetable__;
+	extern void *__stack_start__, *__stack_end__;
+	extern void *__text_start__, *__text_end__;
+	extern void *__data_start__, *__data_end__;
+	extern void *__modules_start__, *__modules_end__;
+	extern void *__bss_start__, *__bss_end__;
+}
+
+PPTE Memory::pagetable = (PPTE)&__pagetable__;
 PALLOCTABLE Memory::allocs = 0;
-void* Memory::first_free = (void*)0x2000;
+void* Memory::first_free = (void*)&__first_page__;
 uintptr_t Memory::last_page = 1;
 Mutex Memory::page_mutex = Mutex();
 Mutex Memory::heap_mutex = Mutex();
@@ -27,11 +39,11 @@ GRUBMODULE Memory::modules[256];
 
 PPML4E Memory::get_page(void* base_addr) {
 	uintptr_t i = (uintptr_t) base_addr >> 12;
-	PDE pde = (PDE)((uintptr_t)pagetable[(i >> 27) & 0x1FF] & 0xFFFFFFFFFFFFF000);
+	PDE pde = (PDE)((uintptr_t)pagetable[(i >> 27) & 0x1FF] & KBTS4);
 	if(pde == 0) return 0;
-	PDPE pdpe = (PDPE)((uintptr_t)pde[(i >> 18) & 0x1FF] & 0xFFFFFFFFFFFFF000);
+	PDPE pdpe = (PDPE)((uintptr_t)pde[(i >> 18) & 0x1FF] & KBTS4);
 	if(pdpe == 0) return 0;
-	PPML4E page = (PPML4E)((uintptr_t)pdpe[(i >> 9) & 0x1FF] & 0xFFFFFFFFFFFFF000);
+	PPML4E page = (PPML4E)((uintptr_t)pdpe[(i >> 9) & 0x1FF] & KBTS4);
 	if(page == 0) return 0;
 	return &page[i & 0x1FF];
 }
@@ -41,22 +53,11 @@ static inline uintptr_t ALIGN(uintptr_t base, size_t align) {
 	return base + align - (base % align);
 }
 
-static const void *__stack_start__ = (void*)0x1000;
-static const void *__stack_end__ = (void*)0x2000;
-static const _uint64 KBTS4 = 0xFFFFFFFFFFFFF000;
-
-extern "C" {
-	void *__text_start__, *__text_end__;
-	void *__data_start__, *__data_end__;
-	void *__modules_start__, *__modules_end__;
-	void *__bss_start__, *__bss_end__;
-}
-
 void Memory::init() {
 	// Filling kernel addresses
 	kernel_data.kernel = (uintptr_t)&__text_start__;
-	kernel_data.stack = (uintptr_t)__stack_start__;
-	kernel_data.stack_top = (uintptr_t)__stack_end__;
+	kernel_data.stack = (uintptr_t)&__stack_start__;
+	kernel_data.stack_top = (uintptr_t)&__stack_end__;
 	kernel_data.data = (uintptr_t)&__data_start__;
 	kernel_data.data_top = (uintptr_t)&__data_end__;
 	kernel_data.modules = (uintptr_t)&__modules_start__;
@@ -157,15 +158,15 @@ for(addr = low; addr < top; addr += 0x1000) \
 	for(uint16_t i = 0; i < 512; i++) {
 		PPDE pde = pagetable[i];
 		if(((uintptr_t)pde & 1) == 0) continue;
-		pde = (PPDE)((uintptr_t)pde & 0xFFFFFFFFFFFFF000);
+		pde = (PPDE)((uintptr_t)pde & KBTS4);
 		for(uint16_t j = 0; j < 512; j++) {
 			PPDPE pdpe = pde[j];
 			if(((uintptr_t)pdpe & 1) == 0) continue;
-			pdpe = (PPDPE)((uintptr_t)pdpe & 0xFFFFFFFFFFFFF000);
+			pdpe = (PPDPE)((uintptr_t)pdpe & KBTS4);
 			for(uint16_t k = 0; k < 512; k++) {
 				PPML4E pml4e = pdpe[k];
 				if(((uintptr_t)pml4e & 1) == 0) continue;
-				pml4e = (PPML4E)((uintptr_t)pml4e & 0xFFFFFFFFFFFFF000);
+				pml4e = (PPML4E)((uintptr_t)pml4e & KBTS4);
 				for(uint16_t l = 0; l < 512; l++) {
 					void* addr = pml4e[l];
 					if(((uintptr_t)addr & 4) != 0)
@@ -233,17 +234,17 @@ void* Memory::salloc(void* mem) {
 	page_mutex.lock();
 	uintptr_t i = (uintptr_t)(mem) >> 12;
 	void *addr = (void*)(i << 12);
-	PDE pde = (PDE)((uintptr_t)pagetable[(i >> 27) & 0x1FF] & 0xFFFFFFFFFFFFF000);
+	PDE pde = (PDE)((uintptr_t)pagetable[(i >> 27) & 0x1FF] & KBTS4);
 	if(pde == 0) {
 		pde = (PDE)((uintptr_t)_palloc(1));
 		pagetable[(i >> 27) & 0x1FF] = (PPDE)((uintptr_t)(pde) | 3);
 	}
-	PDPE pdpe = (PDPE)((uintptr_t)pde[(i >> 18) & 0x1FF] & 0xFFFFFFFFFFFFF000);
+	PDPE pdpe = (PDPE)((uintptr_t)pde[(i >> 18) & 0x1FF] & KBTS4);
 	if(pdpe == 0) {
 		pdpe = (PDPE)((uintptr_t)_palloc(1));
 		pde[(i >> 18) & 0x1FF] = (PPML4E)((uintptr_t)(pdpe) | 3);
 	}
-	PPML4E page = (PPML4E)((uintptr_t)pdpe[(i >> 9) & 0x1FF] & 0xFFFFFFFFFFFFF000);
+	PPML4E page = (PPML4E)((uintptr_t)pdpe[(i >> 9) & 0x1FF] & KBTS4);
 	if(page == 0) {
 		page = (PPML4E)((uintptr_t)_palloc(1));
 		pdpe[(i >> 9) & 0x1FF] = (void*)((uintptr_t)(page) | 3);
