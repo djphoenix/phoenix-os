@@ -290,7 +290,6 @@ size_t vprintf(const char *fmt, va_list ap) {
 	}
 done:
 #undef OUTPUT_CHAR
-#undef OUTPUT_CHAR_NOLENCHECK
 	display_lock.release();
 	asm volatile("popfq");
 	return chars_written;
