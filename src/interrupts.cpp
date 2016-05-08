@@ -94,14 +94,13 @@ void Interrupts::handle(unsigned char intr, uint64_t stack) {
 	}
 	callback_locks[intr].lock();
 	intcbreg *reg = callbacks[intr];
-	intcb *cb;
-	if (reg != 0) cb = reg->cb;
+	intcb *cb = (reg != 0) ? reg->cb : 0;
 	callback_locks[intr].release();
 	while (reg != 0) {
 		if (cb != 0) cb();
 		callback_locks[intr].lock();
 		reg = reg->next;
-		if (reg != 0) cb = reg->cb;
+		cb = (reg != 0) ? reg->cb : 0;
 		callback_locks[intr].release();
 	}
 	ACPI::EOI();
