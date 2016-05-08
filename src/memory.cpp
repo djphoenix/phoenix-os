@@ -199,6 +199,7 @@ for(addr = low; addr < top; addr += 0x1000) \
 	}
 }
 void Memory::map() {
+	asm("pushfq; cli");
 	page_mutex.lock();
 	clrscr();
 	_uint64 i;
@@ -225,8 +226,10 @@ void Memory::map() {
 	}
 	printf("%c: %016x - %016x\n", c, start, i);
 	page_mutex.release();
+	asm("popfq");
 }
 void* Memory::salloc(void* mem) {
+	asm("pushfq; cli");
 	page_mutex.lock();
 	uintptr_t i = (uintptr_t)(mem) >> 12;
 	void *addr = (void*)(i << 12);
@@ -247,6 +250,7 @@ void* Memory::salloc(void* mem) {
 	}
 	page[i & 0x1FF] = (void*)(((uintptr_t)addr) | 3);
 	page_mutex.release();
+	asm("popfq");
 	return addr;
 }
 void* Memory::_palloc(bool sys) {
@@ -286,12 +290,15 @@ start:
 	return addr;
 }
 void* Memory::palloc(bool sys) {
+	asm("pushfq; cli");
 	page_mutex.lock();
 	void* ret = _palloc(sys);
 	page_mutex.release();
+	asm("popfq");
 	return ret;
 }
 void Memory::pfree(void* page) {
+	asm("pushfq; cli");
 	page_mutex.lock();
 	PPML4E pdata = get_page(page);
 	if((pdata != 0) && ((*(uintptr_t*)pdata & 5) == 1)) {
@@ -299,6 +306,7 @@ void Memory::pfree(void* page) {
 		if(((uintptr_t)page >> 12) < last_page) last_page = (uintptr_t)page >> 12;
 	}
 	page_mutex.release();
+	asm("popfq");
 }
 void* Memory::alloc(size_t size, size_t align) {
 	if(size == 0) return (void*)0;
