@@ -62,4 +62,5 @@ void SMP::init() {
 	
 	Memory::free(cpuids);
 	Memory::free(stacks);
+	Memory::pfree(smp_init_code);
 }
