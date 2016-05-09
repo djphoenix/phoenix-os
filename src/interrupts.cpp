@@ -174,8 +174,9 @@ uint64_t Interrupts::handle(unsigned char intr, uint64_t stack) {
 			   "RIP=%016llx CS=%04llx SS=%04llx DPL=%llu\n"
 			   "RFL=%016llx [%s]\n"
 			   "RSP=%016llx RBP=%016llx CR2=%016llx\n"
-			   "RSI=%016llx RDI=%016llx RAX=%016llx\n"
-			   "RCX=%016llx RDX=%016llx RBX=%016llx\n"
+			   "RSI=%016llx RDI=%016llx\n"
+			   "RAX=%016llx RCX=%016llx RDX=%016llx\n"
+			   "RBX=%016llx R8 =%016llx R9 =%016llx\n"
 			   "R10=%016llx R11=%016llx R12=%016llx\n"
 			   "R13=%016llx R14=%016llx R15=%016llx\n"
 			   ,
@@ -183,8 +184,9 @@ uint64_t Interrupts::handle(unsigned char intr, uint64_t stack) {
 			   info.rip, info.cs & 0xFFF8, info.ss & 0xFFF8, info.cs & 0x7,
 			   info.rflags, rflags_buf,
 			   info.rsp,  regs->rbp, info.cr2,
-			   regs->rsi, regs->rsi, regs->rax,
-			   regs->rcx, regs->rdx, regs->rbx,
+			   regs->rsi, regs->rdi,
+			   regs->rax, regs->rcx, regs->rdx,
+			   regs->rbx, regs->r8 , regs->r9,
 			   regs->r10, regs->r11, regs->r12,
 			   regs->r13, regs->r14, regs->r15);
 		if ((info.cs & 0x7) == 0) {
