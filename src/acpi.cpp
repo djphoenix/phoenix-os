@@ -50,6 +50,19 @@ ACPI::ACPI() {
 		
 		p += 16;
 	}
+	
+	outportb(0x61, (inportb(0x61)&0xFD)|1);
+	outportb(0x43, 0xB2);
+	outportb(0x42, 0x9B);
+	inportb(0x60);
+	outportb(0x42, 0x2E);
+	uint8_t t = inportb(0x61) & 0xFE;
+	outportb(0x61, t);
+	outportb(0x61, t|1);
+	LapicOut(LAPIC_TMRINITCNT, -1);
+	while ((inportb(0x61) & 0x20) == 0) {}
+	LapicOut(LAPIC_LVT_TMR, LAPIC_DISABLE);
+	busfreq = ((-1 - LapicIn(LAPIC_TMRCURRCNT)) << 4) * 100;
 }
 void ACPI::ParseDT(AcpiHeader *header) {
 	Memory::salloc(header);
@@ -278,7 +291,6 @@ bool ACPI::initAPIC() {
 	if (!((CPU::getFeatures() >> 32) & CPUID_FEAT_APIC)) return false;
 	if (localApicAddr == 0) return false;
 	Interrupts::maskIRQ(0xFFFF);
-	ACPI *acpi = (ACPI::getController());
 	
 	LapicOut(LAPIC_DFR, 0xFFFFFFFF);
 	LapicOut(LAPIC_LDR, (LapicIn(LAPIC_LDR)&0x00FFFFFF)|1);
@@ -292,19 +304,7 @@ bool ACPI::initAPIC() {
 	
 	LapicOut(LAPIC_SPURIOUS, 0x27 | LAPIC_SW_ENABLE);
 	
-	outportb(0x61, (inportb(0x61)&0xFD)|1);
-	outportb(0x43, 0xB2);
-	outportb(0x42, 0x9B);
-	inportb(0x60);
-	outportb(0x42, 0x2E);
-	uint8_t t = inportb(0x61) & 0xFE;
-	outportb(0x61, t);
-	outportb(0x61, t|1);
-	LapicOut(LAPIC_TMRINITCNT, -1);
-	while ((inportb(0x61) & 0x20) == 0) {}
-	LapicOut(LAPIC_LVT_TMR, LAPIC_DISABLE);
-	acpi->busfreq = ((-1 - LapicIn(LAPIC_TMRCURRCNT)) << 4) * 100;
-	uint64_t c = (ACPI::busfreq / 1000) >> 4;
+	uint64_t c = (busfreq / 1000) >> 4;
 	if (c < 0x10) c = 0x10;
 	
 	LapicOut(LAPIC_TMRINITCNT, c & 0xFFFFFFFF);
