@@ -75,6 +75,7 @@ public:
 	static void init();
 	static void handle(uint8_t intr, uint64_t stack);
 	static void maskIRQ(uint16_t mask);
+	static void setIST(uint8_t ist);
 	static uint16_t getIRQmask();
 	static void addCallback(uint8_t intr, intcb* cb);
 	static void loadVector();

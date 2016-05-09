@@ -170,6 +170,14 @@ void Interrupts::loadVector() {
 	asm volatile("lidtq %0\nsti"::"m"(idt->rec));
 }
 
+void Interrupts::setIST(uint8_t ist) {
+	asm volatile("pushfq; cli");
+	for(int i = 0; i < 256; i++) {
+		idt->ints[i].ist = ist;
+	}
+	asm volatile("popfq");
+}
+
 uint16_t Interrupts::getIRQmask() {
 	return inportb(0x21) | (inportb(0xA1) << 8);
 }
