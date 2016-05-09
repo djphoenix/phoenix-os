@@ -19,6 +19,7 @@ PIDT Interrupts::idt = 0;
 intcbreg *Interrupts::callbacks[256];
 Mutex Interrupts::callback_locks[256];
 Mutex Interrupts::fault;
+Mutex Interrupts::init_lock = Mutex();
 int_handler* Interrupts::handlers = 0;
 INTERRUPT32 Interrupts::interrupts32[256];
 asm volatile(
@@ -197,6 +198,12 @@ uint64_t Interrupts::handle(unsigned char intr, uint64_t stack) {
 	return 0;
 }
 void Interrupts::init() {
+	init_lock.lock();
+	if (idt != 0) {
+		init_lock.release();
+		loadVector();
+		return;
+	}
 	fault = Mutex();
 	idt = (PIDT)Memory::alloc(sizeof(IDT), 0x1000);
 	idt->rec.limit = sizeof(idt->ints) -1;
@@ -221,7 +228,7 @@ void Interrupts::init() {
 		idt->ints[i].selector = 8;
 		idt->ints[i].type = 0xE;
 		idt->ints[i].dpl = 0;
-		idt->ints[i].ist = 0;
+		idt->ints[i].ist = 1;
 		idt->ints[i].present = true;
 
 		idt->ints[i].offset_low = (hptr >> 0) & 0xFFFF;
@@ -241,6 +248,7 @@ void Interrupts::init() {
 	outportb(0x21, 0x01);
 	outportb(0xA1, 0x01);
 	
+	init_lock.release();
 	loadVector();
 	
 	if (!(ACPI::getController())->initAPIC()) {
@@ -258,15 +266,14 @@ void Interrupts::maskIRQ(uint16_t mask) {
 }
 
 void Interrupts::loadVector() {
-	asm volatile("lidtq %0\nsti"::"m"(idt->rec));
-}
-
-void Interrupts::setIST(uint8_t ist) {
-	asm volatile("pushfq; cli");
-	for(int i = 0; i < 256; i++) {
-		idt->ints[i].ist = ist;
+	init_lock.lock();
+	if (idt == 0) {
+		init_lock.release();
+		init();
+		return;
 	}
-	asm volatile("popfq");
+	asm volatile("lidtq %0\nsti"::"m"(idt->rec));
+	init_lock.release();
 }
 
 uint16_t Interrupts::getIRQmask() {

@@ -68,7 +68,7 @@ class Interrupts {
 private:
 	static intcbreg *callbacks[256];
 	static Mutex callback_locks[256];
-	static Mutex fault;
+	static Mutex fault, init_lock;
 	static int_handler* handlers;
 	static PIDT idt;
 public:
@@ -76,7 +76,6 @@ public:
 	static void init();
 	static uint64_t handle(uint8_t intr, uint64_t stack);
 	static void maskIRQ(uint16_t mask);
-	static void setIST(uint8_t ist);
 	static uint16_t getIRQmask();
 	static void addCallback(uint8_t intr, intcb* cb);
 	static void loadVector();

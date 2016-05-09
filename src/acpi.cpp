@@ -253,7 +253,6 @@ void ACPI::activateCPU() {
 	
 	int ret_val;
 	asm volatile("lock incq %1":"=a"(ret_val):"m"(activeCpuCount):"memory");
-	Interrupts::loadVector();
 	EOI();
 }
 void ACPI::sendCPUInit(uint32_t id) {
@@ -290,7 +289,6 @@ void ACPI::initIOAPIC() {
 bool ACPI::initAPIC() {
 	if (!((CPU::getFeatures() >> 32) & CPUID_FEAT_APIC)) return false;
 	if (localApicAddr == 0) return false;
-	Interrupts::maskIRQ(0xFFFF);
 	
 	LapicOut(LAPIC_DFR, 0xFFFFFFFF);
 	LapicOut(LAPIC_LDR, (LapicIn(LAPIC_LDR)&0x00FFFFFF)|1);

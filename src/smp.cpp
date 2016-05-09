@@ -199,6 +199,7 @@ void SMP::startup() {
 	setup_gdt();
 	ACPI::getController()->activateCPU();
 	cpuinit.lock(); cpuinit.release();
+	Interrupts::loadVector();
 	process_loop();
 }
 
@@ -226,7 +227,6 @@ static inline void __msleep(uint64_t milliseconds) {
 
 void SMP::init() {
 	setup_gdt();
-	Interrupts::setIST(1);
 	ACPI* acpi = ACPI::getController();
 	uint32_t localId = acpi->getLapicID();
 	uint32_t cpuCount = acpi->getCPUCount();

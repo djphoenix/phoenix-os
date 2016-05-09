@@ -25,8 +25,8 @@ void __attribute__((noreturn)) main() {
 	static_init();
 	clrscr();
 	Memory::init();
-	Interrupts::init();
 	SMP::init();
+	Interrupts::init();
 	ModuleManager::init();
 	process_loop();
 }
