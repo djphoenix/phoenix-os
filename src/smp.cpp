@@ -193,14 +193,35 @@ void SMP::setup_gdt() {
 	asm volatile("popfq");
 }
 
+Mutex cpuinit = Mutex();
+
 void SMP::startup() {
 	setup_gdt();
 	ACPI::getController()->activateCPU();
+	cpuinit.lock(); cpuinit.release();
 	process_loop();
 }
 
 extern "C" {
 	extern void *_smp_init, *_smp_end;
+}
+
+static inline void __msleep(uint64_t milliseconds) {
+	milliseconds *= 1000;
+	asm volatile("pushfq; cli");
+
+	outportb(0x61, (inportb(0x61)&0xFD)|1);
+	outportb(0x43, 0xB2);
+	outportb(0x42, 0xA9);
+	outportb(0x42, 0x04);
+	while (milliseconds--) {
+		uint8_t t = inportb(0x61) & 0xFE;
+		outportb(0x61, t);
+		outportb(0x61, t|1);
+		while ((inportb(0x61) & 0x20) == 0) {}
+	}
+
+	asm volatile("popfq");
 }
 
 void SMP::init() {
@@ -211,13 +232,7 @@ void SMP::init() {
 	uint32_t cpuCount = acpi->getCPUCount();
 	if (cpuCount == 1) return;
 	
-	char* smp_init_code = (char*)Memory::palloc(1);
-	char smp_init_vector = (((uintptr_t)smp_init_code) >> 12) & 0xFF;
-	char* smp_s = (char*)&_smp_init;
-	char* smp_e = (char*)&_smp_end;
-	while(smp_s < smp_e) *(smp_init_code++) = *(smp_s++);
-	*((uintptr_t*)smp_init_code) = (uintptr_t)acpi->getLapicAddr();
-	smp_init_code += 8;
+	uintptr_t *smp_init_code = (uintptr_t*)Memory::palloc(1);
 	uintptr_t *stacks = (uintptr_t*)Memory::alloc(sizeof(uintptr_t)*cpuCount);
 	uintptr_t *cpuids = (uintptr_t*)Memory::alloc(sizeof(uintptr_t)*cpuCount);
 	uint32_t nullcpus = 0;
@@ -229,19 +244,34 @@ void SMP::init() {
 			nullcpus++;
 	}
 	if (nullcpus > 0) nullcpus--;
-	*((uintptr_t*)smp_init_code) = (uintptr_t)cpuids; smp_init_code += 8;
-	*((uintptr_t*)smp_init_code) = (uintptr_t)stacks; smp_init_code += 8;
-	*((uintptr_t*)smp_init_code) = (uintptr_t)(&SMP::startup);
+
+	char smp_init_vector = (((uintptr_t)smp_init_code) >> 12) & 0xFF;
+	uintptr_t *ptr = (uintptr_t*)&_smp_init;
+	while (ptr < (uintptr_t*)&_smp_end)
+		*(smp_init_code++) = *(ptr++);
+	
+	*(smp_init_code++) = (uintptr_t)acpi->getLapicAddr();
+	*(smp_init_code++) = (uintptr_t)cpuids;
+	*(smp_init_code++) = (uintptr_t)stacks;
+	*(smp_init_code++) = (uintptr_t)(&SMP::startup);
+	
+	cpuinit.lock();
 	
 	for(uint32_t i = 0; i < cpuCount; i++)
-		if(cpuids[i] != localId) acpi->sendCPUInit(cpuids[i]);
-	asm("hlt");
+		if(cpuids[i] != localId)
+			acpi->sendCPUInit(cpuids[i]);
+	__msleep(10);
 	for(uint32_t i = 0; i < cpuCount; i++)
-		if(cpuids[i] != localId) acpi->sendCPUStartup(cpuids[i], smp_init_vector);
-	asm("hlt");
+		if(cpuids[i] != localId)
+			acpi->sendCPUStartup(cpuids[i], smp_init_vector);
+	__msleep(10);
 	for(uint32_t i = 0; i < cpuCount; i++)
-		if(cpuids[i] != localId) acpi->sendCPUStartup(cpuids[i], smp_init_vector);
-	while (cpuCount - nullcpus != acpi->getActiveCPUCount()) asm("hlt");
+		if(cpuids[i] != localId)
+			acpi->sendCPUStartup(cpuids[i], smp_init_vector);
+	while (cpuCount - nullcpus != acpi->getActiveCPUCount())
+		__msleep(10);
+	
+	cpuinit.release();
 	
 	Memory::free(cpuids);
 	Memory::free(stacks);
