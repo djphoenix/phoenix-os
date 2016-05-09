@@ -18,6 +18,7 @@
 PIDT Interrupts::idt = 0;
 intcbreg *Interrupts::callbacks[256];
 Mutex Interrupts::callback_locks[256];
+Mutex Interrupts::fault;
 int_handler* Interrupts::handlers = 0;
 INTERRUPT32 Interrupts::interrupts32[256];
 asm volatile(
@@ -134,8 +135,10 @@ static const FAULT FAULTS[0x20] = {
 };
 
 uint64_t Interrupts::handle(unsigned char intr, uint64_t stack) {
+	fault.lock(); fault.release();
 	uint64_t *rsp = (uint64_t*)stack;
 	if (intr < 0x20) {
+		fault.lock();
 		FAULT f = FAULTS[intr];
 		uint64_t ec = 0;
 		if (f.has_error_code) ec = *(rsp++);
@@ -168,6 +171,12 @@ uint64_t Interrupts::handle(unsigned char intr, uint64_t stack) {
 			   info.rip, info.cs & 0xFFF8, info.cs & 0x7,
 			   info.rsp, info.ss & 0xFFF8, info.ss & 0x7,
 			   info.rflags, rflags_buf, info.cr2);
+		if ((info.cs & 0x7) == 0) {
+			for(;;) asm volatile("hlt");
+		} else {
+			fault.release();
+			// TODO: Kill process
+		}
 		return f.has_error_code ? 8 : 0;
 	} else if (intr == 0x21) {
 		printf("KBD %02xh\n", inportb(0x60));
@@ -189,6 +198,7 @@ uint64_t Interrupts::handle(unsigned char intr, uint64_t stack) {
 	return 0;
 }
 void Interrupts::init() {
+	fault = Mutex();
 	idt = (PIDT)Memory::alloc(sizeof(IDT), 0x1000);
 	idt->rec.limit = sizeof(idt->ints) -1;
 	idt->rec.addr = &idt->ints[0];
