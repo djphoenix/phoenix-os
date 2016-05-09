@@ -29,11 +29,15 @@ typedef struct {
 typedef struct {
 	uint16_t offset_low;
 	uint16_t selector;
-	uint8_t zero;
-	uint8_t type;
+	uint8_t ist:3;
+	uint8_t rsvd1:5;
+	uint8_t type:4;
+	uint8_t rsvd2:1;
+	uint8_t dpl:2;
+	bool present:1;
 	uint16_t offset_middle;
 	uint32_t offset_high;
-	uint32_t reserved;
+	uint32_t rsvd3;
 } INTERRUPT64, *PINTERRUPT64;
 typedef struct {
 	uint16_t limit;

@@ -75,6 +75,7 @@ asm volatile(
 extern "C" {
 	void volatile __attribute__((sysv_abi)) interrupt_handler(uint64_t intr,
 															  uint64_t stack);
+	extern void *__interrupt_wrap;
 }
 void volatile __attribute__((sysv_abi)) interrupt_handler(uint64_t intr,
 														  uint64_t stack) {
@@ -84,7 +85,7 @@ void Interrupts::handle(unsigned char intr, uint64_t stack) {
 	uint64_t *rsp = (uint64_t*)stack;
 	if (intr < 0x20) {
 		printf("\nKernel fault #%02xh\nStack print:\n", intr);
-		printf("RSP=%016ph\n", rsp);
+		printf("RSP=%016p\n", rsp);
 		for(int i = 0; i < 7; i++) printf("%016x\n", rsp[i]);
 		for(;;) asm("hlt");
 	} else if (intr == 0x21) {
@@ -105,7 +106,6 @@ void Interrupts::handle(unsigned char intr, uint64_t stack) {
 	}
 	ACPI::EOI();
 }
-extern "C" void *__interrupt_wrap;
 void Interrupts::init() {
 	idt = (PIDT)Memory::alloc(sizeof(IDT), 0x1000);
 	idt->rec.limit = sizeof(idt->ints) -1;
@@ -123,10 +123,16 @@ void Interrupts::init() {
 		
 		uintptr_t hptr = (uintptr_t)(&handlers[i]);
 		
-		idt->ints[i].zero = 0;
-		idt->ints[i].reserved = 0;
+		idt->ints[i].rsvd1 = 0;
+		idt->ints[i].rsvd2 = 0;
+		idt->ints[i].rsvd3 = 0;
+
 		idt->ints[i].selector = 8;
-		idt->ints[i].type = 0x8E;  // P[7]=1, DPL[65]=0, S[4]=0, Type[3210] = E
+		idt->ints[i].type = 0xE;
+		idt->ints[i].dpl = 0;
+		idt->ints[i].ist = 0;
+		idt->ints[i].present = true;
+
 		idt->ints[i].offset_low = (hptr >> 0) & 0xFFFF;
 		idt->ints[i].offset_middle = (hptr >> 16) & 0xFFFF;
 		idt->ints[i].offset_high = (hptr >> 32) & 0xFFFFFFFF;
