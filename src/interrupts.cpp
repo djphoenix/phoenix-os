@@ -90,13 +90,85 @@ uint64_t volatile __attribute__((sysv_abi)) interrupt_handler(uint64_t intr,
 														  uint64_t stack) {
 	return Interrupts::handle(intr, stack);
 }
+
+struct FAULT {
+	char code[5];
+	bool has_error_code;
+} __attribute__((packed));
+
+static const FAULT FAULTS[0x20] = {
+	/* 00 */ { "#DE", false },
+	/* 01 */ { "#DB", false },
+	/* 02 */ { "#NMI", false },
+	/* 03 */ { "#BP", false },
+	/* 04 */ { "#OF", false },
+	/* 05 */ { "#BR", false },
+	/* 06 */ { "#UD", false },
+	/* 07 */ { "#NM", false },
+	
+	/* 08 */ { "#DF", true },
+	/* 09 */ {},
+	/* 0A */ { "#TS", true },
+	/* 0B */ { "#NP", true },
+	/* 0C */ { "#SS", true },
+	/* 0D */ { "#GP", true },
+	/* 0E */ { "#PF", true },
+	/* 0F */ {},
+	
+	/* 10 */ { "#MF", false },
+	/* 11 */ { "#AC", true },
+	/* 12 */ { "#MC", false },
+	/* 13 */ { "#XM", false },
+	/* 14 */ { "#VE", false },
+	/* 15 */ {},
+	/* 16 */ {},
+	/* 17 */ {},
+	/* 18 */ {},
+	/* 19 */ {},
+	/* 1A */ {},
+	/* 1B */ {},
+	/* 1C */ {},
+	/* 1D */ {},
+	/* 1E */ { "#SX", true },
+	/* 1F */ {}
+};
+
 uint64_t Interrupts::handle(unsigned char intr, uint64_t stack) {
 	uint64_t *rsp = (uint64_t*)stack;
 	if (intr < 0x20) {
-		printf("\nKernel fault #%02xh\nStack print:\n", intr);
-		printf("RSP=%016p\n", rsp);
-		for(int i = 0; i < 7; i++) printf("%016x\n", rsp[i]);
-		for(;;) asm("hlt");
+		FAULT f = FAULTS[intr];
+		uint64_t ec = 0;
+		if (f.has_error_code) ec = *(rsp++);
+		struct {
+			uint64_t rip, cs, rflags, rsp, ss, cr2, cpuid;
+		} info = {
+			rsp[0], rsp[1], rsp[2], rsp[3], rsp[4], 0, 0
+		};
+		asm volatile("mov %%cr2, %0":"=a"(info.cr2));
+		ACPI *acpi = ACPI::getController();
+		info.cpuid = acpi->getCPUIDOfLapic(acpi->getLapicID());
+		char rflags_buf[10] = "---------";
+		if (info.rflags & (1 <<  0)) rflags_buf[8] = 'C';
+		if (info.rflags & (1 <<  2)) rflags_buf[7] = 'P';
+		if (info.rflags & (1 <<  4)) rflags_buf[6] = 'A';
+		if (info.rflags & (1 <<  6)) rflags_buf[5] = 'Z';
+		if (info.rflags & (1 <<  7)) rflags_buf[4] = 'S';
+		if (info.rflags & (1 <<  8)) rflags_buf[3] = 'T';
+		if (info.rflags & (1 <<  9)) rflags_buf[2] = 'I';
+		if (info.rflags & (1 << 10)) rflags_buf[1] = 'D';
+		if (info.rflags & (1 << 11)) rflags_buf[0] = 'O';
+		rsp = (uint64_t*)info.rsp;
+		printf(
+			   "\nKernel fault %s (cpu=%llu, error=0x%llx)\n"
+			   "RIP=%016llx CS=%04llx DPL=%llu\n"
+			   "RSP=%016llx SS=%04llx DPL=%llu\n"
+			   "RFL=%016llx [%s]\n"
+			   "CR2=%016llx\n",
+			   f.code, info.cpuid, ec,
+			   info.rip, info.cs & 0xFFF8, info.cs & 0x7,
+			   info.rsp, info.ss & 0xFFF8, info.ss & 0x7,
+			   info.rflags, rflags_buf, info.cr2);
+		return f.has_error_code ? 8 : 0;
 	} else if (intr == 0x21) {
 		printf("KBD %02xh\n", inportb(0x60));
 	} else if (intr != 0x20) {
