@@ -135,6 +135,13 @@ static const FAULT FAULTS[0x20] = {
 	/* 1F */ {}
 };
 
+struct int_regs {
+	uint64_t r15, r14, r13, r12;
+	uint64_t r11, r10,  r9,  r8;
+	uint64_t rdi, rsi, rbp;
+	uint64_t rbx, rdx, rcx, rax;
+};
+
 uint64_t Interrupts::handle(unsigned char intr, uint64_t stack) {
 	fault.lock(); fault.release();
 	uint64_t *rsp = (uint64_t*)stack;
@@ -142,6 +149,7 @@ uint64_t Interrupts::handle(unsigned char intr, uint64_t stack) {
 		fault.lock();
 		FAULT f = FAULTS[intr];
 		uint64_t ec = 0;
+		int_regs *regs = (int_regs*)(rsp - (12 + 3));
 		if (f.has_error_code) ec = *(rsp++);
 		struct {
 			uint64_t rip, cs, rflags, rsp, ss, cr2, cpuid;
@@ -163,14 +171,22 @@ uint64_t Interrupts::handle(unsigned char intr, uint64_t stack) {
 		rsp = (uint64_t*)info.rsp;
 		printf(
 			   "\nKernel fault %s (cpu=%llu, error=0x%llx)\n"
-			   "RIP=%016llx CS=%04llx DPL=%llu\n"
-			   "RSP=%016llx SS=%04llx DPL=%llu\n"
+			   "RIP=%016llx CS=%04llx SS=%04llx DPL=%llu\n"
 			   "RFL=%016llx [%s]\n"
-			   "CR2=%016llx\n",
+			   "RSP=%016llx RBP=%016llx CR2=%016llx\n"
+			   "RSI=%016llx RDI=%016llx RAX=%016llx\n"
+			   "RCX=%016llx RDX=%016llx RBX=%016llx\n"
+			   "R10=%016llx R11=%016llx R12=%016llx\n"
+			   "R13=%016llx R14=%016llx R15=%016llx\n"
+			   ,
 			   f.code, info.cpuid, ec,
-			   info.rip, info.cs & 0xFFF8, info.cs & 0x7,
-			   info.rsp, info.ss & 0xFFF8, info.ss & 0x7,
-			   info.rflags, rflags_buf, info.cr2);
+			   info.rip, info.cs & 0xFFF8, info.ss & 0xFFF8, info.cs & 0x7,
+			   info.rflags, rflags_buf,
+			   info.rsp,  regs->rbp, info.cr2,
+			   regs->rsi, regs->rsi, regs->rax,
+			   regs->rcx, regs->rdx, regs->rbx,
+			   regs->r10, regs->r11, regs->r12,
+			   regs->r13, regs->r14, regs->r15);
 		if ((info.cs & 0x7) == 0) {
 			for(;;) asm volatile("hlt");
 		} else {
