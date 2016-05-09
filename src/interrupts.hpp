@@ -73,7 +73,7 @@ private:
 public:
 	static INTERRUPT32 interrupts32[256];
 	static void init();
-	static void handle(uint8_t intr, uint64_t stack);
+	static uint64_t handle(uint8_t intr, uint64_t stack);
 	static void maskIRQ(uint16_t mask);
 	static void setIST(uint8_t ist);
 	static uint16_t getIRQmask();

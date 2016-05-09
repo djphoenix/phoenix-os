@@ -65,6 +65,15 @@ asm volatile(
 			 "popq %rbp;"
 			 "popq %rbx;"
 			 "popq %rdx;"
+			 
+			 "mov %rsp, %rcx;"
+			 "add %rax, %rcx;"
+			 "mov 8(%rsp), %rax;"
+			 "mov %rax, 8(%rcx);"
+			 "mov (%rsp), %rax;"
+			 "mov %rax, (%rcx);"
+			 "mov %rcx, %rsp;"
+			 
 			 "popq %rcx;"
 			 "movb $0x20, %al;"
 			 "outb %al, $0x20;"
@@ -73,15 +82,15 @@ asm volatile(
 			 "iretq;"
 			 ".align 16");
 extern "C" {
-	void volatile __attribute__((sysv_abi)) interrupt_handler(uint64_t intr,
+	uint64_t volatile __attribute__((sysv_abi)) interrupt_handler(uint64_t intr,
 															  uint64_t stack);
 	extern void *__interrupt_wrap;
 }
-void volatile __attribute__((sysv_abi)) interrupt_handler(uint64_t intr,
+uint64_t volatile __attribute__((sysv_abi)) interrupt_handler(uint64_t intr,
 														  uint64_t stack) {
-	Interrupts::handle(intr, stack);
+	return Interrupts::handle(intr, stack);
 }
-void Interrupts::handle(unsigned char intr, uint64_t stack) {
+uint64_t Interrupts::handle(unsigned char intr, uint64_t stack) {
 	uint64_t *rsp = (uint64_t*)stack;
 	if (intr < 0x20) {
 		printf("\nKernel fault #%02xh\nStack print:\n", intr);
@@ -105,6 +114,7 @@ void Interrupts::handle(unsigned char intr, uint64_t stack) {
 		callback_locks[intr].release();
 	}
 	ACPI::EOI();
+	return 0;
 }
 void Interrupts::init() {
 	idt = (PIDT)Memory::alloc(sizeof(IDT), 0x1000);
