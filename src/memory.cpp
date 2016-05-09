@@ -286,7 +286,7 @@ start:
 		i++;
 		pdpen[(i >> 9) & 0x1FF] = (void*)((uintptr_t)addr | 3);
 		for(uint16_t j = 0; j < 0x200; j++)
-			((uintptr_t*)addr)[j] = ((uintptr_t)addr + (j+1)*0x1000);
+			((uintptr_t*)addr)[j] = 0;
 		goto start;
 	}
 	page[i & 0x1FF] = (void*)(((uintptr_t)addr) | (sys == 0 ? 7 : 3));
