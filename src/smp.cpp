@@ -226,13 +226,16 @@ static inline void __msleep(uint64_t milliseconds) {
 }
 
 void SMP::init() {
-	setup_gdt();
 	ACPI* acpi = ACPI::getController();
 	uint32_t localId = acpi->getLapicID();
 	uint32_t cpuCount = acpi->getCPUCount();
-	if (cpuCount == 1) return;
+	if (cpuCount == 1) {
+		setup_gdt();
+		return;
+	}
 	
 	uintptr_t *smp_init_code = (uintptr_t*)Memory::palloc(1);
+	setup_gdt();
 	uintptr_t *stacks = (uintptr_t*)Memory::alloc(sizeof(uintptr_t)*cpuCount);
 	uintptr_t *cpuids = (uintptr_t*)Memory::alloc(sizeof(uintptr_t)*cpuCount);
 	uint32_t nullcpus = 0;
