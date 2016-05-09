@@ -39,11 +39,15 @@ GRUBMODULE Memory::modules[256];
 
 PPML4E Memory::get_page(void* base_addr) {
 	uintptr_t i = (uintptr_t) base_addr >> 12;
-	PDE pde = (PDE)((uintptr_t)pagetable[(i >> 27) & 0x1FF] & KBTS4);
+	uintptr_t addr;
+	addr = (uintptr_t)pagetable[(i >> 27) & 0x1FF];
+	PDE pde = (PDE)(((addr & 1) == 1) ? (addr & KBTS4) : 0);
 	if(pde == 0) return 0;
-	PDPE pdpe = (PDPE)((uintptr_t)pde[(i >> 18) & 0x1FF] & KBTS4);
+	addr = (uintptr_t)pde[(i >> 18) & 0x1FF];
+	PDPE pdpe = (PDPE)(((addr & 1) == 1) ? (addr & KBTS4) : 0);
 	if(pdpe == 0) return 0;
-	PPML4E page = (PPML4E)((uintptr_t)pdpe[(i >> 9) & 0x1FF] & KBTS4);
+	addr = (uintptr_t)pdpe[(i >> 9) & 0x1FF];
+	PPML4E page = (PPML4E)(((addr & 1) == 1) ? (addr & KBTS4) : 0);
 	if(page == 0) return 0;
 	return &page[i & 0x1FF];
 }
