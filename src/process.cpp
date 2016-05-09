@@ -56,8 +56,7 @@ void ProcessManager::SwitchProcess() {
 		processSwitchMutex->release();
 		return;
 	}
-	ACPI *acpi = ACPI::getController();
-	printf("%08x -> %08x\n", acpi->getCPUIDOfLapic(acpi->getLapicID()), countval);
+	printf("%08x -> %08x\n", ACPI::getController()->getCPUID(), countval);
 	processSwitchMutex->release();
 }
 

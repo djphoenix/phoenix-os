@@ -151,6 +151,10 @@ uint32_t ACPI::getLapicID() {
 	if (!localApicAddr) return 0;
 	return LapicIn(LAPIC_APICID) >> 24;
 }
+uint32_t ACPI::getCPUID() {
+	if (!localApicAddr) return 0;
+	return getCPUIDOfLapic(getLapicID());
+}
 uint32_t ACPI::getLapicIDOfCPU(uint32_t id) {
 	if (!localApicAddr) return 0;
 	return acpiCpuIds[id];

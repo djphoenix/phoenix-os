@@ -148,8 +148,7 @@ uint64_t Interrupts::handle(unsigned char intr, uint64_t stack) {
 			rsp[0], rsp[1], rsp[2], rsp[3], rsp[4], 0, 0
 		};
 		asm volatile("mov %%cr2, %0":"=a"(info.cr2));
-		ACPI *acpi = ACPI::getController();
-		info.cpuid = acpi->getCPUIDOfLapic(acpi->getLapicID());
+		info.cpuid = ACPI::getController()->getCPUID();
 		char rflags_buf[10] = "---------";
 		if (info.rflags & (1 <<  0)) rflags_buf[8] = 'C';
 		if (info.rflags & (1 <<  2)) rflags_buf[7] = 'P';

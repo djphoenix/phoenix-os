@@ -140,6 +140,7 @@ public:
 	ACPI();
 	static ACPI* getController();
 	uint32_t getLapicID();
+	uint32_t getCPUID();
 	void* getLapicAddr();
 	uint32_t getCPUCount();
 	uint32_t getActiveCPUCount();

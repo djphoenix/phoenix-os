@@ -185,8 +185,7 @@ void SMP::init_gdt(uint32_t ncpu) {
 void SMP::setup_gdt() {
 	ACPI* acpi = ACPI::getController();
 	if (gdt == 0) init_gdt(acpi->getCPUCount());
-	uint32_t localId = acpi->getLapicID();
-	uint32_t cpuid = acpi->getCPUIDOfLapic(localId);
+	uint32_t cpuid = acpi->getCPUID();
 	uint16_t tr = 5*sizeof(GDT_ENT) + cpuid*sizeof(GDT_SYS_ENT);
 	asm volatile("pushfq; cli");
 	asm volatile("lgdtq %0"::"m"(gdtrec));
