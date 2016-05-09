@@ -208,9 +208,9 @@ void Memory::map() {
 	_uint64 start = 0;
 	for(i = 0; i < 0xFFFFF000; i+=0x1000) {
 		void *p = get_page((void*)i);
-		if(p != 0) nc = (*(uintptr_t*)(p)) & 0xF;
-		if(nc & 1) {
-			if(nc & 4) {
+		nc = (p != 0) ? (*(uintptr_t*)(p)) & 0xF : 0;
+		if((nc & 1) != 0) {
+			if((nc & 4) != 0) {
 				nc = 'U';
 			} else {
 				nc = 'S';
