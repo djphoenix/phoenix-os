@@ -119,4 +119,5 @@ x64_entry:
 	mov %rsp, %rbp
 	jmpq *%rax
 
+.align 8
 _smp_end:
