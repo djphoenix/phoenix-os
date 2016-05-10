@@ -54,8 +54,8 @@ obj/%.o: src/%.s obj
 
 obj/modules-linked.o: obj
 	for mod in $(MODULES); do \
-		$(CC) $(CFLAGS) modules/$$mod/$$mod.cpp -o obj/mod/$$mod.o ;\
-		$(OBJCOPY) -Oelf64-x86-64 obj/mod/$$mod.o -R '*.eh_frame' -R .comment -R '.note.*' ;\
+		$(CC) $(CFLAGS) modules/$$mod/$$mod.cpp -o obj/mod/$$mod.mo ;\
+		$(LD) -T ld-mod.script -r -belf64-x86-64 -o obj/mod/$$mod.o -s --nostdlib obj/mod/$$mod.mo ;\
 	done
 	cat $(MODULES:%=obj/mod/%.o) > $(@:.o=.b)
 	$(OBJCOPY) -Oelf64-x86-64 -Bi386 -Ibinary --rename-section .data=.modules $(@:.o=.b) $@
