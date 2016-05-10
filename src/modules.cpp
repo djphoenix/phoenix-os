@@ -272,7 +272,12 @@ parse:
 		Memory::free(mod);
 		return;
 	}
-	if(start) new Process(mod->psinfo);
+	if(start) {
+		Process process = Process();
+		printf("Process %llu: \"%s\" v%s by %s:\n%s\nRequirements: %s\n",
+			   process.getId(), mod->name, mod->version, mod->developer,
+			   mod->description, mod->requirements);
+	}
 	stream->seek(mod->size, -1);
 	if (!stream->eof()) {
 		stream = stream->substream();

@@ -77,5 +77,6 @@ private:
 	PPTE pagetable;
 	Thread *threads;
 public:
-	Process(PROCSTARTINFO psinfo);
+	Process();
+	uint64_t getId();
 };
