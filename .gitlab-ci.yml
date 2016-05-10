@@ -6,6 +6,7 @@ job1:
   only:
     - master
   script:
+    - curl 'https://www.kernel.org/pub/linux/utils/boot/syslinux/6.xx/syslinux-6.03.zip' -O deps/syslinux.zip
     - make all images
   artifacts:
     name: "%CI_BUILD_REF_NAME"
