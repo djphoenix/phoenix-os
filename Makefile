@@ -15,12 +15,14 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 PREFIX=x86_64-linux-gnu-
+MKISOFS=genisoimage
 ifeq ($(OS),Windows_NT)
     PREFIX=x86_64-w64-mingw32-
 else
     UNAME_S=$(shell uname -s)
     ifeq ($(UNAME_S),Darwin)
         PREFIX=x86_64-elf-
+		MKISOFS=mkisofs
     endif
 endif
 
@@ -59,15 +61,23 @@ obj/modules-linked.o: obj
 	$(OBJCOPY) -Oelf64-x86-64 -Bi386 -Ibinary --rename-section .data=.modules $(@:.o=.b) $@
 
 clean:
-	rm -rf obj $(BIN).elf $(BIN) phoenixos
+	rm -rf obj $(BIN).elf $(BIN) phoenixos phoenixos.iso
 obj:
 	mkdir -p obj/mod
-images: phoenixos
+images: phoenixos phoenixos.iso
 check:
 	cpplint $(SOURCES) || echo "CPPLINT not found"
 
 phoenixos: $(BIN)
 	cp $< $@
+
+phoenixos.iso: $(BIN) deps/syslinux.zip
+	mkdir -p .isoroot
+	unzip -u -j deps/syslinux.zip -d .isoroot bios/core/isolinux.bin bios/com32/elflink/ldlinux/ldlinux.c32 bios/com32/lib/libcom32.c32 bios/com32/mboot/mboot.c32
+	cp $(BIN) .isoroot/phoenixos
+	echo 'default /mboot.c32 /phoenixos' > .isoroot/isolinux.cfg
+	$(MKISOFS) -r -J -V 'PhoeniX OS' -o phoenixos.iso -b isolinux.bin -c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table .isoroot/ || echo $(MKISOFS) not installed
+	rm -rf .isoroot
 
 launch:
 	$(QEMU) -kernel $(BIN) -smp cores=2,threads=2 -cpu Nehalem

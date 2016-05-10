@@ -11,3 +11,4 @@ job1:
     name: "%CI_BUILD_REF_NAME"
     paths:
       - phoenixos
+      - phoenixos.iso
