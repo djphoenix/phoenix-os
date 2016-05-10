@@ -52,7 +52,7 @@ class Process;
 class ProcessManager {
 private:
 	Process** processes;
-	static Mutex* processSwitchMutex;
+	static Mutex processSwitchMutex;
 	static ProcessManager* manager;
 	static void SwitchProcess();
 public:

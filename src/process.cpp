@@ -42,22 +42,21 @@ void process_loop() {
 	for(;;) asm("hlt");
 }
 
-Mutex* ProcessManager::processSwitchMutex = 0;
+Mutex ProcessManager::processSwitchMutex = Mutex();
 ProcessManager* ProcessManager::manager = 0;
 ProcessManager* ProcessManager::getManager() {
 	if (manager) return manager;
-	processSwitchMutex = new Mutex();
 	Interrupts::addCallback(0x20, &ProcessManager::SwitchProcess);
 	return manager = new ProcessManager();
 }
 void ProcessManager::SwitchProcess() {
-	processSwitchMutex->lock();
+	processSwitchMutex.lock();
 	if (countval++ % 0x1001 != 0) {
-		processSwitchMutex->release();
+		processSwitchMutex.release();
 		return;
 	}
 	printf("%08x -> %08x\n", ACPI::getController()->getCPUID(), countval);
-	processSwitchMutex->release();
+	processSwitchMutex.release();
 }
 
 uint64_t ProcessManager::RegisterProcess(Process* process) {
