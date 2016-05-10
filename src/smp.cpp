@@ -210,18 +210,7 @@ extern "C" {
 static inline void __msleep(uint64_t milliseconds) {
 	milliseconds *= 1000;
 	asm volatile("pushfq; cli");
-
-	outportb(0x61, (inportb(0x61)&0xFD)|1);
-	outportb(0x43, 0xB2);
-	outportb(0x42, 0xA9);
-	outportb(0x42, 0x04);
-	while (milliseconds--) {
-		uint8_t t = inportb(0x61) & 0xFE;
-		outportb(0x61, t);
-		outportb(0x61, t|1);
-		while ((inportb(0x61) & 0x20) == 0) {}
-	}
-
+	while (milliseconds--) inportb(0x60);
 	asm volatile("popfq");
 }
 
