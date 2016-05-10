@@ -60,18 +60,22 @@ public:
 	static ProcessManager* getManager();
 };
 
+class Thread {
+	struct {
+		uint64_t rip, rflags;
+		uint64_t rsi, rdi, rbp, rsp;
+		uint64_t rax, rcx, rdx, rbx;
+		uint64_t r8 , r9 , r10, r11;
+		uint64_t r12, r13, r14, r15;
+	} regs;
+	bool suspend;
+};
+
 class Process {
 private:
 	uint64_t id;
 	PPTE pagetable;
-	PROCSTARTINFO psinfo;
-	struct {
-		uint64_t rax, rcx, rdx, rbx;
-		uint64_t rsi, rdi, rbp, rsp;
-		uint64_t rip, rflags;
-		uint64_t r8, r9, r10, r11, r12, r13, r14, r15;
-	} regs;
-	bool suspend;
+	Thread *threads;
 public:
 	Process(PROCSTARTINFO psinfo);
 };

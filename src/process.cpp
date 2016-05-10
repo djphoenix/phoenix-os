@@ -79,8 +79,6 @@ uint64_t ProcessManager::RegisterProcess(Process* process) {
 }
 
 Process::Process(PROCSTARTINFO psinfo) {
-	suspend = true;
-	this->psinfo = psinfo;
 	this->id = (ProcessManager::getManager())->RegisterProcess(this);
 	printf("Registered process: %016zx\n", this->id);
 }
