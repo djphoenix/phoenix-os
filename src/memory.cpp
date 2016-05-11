@@ -223,13 +223,14 @@ void Memory::map() {
 			nc = 'E';
 		}
 		if (nc != c) {
-			if (c != 0)
+			if (c != 0 && c != 'E')
 				printf("%c: %016x - %016x\n", c, start, i);
 			c = nc;
 			start = i;
 		}
 	}
-	printf("%c: %016x - %016x\n", c, start, i);
+	if (c != 0 && c != 'E')
+		printf("%c: %016x - %016x\n", c, start, i);
 	page_mutex.release();
 	asm("popfq");
 }
