@@ -17,11 +17,17 @@
 #include "process.hpp"
 
 uint64_t countval = 0;
+char *usercode = 0;
+Mutex codemutex = Mutex();
 
 void process_loop() {
-	char* usercode = (char*)Memory::palloc(0);
-	usercode[0] = 0xEB;  // jmp
-	usercode[1] = 0xFE;  // -2
+	codemutex.lock();
+	if (usercode == 0) {
+		usercode = (char*)Memory::palloc(0);
+		usercode[0] = 0xEB;  // jmp
+		usercode[1] = 0xFE;  // -2
+	}
+	codemutex.release();
 	
 	char* userstack = (char*)Memory::palloc(0)+0x1000;
 	
