@@ -67,7 +67,6 @@ private:
 public:
 	Process();
 	~Process();
-	void remove();
 	void startup();
 	void addThread(Thread *thread, bool suspended);
 	

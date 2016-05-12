@@ -73,11 +73,11 @@ parse:
 	Process *process = new Process();
 	size = readelf(process, stream);
 	if (size == 0) {
-		process->remove();
+		delete process;
 		return;
 	}
 	if (!parseModuleInfo(&mod, *process)) {
-		process->remove();
+		delete process;
 		return;
 	}
 	if(start) process->startup();

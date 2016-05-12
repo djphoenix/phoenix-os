@@ -119,10 +119,23 @@ Process::~Process() {
 		}
 		Memory::pfree(pagetable);
 	}
+	if (symbols != 0) {
+		uint64_t sid = 0;
+		while (symbols[sid].ptr != 0) {
+			Memory::free(symbols[sid].name);
+			sid++;
+		}
+	}
 	Memory::free(symbols);
-}
-void Process::remove() {
-	// TODO: make this work
+	if (threads != 0) {
+		uint64_t tid = 0;
+		while (threads[tid] != 0) {
+			// TODO: unschedule thread
+			delete threads[tid];
+			tid++;
+		}
+	}
+	Memory::free(threads);
 }
 
 uint64_t Process::getId() { return id; }
