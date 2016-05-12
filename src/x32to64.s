@@ -124,14 +124,14 @@ multiboot_entry:
 	rep stosl					# Clear the memory.
 	mov %cr3, %edi				# Set the destination index to control register 3.
 
-	movl $__pagetable__ + 0x1007, (%edi)		# Set the double word at the destination index to 0x2003.
+	movl $__pagetable__ + 0x1003, (%edi)		# Set the double word at the destination index to 0x2003.
 	add $0x1000, %edi			# Add 0x1000 to the destination index.
-	movl $__pagetable__ + 0x2007, (%edi)		# Set the double word at the destination index to 0x3003.
+	movl $__pagetable__ + 0x2003, (%edi)		# Set the double word at the destination index to 0x3003.
 	add $0x1000, %edi			# Add 0x1000 to the destination index.
-	movl $__pagetable__ + 0x3007, 0x00(%edi)	# Set the double word at the destination index to 0x4003.
-	movl $__pagetable__ + 0x4007, 0x08(%edi)	# Set the double word at the destination index to 0x5003.
-	movl $__pagetable__ + 0x5007, 0x10(%edi)	# Set the double word at the destination index to 0x6003.
-	movl $__pagetable__ + 0x6007, 0x18(%edi)	# Set the double word at the destination index to 0x7003.
+	movl $__pagetable__ + 0x3003, 0x00(%edi)	# Set the double word at the destination index to 0x4003.
+	movl $__pagetable__ + 0x4003, 0x08(%edi)	# Set the double word at the destination index to 0x5003.
+	movl $__pagetable__ + 0x5003, 0x10(%edi)	# Set the double word at the destination index to 0x6003.
+	movl $__pagetable__ + 0x6003, 0x18(%edi)	# Set the double word at the destination index to 0x7003.
 	add $0x1000, %edi			# Add 0x1000 to the destination index.
 
 	mov $0x00000007, %ebx		# Set the B-register to 0x00000007.

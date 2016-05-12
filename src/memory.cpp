@@ -242,17 +242,17 @@ void* Memory::salloc(void* mem) {
 	PDE pde = (PDE)((uintptr_t)pagetable[(i >> 27) & 0x1FF] & KBTS4);
 	if(pde == 0) {
 		pde = (PDE)((uintptr_t)_palloc(1));
-		pagetable[(i >> 27) & 0x1FF] = (PPDE)((uintptr_t)(pde) | 7);
+		pagetable[(i >> 27) & 0x1FF] = (PPDE)((uintptr_t)(pde) | 3);
 	}
 	PDPE pdpe = (PDPE)((uintptr_t)pde[(i >> 18) & 0x1FF] & KBTS4);
 	if(pdpe == 0) {
 		pdpe = (PDPE)((uintptr_t)_palloc(1));
-		pde[(i >> 18) & 0x1FF] = (PPML4E)((uintptr_t)(pdpe) | 7);
+		pde[(i >> 18) & 0x1FF] = (PPML4E)((uintptr_t)(pdpe) | 3);
 	}
 	PPML4E page = (PPML4E)((uintptr_t)pdpe[(i >> 9) & 0x1FF] & KBTS4);
 	if(page == 0) {
 		page = (PPML4E)((uintptr_t)_palloc(1));
-		pdpe[(i >> 9) & 0x1FF] = (void*)((uintptr_t)(page) | 7);
+		pdpe[(i >> 9) & 0x1FF] = (void*)((uintptr_t)(page) | 3);
 	}
 	page[i & 0x1FF] = (void*)(((uintptr_t)addr) | 3);
 	page_mutex.release();
