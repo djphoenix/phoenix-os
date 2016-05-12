@@ -1,4 +1,4 @@
-//    PhoeniX OS Modules subsystem
+//    PhoeniX OS ELF binary reader
 //    Copyright (C) 2013  PhoeniX
 //
 //    This program is free software: you can redistribute it and/or modify
@@ -19,19 +19,4 @@
 #include "process.hpp"
 #include "stream.hpp"
 
-typedef struct{
-	char *name, *version, *description, *requirements, *developer;
-} MODULEINFO;
-class ModuleManager {
-private:
-	static ModuleManager* manager;
-	void parseInternal();
-	void parseInitRD();
-	void loadStream(Stream *stream, bool start=0);
-	bool parseModuleInfo(MODULEINFO *info, Process &process);
-public:
-	ModuleManager();
-	static ModuleManager* getManager();
-	static void init();
-};
-
+size_t readelf(Process *process, Stream *stream);

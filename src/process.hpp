@@ -19,48 +19,26 @@
 #include "memory.hpp"
 extern void __attribute__((noreturn)) process_loop();
 typedef struct {
-	size_t offset;
-	size_t vaddr;
-	size_t size;
-	size_t fsize;
-} PROCSECT;
-typedef struct {
-	size_t offset;
-	size_t type;
-	size_t sym;
-	size_t add;
-	size_t sect;
-} PROCREL;
-typedef struct {
-	size_t offset;
-	uint32_t type;
-	uint32_t sect;
+	uintptr_t ptr;
 	char* name;
-} PROCSYM;
-typedef struct {
-	size_t seg_cnt;
-	PROCSECT* segments;
-	size_t sect_cnt;
-	PROCSECT* sections;
-	size_t reloc_cnt;
-	PROCREL* relocs;
-	size_t sym_cnt;
-	PROCSYM* symbols;
-	uint64_t entry_sym;
-} PROCSTARTINFO, *PPROCSTARTINFO;
+} ProcessSymbol;
 class Process;
 class ProcessManager {
 private:
+	ProcessManager();
 	Process** processes;
-	static Mutex processSwitchMutex;
+	Mutex processSwitchMutex;
 	static ProcessManager* manager;
-	static void SwitchProcess();
+	void SwitchProcess();
+	static void TimerHandler();
 public:
-	_uint64 RegisterProcess(Process* process);
+	uint64_t RegisterProcess(Process *process);
 	static ProcessManager* getManager();
 };
 
 class Thread {
+public:
+	Thread();
 	struct {
 		uint64_t rip, rflags;
 		uint64_t rsi, rdi, rbp, rsp;
@@ -68,15 +46,43 @@ class Thread {
 		uint64_t r8 , r9 , r10, r11;
 		uint64_t r12, r13, r14, r15;
 	} regs;
-	bool suspend;
+	uint64_t suspend_ticks;
 };
+
+typedef enum : uint8_t {
+	SectionTypeCode,
+	SectionTypeData,
+	SectionTypeBSS,
+	SectionTypeStack,
+} SectionType;
 
 class Process {
 private:
 	uint64_t id;
 	PPTE pagetable;
-	Thread *threads;
+	Thread **threads;
+	ProcessSymbol *symbols;
+	uintptr_t entry;
+	void addPage(uintptr_t vaddr, void* paddr, uint8_t flags);
 public:
 	Process();
+	~Process();
+	void remove();
+	void startup();
+	void addThread(Thread *thread, bool suspended);
+	
 	uint64_t getId();
+	
+	uintptr_t addSection(SectionType type, size_t size);
+	void addSymbol(const char *name, uintptr_t ptr);
+	void setEntryAddress(uintptr_t ptr);
+	
+	uintptr_t getSymbolByName(const char* name);
+	
+	void writeData(uintptr_t address, void* src, size_t size);
+	void readData(void* dst, uintptr_t address, size_t size);
+	char *readString(uintptr_t address);
+	
+	uintptr_t getVirtualAddress(void* addr);
+	void *getPhysicalAddress(uintptr_t ptr);
 };
