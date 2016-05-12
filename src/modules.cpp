@@ -113,8 +113,11 @@ void ModuleManager::init() {
 	mm->parseInternal();
 	mm->parseInitRD();
 }
+Mutex moduleManagerMutex = Mutex();
 ModuleManager* ModuleManager::getManager() {
-	if (manager) return manager;
-	return manager = new ModuleManager();
+	moduleManagerMutex.lock();
+	if (!manager) manager = new ModuleManager();
+	moduleManagerMutex.release();
+	return manager;
 }
 ModuleManager::ModuleManager() {}
