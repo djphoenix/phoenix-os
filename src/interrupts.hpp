@@ -57,7 +57,19 @@ typedef struct {
 	IDTR rec;
 } IDT, *PIDT;
 
-typedef void intcb();
+typedef struct {
+	uint32_t cpuid;
+	uint64_t rip; uint16_t cs;
+	uint64_t rflags;
+	uint64_t rsp; uint16_t ss;
+	uint8_t dpl;
+	uint64_t rax, rcx, rdx, rbx;
+	uint64_t rbp, rsi, rdi;
+	uint64_t r8,  r9,  r10, r11;
+	uint64_t r12, r13, r14, r15;
+} intcb_regs;
+
+typedef bool intcb(intcb_regs *regs);
 struct _intcbreg;
 typedef struct _intcbreg {
 	intcb *cb;

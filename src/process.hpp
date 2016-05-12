@@ -29,8 +29,8 @@ private:
 	Process** processes;
 	Mutex processSwitchMutex;
 	static ProcessManager* manager;
-	void SwitchProcess();
-	static void TimerHandler();
+	bool SwitchProcess(intcb_regs *regs);
+	static bool TimerHandler(intcb_regs *regs);
 public:
 	uint64_t RegisterProcess(Process *process);
 	static ProcessManager* getManager();

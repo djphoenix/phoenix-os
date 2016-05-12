@@ -140,77 +140,116 @@ struct int_regs {
 	uint64_t r11, r10,  r9,  r8;
 	uint64_t rdi, rsi, rbp;
 	uint64_t rbx, rdx, rcx, rax;
-};
+} __attribute__((packed));
+struct int_info {
+	uint64_t rip, cs, rflags, rsp, ss;
+} __attribute__((packed));
 
 uint64_t Interrupts::handle(unsigned char intr, uint64_t stack) {
 	fault.lock(); fault.release();
 	uint64_t *rsp = (uint64_t*)stack;
+	bool has_code = (intr < 0x20) && FAULTS[intr].has_error_code;
+	uint64_t error_code = 0;
+	int_regs *regs = (int_regs*)(rsp - (12 + 3));
+	if (has_code) error_code = *(rsp++);
+	int_info *info = (int_info*)rsp;
+	bool handled = false;
+	
+	uint32_t cpuid = ACPI::getController()->getCPUID();
+
+	intcb_regs cb_regs = {
+		cpuid,
+		
+		info->rip, (uint16_t)(info->cs & 0xFFF8),
+		info->rflags, info->rsp, (uint16_t)(info->ss & 0xFFF8),
+		(uint8_t)(info->cs & 7),
+		
+		regs->rax, regs->rcx, regs->rdx, regs->rbx,
+		regs->rbp, regs->rsi, regs->rdi,
+		regs->r8,  regs->r9,  regs->r10, regs->r11,
+		regs->r12, regs->r13, regs->r14, regs->r15
+	};
+	
+	callback_locks[intr].lock();
+	intcbreg *reg = callbacks[intr];
+	while (reg != 0 && reg->next != 0 && reg->cb == 0)
+		reg = reg->next;
+	intcb *cb = (reg != 0) ? reg->cb : 0;
+	callback_locks[intr].release();
+	
+	while (reg != 0) {
+		if (cb != 0) handled = cb(&cb_regs);
+		if (handled) break;
+		callback_locks[intr].lock();
+		reg = reg->next;
+		while (reg != 0 && reg->next != 0 && reg->cb == 0)
+			reg = reg->next;
+		cb = (reg != 0) ? reg->cb : 0;
+		callback_locks[intr].release();
+	}
+	
+	if (handled) {
+		*regs = {
+			cb_regs.r15, cb_regs.r14, cb_regs.r13, cb_regs.r12,
+			cb_regs.r11, cb_regs.r10, cb_regs.r9,  cb_regs.r8,
+			cb_regs.rdi, cb_regs.rsi, cb_regs.rbp,
+			cb_regs.rbx, cb_regs.rdx, cb_regs.rcx, cb_regs.rax,
+		};
+		*info = {
+			cb_regs.rip, (uint64_t)(cb_regs.cs | cb_regs.dpl),
+			cb_regs.rflags | 0x200,
+			cb_regs.rsp, (uint64_t)(cb_regs.ss | cb_regs.dpl)
+		};
+		ACPI::EOI();
+		return has_code ? 8 : 0;
+	}
+	
 	if (intr < 0x20) {
 		fault.lock();
 		FAULT f = FAULTS[intr];
-		uint64_t ec = 0;
-		int_regs *regs = (int_regs*)(rsp - (12 + 3));
-		if (f.has_error_code) ec = *(rsp++);
-		struct {
-			uint64_t rip, cs, rflags, rsp, ss, cr2, cpuid;
-		} info = {
-			rsp[0], rsp[1], rsp[2], rsp[3], rsp[4], 0, 0
-		};
-		asm volatile("mov %%cr2, %0":"=a"(info.cr2));
-		info.cpuid = ACPI::getController()->getCPUID();
+		uint64_t cr2;
+		asm volatile("mov %%cr2, %0":"=a"(cr2));
 		char rflags_buf[10] = "---------";
-		if (info.rflags & (1 <<  0)) rflags_buf[8] = 'C';
-		if (info.rflags & (1 <<  2)) rflags_buf[7] = 'P';
-		if (info.rflags & (1 <<  4)) rflags_buf[6] = 'A';
-		if (info.rflags & (1 <<  6)) rflags_buf[5] = 'Z';
-		if (info.rflags & (1 <<  7)) rflags_buf[4] = 'S';
-		if (info.rflags & (1 <<  8)) rflags_buf[3] = 'T';
-		if (info.rflags & (1 <<  9)) rflags_buf[2] = 'I';
-		if (info.rflags & (1 << 10)) rflags_buf[1] = 'D';
-		if (info.rflags & (1 << 11)) rflags_buf[0] = 'O';
-		rsp = (uint64_t*)info.rsp;
+		if (info->rflags & (1 <<  0)) rflags_buf[8] = 'C';
+		if (info->rflags & (1 <<  2)) rflags_buf[7] = 'P';
+		if (info->rflags & (1 <<  4)) rflags_buf[6] = 'A';
+		if (info->rflags & (1 <<  6)) rflags_buf[5] = 'Z';
+		if (info->rflags & (1 <<  7)) rflags_buf[4] = 'S';
+		if (info->rflags & (1 <<  8)) rflags_buf[3] = 'T';
+		if (info->rflags & (1 <<  9)) rflags_buf[2] = 'I';
+		if (info->rflags & (1 << 10)) rflags_buf[1] = 'D';
+		if (info->rflags & (1 << 11)) rflags_buf[0] = 'O';
 		printf(
 			   "\nKernel fault %s (cpu=%llu, error=0x%llx)\n"
 			   "RIP=%016llx CS=%04llx SS=%04llx DPL=%llu\n"
 			   "RFL=%016llx [%s]\n"
-			   "RSP=%016llx RBP=%016llx CR2=%016llx\n"
+			   "RSP=%016llx RBP=%016llx CR2=%08llx\n"
 			   "RSI=%016llx RDI=%016llx\n"
 			   "RAX=%016llx RCX=%016llx RDX=%016llx\n"
 			   "RBX=%016llx R8 =%016llx R9 =%016llx\n"
 			   "R10=%016llx R11=%016llx R12=%016llx\n"
 			   "R13=%016llx R14=%016llx R15=%016llx\n"
 			   ,
-			   f.code, info.cpuid, ec,
-			   info.rip, info.cs & 0xFFF8, info.ss & 0xFFF8, info.cs & 0x7,
-			   info.rflags, rflags_buf,
-			   info.rsp,  regs->rbp, info.cr2,
+			   f.code, cpuid, error_code,
+			   info->rip, info->cs & 0xFFF8, info->ss & 0xFFF8, info->cs & 0x7,
+			   info->rflags, rflags_buf,
+			   info->rsp,  regs->rbp, cr2,
 			   regs->rsi, regs->rdi,
 			   regs->rax, regs->rcx, regs->rdx,
 			   regs->rbx, regs->r8 , regs->r9,
 			   regs->r10, regs->r11, regs->r12,
 			   regs->r13, regs->r14, regs->r15);
-		if ((info.cs & 0x7) == 0) {
+		if ((info->cs & 0x7) == 0) {
 			for(;;) asm volatile("hlt");
 		} else {
 			fault.release();
 			// TODO: Kill process
 		}
-		return f.has_error_code ? 8 : 0;
+		return has_code ? 8 : 0;
 	} else if (intr == 0x21) {
 		printf("KBD %02xh\n", inportb(0x60));
 	} else if (intr != 0x20) {
 		printf("INT %02xh\n", intr);
-	}
-	callback_locks[intr].lock();
-	intcbreg *reg = callbacks[intr];
-	intcb *cb = (reg != 0) ? reg->cb : 0;
-	callback_locks[intr].release();
-	while (reg != 0) {
-		if (cb != 0) cb();
-		callback_locks[intr].lock();
-		reg = reg->next;
-		cb = (reg != 0) ? reg->cb : 0;
-		callback_locks[intr].release();
 	}
 	ACPI::EOI();
 	return 0;

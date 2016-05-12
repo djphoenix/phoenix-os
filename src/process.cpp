@@ -39,17 +39,20 @@ ProcessManager::ProcessManager() {
 	processSwitchMutex = Mutex();
 	processes = 0;
 }
-void ProcessManager::TimerHandler() {
-	getManager()->SwitchProcess();
+bool ProcessManager::TimerHandler(intcb_regs *regs) {
+	return getManager()->SwitchProcess(regs);
 }
-void ProcessManager::SwitchProcess() {
+bool ProcessManager::SwitchProcess(intcb_regs *regs) {
 	processSwitchMutex.lock();
 	if (countval++ % 0x1001 != 0) {
 		processSwitchMutex.release();
-		return;
+		return false;
 	}
-	printf("%08x -> %08llx\n", ACPI::getController()->getCPUID(), countval);
+	printf("%hhx - %hx - %llx: %08x -> %08llx\n",
+		   regs->dpl, regs->cs, regs->rip,
+		   regs->cpuid, countval);
 	processSwitchMutex.release();
+	return true;
 }
 
 uint64_t ProcessManager::RegisterProcess(Process *process) {
