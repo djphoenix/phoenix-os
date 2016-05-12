@@ -66,7 +66,7 @@ obj:
 	mkdir -p obj/mod
 images: phoenixos phoenixos.iso
 check:
-	cpplint $(SOURCES) || echo "CPPLINT not found"
+	cpplint $(SOURCES) modules/*/*.cpp || echo "CPPLINT not found"
 
 phoenixos: $(BIN)
 	cp $< $@
