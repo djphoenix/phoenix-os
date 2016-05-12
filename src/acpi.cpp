@@ -24,9 +24,15 @@ static const char* ACPI_FIND_TOP = (const char*)0x000fffff;
 static const uint64_t ACPI_SIG_RTP_DSR = 0x2052545020445352;
 static const uint32_t ACPI_SIG_CIPA = 0x43495041;
 
+Mutex controllerMutex = Mutex();
+
 ACPI* ACPI::getController() {
-	if (controller) return controller;
-	return controller = new ACPI();
+	asm volatile("pushfq; cli");
+	controllerMutex.lock();
+	if (!controller) controller = new ACPI();
+	controllerMutex.release();
+	asm volatile("popfq");
+	return controller;
 }
 
 ACPI::ACPI() {
