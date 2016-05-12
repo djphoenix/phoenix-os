@@ -308,8 +308,9 @@ void Memory::pfree(void* page) {
 	page_mutex.lock();
 	PPML4E pdata = get_page(page);
 	if((pdata != 0) && ((*(uintptr_t*)pdata & 5) == 1)) {
-		*(uintptr_t*)pdata &= 0xFFFFFFFFFFFFFFF0;
-		if(((uintptr_t)page >> 12) < last_page) last_page = (uintptr_t)page >> 12;
+		*(uintptr_t*)pdata &= ~1;
+		if(((uintptr_t)page >> 12) < last_page)
+			last_page = (uintptr_t)page >> 12;
 	}
 	page_mutex.release();
 	asm("popfq");
