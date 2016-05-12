@@ -21,30 +21,6 @@ char *usercode = 0;
 Mutex codemutex = Mutex();
 
 void process_loop() {
-	codemutex.lock();
-	if (usercode == 0) {
-		usercode = (char*)Memory::palloc(0);
-		usercode[0] = 0xEB;  // jmp
-		usercode[1] = 0xFE;  // -2
-	}
-	codemutex.release();
-	
-	char* userstack = (char*)Memory::palloc(0)+0x1000;
-	
-	asm volatile("mov $0x23, %%ax;"
-				 "mov %%ax, %%ds;"
-				 "mov %%ax, %%es;"
-				 "mov %%ax, %%fs;"
-				 "mov %%ax, %%gs;"
-				 
-				 "pushq $0x23;"
-				 "pushq %1;"
-				 "pushq $0x200;"
-				 "pushq $0x1B;"
-				 "pushq %0;"
-				 "iretq;"
-				 ::"c"(usercode), "b"(userstack)
-				 );
 	for(;;) asm("hlt");
 }
 
