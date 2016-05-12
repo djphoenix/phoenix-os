@@ -66,26 +66,33 @@ bool ModuleManager::parseModuleInfo(MODULEINFO *info, Process &process) {
 
 ModuleManager* ModuleManager::manager = 0;
 void ModuleManager::loadStream(Stream *stream, bool start) {
+	Stream *sub = stream;
 	size_t size;
 	MODULEINFO mod;
 parse:
 	mod = {0, 0, 0, 0, 0};
 	Process *process = new Process();
-	size = readelf(process, stream);
+	size = readelf(process, sub);
 	if (size == 0) {
 		delete process;
-		return;
+		goto end;
 	}
 	if (!parseModuleInfo(&mod, *process)) {
 		delete process;
-		return;
+		goto end;
 	}
 	if(start) process->startup();
-	stream->seek(size, -1);
+	sub->seek(size, -1);
 	if (!stream->eof()) {
-		stream = stream->substream();
+		Stream *_sub = sub->substream();
+		if (sub != stream)
+			delete sub;
+		sub = _sub;
 		goto parse;
 	}
+end:
+	if (sub != stream)
+		delete sub;
 }
 void ModuleManager::parseInternal() {
 	if((kernel_data.modules != 0) &&
