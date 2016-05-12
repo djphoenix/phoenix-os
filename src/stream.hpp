@@ -26,6 +26,7 @@ public:
 	virtual Stream* substream(int64_t offset=-1, size_t limit=-1)=0;
 	virtual bool eof()=0;
 	virtual char* readstr(int64_t offset=-1)=0;
+	virtual ~Stream() {};
 };
 
 class MemoryStream:public Stream {

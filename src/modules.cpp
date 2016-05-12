@@ -93,6 +93,7 @@ void ModuleManager::parseInternal() {
 		Stream *ms = new MemoryStream((void*)kernel_data.modules,
 									  kernel_data.modules_top-kernel_data.modules);
 		loadStream(ms, 1);
+		delete ms;
 	}
 }
 void ModuleManager::parseInitRD() {
@@ -103,6 +104,7 @@ void ModuleManager::parseInitRD() {
 										  ((_uint64)mod->end)-((_uint64)mod->start));
 			loadStream(ms, 1);
 			mod = (PMODULE)mod->next;
+			delete ms;
 		}
 	}
 }
