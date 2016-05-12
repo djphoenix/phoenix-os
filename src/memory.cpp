@@ -399,6 +399,7 @@ void* Memory::alloc(size_t size, size_t align) {
 	return (void*) ns;
 }
 void Memory::free(void* addr) {
+	if (addr == 0) return;
 	heap_mutex.lock();
 	PALLOCTABLE t = allocs;
 	while(1) {
