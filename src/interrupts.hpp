@@ -58,7 +58,7 @@ typedef struct {
 } IDT, *PIDT;
 
 typedef struct {
-	uint32_t cpuid;
+	uint32_t cpuid; uint64_t cr3;
 	uint64_t rip; uint16_t cs;
 	uint64_t rflags;
 	uint64_t rsp; uint16_t ss;
@@ -86,7 +86,7 @@ private:
 public:
 	static INTERRUPT32 interrupts32[256];
 	static void init();
-	static uint64_t handle(uint8_t intr, uint64_t stack);
+	static uint64_t handle(uint8_t intr, uint64_t stack, uint64_t *cr3);
 	static void maskIRQ(uint16_t mask);
 	static uint16_t getIRQmask();
 	static void addCallback(uint8_t intr, intcb* cb);

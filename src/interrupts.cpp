@@ -86,11 +86,17 @@ asm volatile(
 extern "C" {
 	uint64_t volatile __attribute__((sysv_abi)) interrupt_handler(uint64_t intr,
 															  uint64_t stack);
+	extern void *__pagetable__;
 	extern void *__interrupt_wrap;
 }
 uint64_t volatile __attribute__((sysv_abi)) interrupt_handler(uint64_t intr,
 														  uint64_t stack) {
-	return Interrupts::handle(intr, stack);
+	uint64_t cr3 = 0;
+	asm volatile("mov %%cr3, %0":"=a"(cr3));
+	asm volatile("mov %0, %%cr3"::"a"(&__pagetable__));
+	uint64_t ret = Interrupts::handle(intr, stack, &cr3);
+	asm volatile("mov %0, %%cr3"::"a"(cr3));
+	return ret;
 }
 
 struct FAULT {
@@ -145,7 +151,9 @@ struct int_info {
 	uint64_t rip, cs, rflags, rsp, ss;
 } __attribute__((packed));
 
-uint64_t Interrupts::handle(unsigned char intr, uint64_t stack) {
+uint64_t Interrupts::handle(unsigned char intr,
+							  uint64_t stack,
+							  uint64_t *cr3) {
 	fault.lock(); fault.release();
 	uint64_t *rsp = (uint64_t*)stack;
 	bool has_code = (intr < 0x20) && FAULTS[intr].has_error_code;
@@ -158,7 +166,7 @@ uint64_t Interrupts::handle(unsigned char intr, uint64_t stack) {
 	uint32_t cpuid = ACPI::getController()->getCPUID();
 
 	intcb_regs cb_regs = {
-		cpuid,
+		cpuid, *cr3,
 		
 		info->rip, (uint16_t)(info->cs & 0xFFF8),
 		info->rflags, info->rsp, (uint16_t)(info->ss & 0xFFF8),
@@ -200,6 +208,7 @@ uint64_t Interrupts::handle(unsigned char intr, uint64_t stack) {
 			cb_regs.rflags | 0x200,
 			cb_regs.rsp, (uint64_t)(cb_regs.ss | cb_regs.dpl)
 		};
+		*cr3 = cb_regs.cr3;
 		ACPI::EOI();
 		return has_code ? 8 : 0;
 	}
