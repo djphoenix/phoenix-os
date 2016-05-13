@@ -16,10 +16,6 @@
 
 #include "process.hpp"
 
-uint64_t countval = 0;
-char *usercode = 0;
-Mutex codemutex = Mutex();
-
 void process_loop() {
 	for(;;) asm("hlt");
 }
@@ -38,19 +34,55 @@ ProcessManager::ProcessManager() {
 	Interrupts::addCallback(0x20, &ProcessManager::TimerHandler);
 	processSwitchMutex = Mutex();
 	processes = 0;
+	nextThread = lastThread = 0;
+	uint64_t cpus = ACPI::getController()->getCPUCount();
+	cpuThreads = (QueuedThread**)Memory::alloc(sizeof(QueuedThread*)*cpus);
+	for (uint64_t c = 0; c < cpus; c++)
+		cpuThreads[c] = 0;
 }
 bool ProcessManager::TimerHandler(intcb_regs *regs) {
 	return getManager()->SwitchProcess(regs);
 }
 bool ProcessManager::SwitchProcess(intcb_regs *regs) {
 	processSwitchMutex.lock();
-	if (countval++ % 0x1001 != 0) {
+	QueuedThread *thread = nextThread;
+	if (thread == 0) {
 		processSwitchMutex.release();
 		return false;
 	}
-	printf("%hhx - %hx - %llx: %08x -> %08llx\n",
-		   regs->dpl, regs->cs, regs->rip,
-		   regs->cpuid, countval);
+	nextThread = thread->next;
+	if (thread == lastThread)
+		lastThread = 0;
+	if (cpuThreads[regs->cpuid] != 0) {
+		QueuedThread *cth = cpuThreads[regs->cpuid];
+		Thread *th = cth->thread;
+		th->regs = {
+			regs->rip, regs->rflags,
+			regs->rsi, regs->rdi, regs->rbp, regs->rsp,
+			regs->rax, regs->rcx, regs->rdx, regs->rbx,
+			regs->r8,  regs->r9,  regs->r10, regs->r11,
+			regs->r12, regs->r13, regs->r14, regs->r15
+		};
+		if (lastThread != 0) {
+			lastThread->next = cth;
+			lastThread = cth;
+		} else {
+			nextThread = lastThread = cth;
+		}
+	}
+	cpuThreads[regs->cpuid] = thread;
+	Thread *th = thread->thread;
+	*regs = {
+		regs->cpuid, (uintptr_t)thread->process->pagetable,
+		th->regs.rip, 0x18,
+		th->regs.rflags,
+		th->regs.rsp, 0x20,
+		3,
+		th->regs.rax, th->regs.rcx, th->regs.rdx, th->regs.rbx,
+		th->regs.rbp, th->regs.rsi, th->regs.rdi,
+		th->regs.r8,  th->regs.r9,  th->regs.r10, th->regs.r11,
+		th->regs.r12, th->regs.r13, th->regs.r14, th->regs.r15
+	};
 	processSwitchMutex.release();
 	return true;
 }
@@ -70,6 +102,21 @@ uint64_t ProcessManager::RegisterProcess(Process *process) {
 	processes[pcount+1] = 0;
 	processSwitchMutex.release();
 	return pid;
+}
+
+void ProcessManager::queueThread(Process *process, Thread *thread) {
+	QueuedThread *q = (QueuedThread*)Memory::alloc(sizeof(QueuedThread));
+	q->process = process;
+	q->thread = thread;
+	q->next = 0;
+	asm volatile("pushfq; cli");
+	processSwitchMutex.lock();
+	if (lastThread)
+		lastThread->next = q;
+	else
+		lastThread = nextThread = q;
+	processSwitchMutex.release();
+	asm volatile("popfq");
 }
 
 Thread::Thread() {
@@ -151,7 +198,7 @@ void Process::addPage(uintptr_t vaddr, void* paddr, uint8_t flags) {
 	uint16_t pml4x = (vaddr >> (12))       & 0x1FF;
 	if (pagetable == 0) {
 		pagetable = (PPTE)Memory::palloc();
-		addPage((uintptr_t)pagetable, pagetable, 0);
+		addPage((uintptr_t)pagetable, pagetable, 5);
 	}
 	PTE pte = pagetable[ptx];
 	if (!pte.present) {
@@ -313,12 +360,95 @@ void Process::addThread(Thread *thread, bool suspended) {
 	Memory::free(old);
 	threads[tcount+0] = thread;
 	threads[tcount+1] = 0;
-	// TODO: Schedule thread
+	ProcessManager::getManager()->queueThread(this, thread);
+}
+extern "C" {
+	extern void* __interrupt_wrap;
+	extern void* interrupt_handler;
 }
 void Process::startup() {
+	do {
+		struct DT {
+			uint16_t limit; uintptr_t ptr;
+		} __attribute__((packed));
+		struct GDT_ENT {
+			uint64_t seg_lim_low:16;
+			uint64_t base_low:24;
+			uint8_t type:4;
+			bool system:1;
+			uint8_t dpl:2;
+			bool present:1;
+			uint64_t seg_lim_high:4;
+			bool avl:1;
+			bool islong:1;
+			bool db:1;
+			bool granularity:1;
+			uint64_t base_high:40;
+			uint32_t rsvd;
+		} __attribute__((packed));
+		struct TSS64_ENT {
+			uint32_t reserved1;
+			uint64_t rsp[3];
+			uint64_t reserved2;
+			uint64_t ist[7];
+			uint64_t reserved3;
+			uint16_t reserved4;
+			uint16_t iomap_base;
+		} __attribute__((packed));
+		DT gdt = { 0, 0 };
+		DT idt = { 0, 0 };
+		asm volatile("sgdtq %0":"=m"(gdt));
+		asm volatile("sidtq %0":"=m"(idt));
+		
+		static const uintptr_t KB4 = 0xFFFFFFFFFFFFF000;
+		for (uintptr_t addr = gdt.ptr & KB4;
+			 addr < (gdt.ptr + gdt.limit);
+			 addr += 0x1000) {
+			addPage(addr, (void*)addr, 5);
+		}
+		for (uintptr_t addr = idt.ptr & KB4;
+			 addr < (idt.ptr + idt.limit);
+			 addr += 0x1000) {
+			addPage(addr, (void*)addr, 5);
+		}
+		INTERRUPT64 *recs = (INTERRUPT64*)idt.ptr;
+		uintptr_t page = 0;
+		for (uint16_t i = 0; i < 0x100; i++) {
+			uintptr_t handler = (
+						(uintptr_t)recs[i].offset_low |
+						((uintptr_t)recs[i].offset_middle << 16) |
+						((uintptr_t)recs[i].offset_high << 32));
+			if (page != (handler & KB4)) {
+				page = handler & KB4;
+				addPage(page, (void*)page, 5);
+			}
+		}
+		uintptr_t handler = (uintptr_t)&__interrupt_wrap & KB4;
+		addPage(handler, (void*)handler, 5);
+		handler = (uintptr_t)&interrupt_handler & KB4;
+		addPage(handler, (void*)handler, 5);
+		GDT_ENT *gdt_ent = (GDT_ENT*)(gdt.ptr + 8*3);
+		GDT_ENT *gdt_top = (GDT_ENT*)(gdt.ptr + gdt.limit);
+		while (gdt_ent < gdt_top) {
+			uintptr_t base = gdt_ent->base_low | (gdt_ent->base_high << 24);
+			size_t limit = gdt_ent->seg_lim_low | (gdt_ent->seg_lim_high << 16);
+			if (((gdt_ent->type != 0x9) && (gdt_ent->type != 0xB)) ||
+				(limit != sizeof(TSS64_ENT))) {
+				gdt_ent++; continue;
+			}
+			uintptr_t page = base & KB4;
+			addPage(page, (void*)page, 5);
+			
+			TSS64_ENT *tss = (TSS64_ENT*)base;
+			uintptr_t stack = tss->ist[0];
+			page = stack - 0x1000;
+			addPage(page, (void*)page, 5);
+			gdt_ent++;
+		}
+	} while (0);
 	Thread *thread = new Thread();
 	thread->regs.rip = entry;
-	thread->regs.rflags = 0x200;
+	thread->regs.rflags = 0;
 	id = (ProcessManager::getManager())->RegisterProcess(this);
 	addThread(thread, false);
 }

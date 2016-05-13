@@ -23,9 +23,17 @@ typedef struct {
 	char* name;
 } ProcessSymbol;
 class Process;
+class Thread;
+struct QueuedThread {
+	Process *process;
+	Thread *thread;
+	QueuedThread* next;
+};
 class ProcessManager {
 private:
 	ProcessManager();
+	QueuedThread *nextThread, *lastThread;
+	QueuedThread **cpuThreads;
 	Process** processes;
 	Mutex processSwitchMutex;
 	static ProcessManager* manager;
@@ -33,6 +41,7 @@ private:
 	static bool TimerHandler(intcb_regs *regs);
 public:
 	uint64_t RegisterProcess(Process *process);
+	void queueThread(Process *process, Thread *thread);
 	static ProcessManager* getManager();
 };
 
@@ -59,7 +68,6 @@ typedef enum : uint8_t {
 class Process {
 private:
 	uint64_t id;
-	PPTE pagetable;
 	Thread **threads;
 	ProcessSymbol *symbols;
 	uintptr_t entry;
@@ -72,6 +80,7 @@ public:
 	
 	uint64_t getId();
 	
+	PPTE pagetable;
 	uintptr_t addSection(SectionType type, size_t size);
 	void addSymbol(const char *name, uintptr_t ptr);
 	void setEntryAddress(uintptr_t ptr);
