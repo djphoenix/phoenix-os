@@ -37,17 +37,17 @@ Mutex Memory::page_mutex = Mutex();
 Mutex Memory::heap_mutex = Mutex();
 GRUBMODULE Memory::modules[256];
 
-PPML4E Memory::get_page(void* base_addr) {
+PPTE Memory::get_page(void* base_addr) {
 	uintptr_t i = (uintptr_t) base_addr >> 12;
-	uintptr_t addr;
-	addr = (uintptr_t)pagetable[(i >> 27) & 0x1FF];
-	PDE pde = (PDE)(((addr & 1) == 1) ? (addr & KBTS4) : 0);
+	PTE addr;
+	addr = pagetable[(i >> 27) & 0x1FF];
+	PPTE pde = addr.present ? (PPTE)PTE_GET_PTR(addr) : 0;
 	if(pde == 0) return 0;
-	addr = (uintptr_t)pde[(i >> 18) & 0x1FF];
-	PDPE pdpe = (PDPE)(((addr & 1) == 1) ? (addr & KBTS4) : 0);
+	addr = pde[(i >> 18) & 0x1FF];
+	PPTE pdpe = addr.present ? (PPTE)PTE_GET_PTR(addr) : 0;
 	if(pdpe == 0) return 0;
-	addr = (uintptr_t)pdpe[(i >> 9) & 0x1FF];
-	PPML4E page = (PPML4E)(((addr & 1) == 1) ? (addr & KBTS4) : 0);
+	addr = pdpe[(i >> 9) & 0x1FF];
+	PPTE page = addr.present ? (PPTE)PTE_GET_PTR(addr) : 0;
 	if(page == 0) return 0;
 	return &page[i & 0x1FF];
 }
@@ -98,12 +98,11 @@ void Memory::init() {
 		cmdline[i] = 0;
 		cmdlinel = i+1;
 	}
-	uintptr_t addr;
 	
 #define FILL_PAGES(LOW, TOP) do {\
 uintptr_t low = (LOW) & KBTS4, top = ALIGN((TOP), 0x1000);\
-for(addr = low; addr < top; addr += 0x1000) \
-	*(uintptr_t*)(get_page((void*)addr)) &= ~4;\
+for(uintptr_t addr = low; addr < top; addr += 0x1000) \
+	get_page((void*)addr)->user = 0;\
 } while (0)
 	
 	if (((kernel_data.flags & 8) == 8) &&
@@ -124,7 +123,7 @@ for(addr = low; addr < top; addr += 0x1000) \
 	// Initialization of pagetables
 	
 	// BIOS Data
-	*(uintptr_t*)(get_page((void*)0x00000000)) &= 0xFFFFFFFFFFFFFFF0;
+	get_page(0)->present = 0;
 	
 	FILL_PAGES(0x0A0000, 0x0C8000);  // Video data & VGA BIOS
 	FILL_PAGES(0x0C8000, 0x0F0000);  // Reserved for many systems
@@ -136,45 +135,47 @@ for(addr = low; addr < top; addr += 0x1000) \
 	FILL_PAGES(kernel_data.bss, kernel_data.bss_top);  // PXOS BSS
 
 	// Page table
-	*(uintptr_t*)(get_page((void*)pagetable)) &= ~4;
+	get_page(pagetable)->user = 0;
 #undef FILL_PAGES
 	
+	PTE pte;
 	for(uint16_t i = 0; i < 512; i++) {
-		PPDE pde = pagetable[i];
-		if(((uintptr_t)pde & 1) == 0) continue;
-		pde = (PPDE)((uintptr_t)pde & KBTS4);
-		*(uintptr_t*)(get_page((void*)pde)) &= ~4;
+		pte = pagetable[i];
+		if(!pte.present) continue;
+		PPTE pde = (PPTE)PTE_GET_PTR(pte);
+		get_page(pde)->user = 0;
 		for(uint32_t j = 0; j < 512; j++) {
-			PPDPE pdpe = pde[j];
-			if(((uintptr_t)pdpe & 1) == 0) continue;
-			pdpe = (PPDPE)((uintptr_t)pdpe & KBTS4);
-			*(uintptr_t*)(get_page((void*)pdpe)) &= ~4;
+			pte = pde[j];
+			if(!pte.present) continue;
+			PPTE pdpe = (PPTE)PTE_GET_PTR(pte);
+			get_page(pdpe)->user = 0;
 			for(uint16_t k = 0; k < 512; k++) {
-				PPML4E pml4e = pdpe[k];
-				if(((uintptr_t)pml4e & 1) == 0) continue;
-				pml4e = (PPML4E)((uintptr_t)pml4e & KBTS4);
-				*(uintptr_t*)(get_page((void*)pml4e)) &= ~4;
+				pte = pdpe[k];
+				if(!pte.present) continue;
+				PPTE pml4e = (PPTE)PTE_GET_PTR(pte);
+				get_page(pml4e)->user = 0;
 			}
 		}
 	}
 	
 	// Clearing unused pages
 	for(uint16_t i = 0; i < 512; i++) {
-		PPDE pde = pagetable[i];
-		if(((uintptr_t)pde & 1) == 0) continue;
-		pde = (PPDE)((uintptr_t)pde & KBTS4);
-		for(uint16_t j = 0; j < 512; j++) {
-			PPDPE pdpe = pde[j];
-			if(((uintptr_t)pdpe & 1) == 0) continue;
-			pdpe = (PPDPE)((uintptr_t)pdpe & KBTS4);
+		pte = pagetable[i];
+		if(!pte.present) continue;
+		PPTE pde = (PPTE)PTE_GET_PTR(pte);
+		get_page(pde)->user = 0;
+		for(uint32_t j = 0; j < 512; j++) {
+			pte = pde[j];
+			if(!pte.present) continue;
+			PPTE pdpe = (PPTE)PTE_GET_PTR(pte);
+			get_page(pdpe)->user = 0;
 			for(uint16_t k = 0; k < 512; k++) {
-				PPML4E pml4e = pdpe[k];
-				if(((uintptr_t)pml4e & 1) == 0) continue;
-				pml4e = (PPML4E)((uintptr_t)pml4e & KBTS4);
+				pte = pdpe[k];
+				if(!pte.present) continue;
+				PPTE pml4e = (PPTE)PTE_GET_PTR(pte);
 				for(uint16_t l = 0; l < 512; l++) {
-					void* addr = pml4e[l];
-					if(((uintptr_t)addr & 4) != 0)
-						pml4e[l] = 0;
+					if (pml4e[l].user)
+						pml4e[l].present = 0;
 				}
 			}
 		}
@@ -211,8 +212,8 @@ void Memory::map() {
 	char c = 0, nc = 0;
 	_uint64 start = 0;
 	for(i = 0; i < 0xFFFFF000; i+=0x1000) {
-		void *p = get_page((void*)i);
-		nc = (p != 0) ? (*(uintptr_t*)(p)) & 0xF : 0;
+		PPTE page = get_page((void*)i);
+		nc = !page ? 0 : page->flags;
 		if((nc & 1) != 0) {
 			if((nc & 4) != 0) {
 				nc = 'U';
@@ -239,29 +240,29 @@ void* Memory::salloc(void* mem) {
 	page_mutex.lock();
 	uintptr_t i = (uintptr_t)(mem) >> 12;
 	void *addr = (void*)(i << 12);
-	PDE pde = (PDE)((uintptr_t)pagetable[(i >> 27) & 0x1FF] & KBTS4);
-	if(pde == 0) {
-		pde = (PDE)((uintptr_t)_palloc(1));
-		pagetable[(i >> 27) & 0x1FF] = (PPDE)((uintptr_t)(pde) | 3);
+	PTE pte = pagetable[(i >> 27) & 0x1FF];
+	if(!pte.present) {
+		pagetable[(i >> 27) & 0x1FF] = pte = PTE_MAKE(_palloc(), 3);
 	}
-	PDPE pdpe = (PDPE)((uintptr_t)pde[(i >> 18) & 0x1FF] & KBTS4);
-	if(pdpe == 0) {
-		pdpe = (PDPE)((uintptr_t)_palloc(1));
-		pde[(i >> 18) & 0x1FF] = (PPML4E)((uintptr_t)(pdpe) | 3);
+	PPTE pde = (PPTE)PTE_GET_PTR(pte);
+	pte = pde[(i >> 18) & 0x1FF];
+	if(!pte.present) {
+		pde[(i >> 18) & 0x1FF] = pte = PTE_MAKE(_palloc(), 3);
 	}
-	PPML4E page = (PPML4E)((uintptr_t)pdpe[(i >> 9) & 0x1FF] & KBTS4);
-	if(page == 0) {
-		page = (PPML4E)((uintptr_t)_palloc(1));
-		pdpe[(i >> 9) & 0x1FF] = (void*)((uintptr_t)(page) | 3);
+	PPTE pdpe = (PPTE)PTE_GET_PTR(pte);
+	pte = pdpe[(i >> 9) & 0x1FF];
+	if(!pte.present) {
+		pdpe[(i >> 9) & 0x1FF] = pte = PTE_MAKE(_palloc(), 3);
 	}
-	page[i & 0x1FF] = (void*)(((uintptr_t)addr) | 3);
+	PPTE page = (PPTE)PTE_GET_PTR(pte);
+	page[i & 0x1FF] = PTE_MAKE(addr, 3);
 	page_mutex.release();
 	asm("popfq");
 	return addr;
 }
-void* Memory::_palloc(bool sys) {
+void* Memory::_palloc(uint8_t avl) {
 start:
-	void *addr = 0; PPML4E page;
+	void *addr = 0; PPTE page;
 	uintptr_t i = last_page-1;
 	while(i < KBTS4) {
 		i++;
@@ -270,35 +271,35 @@ start:
 		if((page == 0) || (*(uintptr_t*)page & 1) == 0) break;
 	}
 	last_page = i;
-	PDE pde = (PDE)((uintptr_t)pagetable[(i >> 27) & 0x1FF] & KBTS4);
-	PDPE pdpe = (PDPE)((uintptr_t)pde[(i >> 18) & 0x1FF] & KBTS4);
-	PDPE pdpen = (PDPE)((uintptr_t)pde[((i+1) >> 18) & 0x1FF] & KBTS4);
-	page = (PPML4E)((uintptr_t)pdpe[(i >> 9) & 0x1FF] & KBTS4);
-	if(((uintptr_t)pde[((i+2) >> 18) & 0x1FF] & 1) == 0) {
-		page[i & 0x1FF] = (void*)((uintptr_t)addr | 3);
+	PPTE pde = (PPTE)PTE_GET_PTR(pagetable[(i >> 27) & 0x1FF]);
+	PPTE pdpe = (PPTE)PTE_GET_PTR(pde[(i >> 18) & 0x1FF]);
+	PPTE pdpen = (PPTE)PTE_GET_PTR(pde[((i+1) >> 18) & 0x1FF]);
+	page = (PPTE)PTE_GET_PTR(pdpe[(i >> 9) & 0x1FF]);
+	if(!pde[((i+2) >> 18) & 0x1FF].present) {
+		page[i & 0x1FF] = PTE_MAKE(addr, 3);
 		i++; i++;
-		pde[(i >> 18) & 0x1FF] = (void**)((uintptr_t)addr | 3);
+		pde[(i >> 18) & 0x1FF] = PTE_MAKE(addr, 3);
 		for(uint16_t j = 0; j < 0x200; j++)
 			((uintptr_t*)addr)[j] = 0;
 		goto start;
 	}
-	if(((_uint64)pdpen[((i+1) >> 9) & 0x1FF] & 1) == 0) {
-		page[i & 0x1FF] = (void*)((uintptr_t)addr | 3);
+	if(!pdpen[((i+1) >> 9) & 0x1FF].present) {
+		page[i & 0x1FF] = PTE_MAKE(addr, 3);
 		i++;
-		pdpen[(i >> 9) & 0x1FF] = (void*)((uintptr_t)addr | 3);
+		pdpen[(i >> 9) & 0x1FF] = PTE_MAKE(addr, 3);
 		for(uint16_t j = 0; j < 0x200; j++)
 			((uintptr_t*)addr)[j] = 0;
 		goto start;
 	}
-	page[i & 0x1FF] = (void*)(((uintptr_t)addr) | (sys == 0 ? 7 : 3));
+	page[i & 0x1FF] = PTE_MAKE_AVL(addr, avl, 3);
 	for(i = 0; i < 0x200; i++)
 		((_uint64*)addr)[i] = 0;
 	return addr;
 }
-void* Memory::palloc(bool sys) {
+void* Memory::palloc(uint8_t avl) {
 	asm("pushfq; cli");
 	page_mutex.lock();
-	void* ret = _palloc(sys);
+	void* ret = _palloc(avl);
 	page_mutex.release();
 	asm("popfq");
 	return ret;
@@ -306,11 +307,12 @@ void* Memory::palloc(bool sys) {
 void Memory::pfree(void* page) {
 	asm("pushfq; cli");
 	page_mutex.lock();
-	PPML4E pdata = get_page(page);
-	if((pdata != 0) && ((*(uintptr_t*)pdata & 5) == 1)) {
-		*(uintptr_t*)pdata &= ~1;
-		if(((uintptr_t)page >> 12) < last_page)
-			last_page = (uintptr_t)page >> 12;
+	PPTE pdata = get_page(page);
+	if((pdata != 0) && pdata->present) {
+		pdata->present = 0;
+		void *addr = PTE_GET_PTR(*pdata);
+		if(((uintptr_t)addr >> 12) < last_page)
+			last_page = (uintptr_t)addr >> 12;
 	}
 	page_mutex.release();
 	asm("popfq");
@@ -326,10 +328,10 @@ void* Memory::alloc(size_t size, size_t align) {
 		f = 0;
 		uintptr_t ps = ns >> 12, pe = (ne >> 12) + (((ne & 0xFFF) !=0) ? 1 : 0);
 		for(uintptr_t i = ps; i < pe; i++) {
-			PPML4E pdata = get_page((void*)((uintptr_t)i << 12));
+			PPTE pdata = get_page((void*)((uintptr_t)i << 12));
 			if((pdata != 0) &&
-			   ((*(uintptr_t*)pdata & 1) == 1) &&
-			   ((*(uintptr_t*)pdata & 4) == 0)) {
+			   (pdata->present) &&
+			   (pdata->avl == 0)) {
 				ns = (i+1) << 12;
 				if(ns%align != 0) ns = ns + align - (ns%align);
 				ne = ns + size;
@@ -363,9 +365,9 @@ void* Memory::alloc(size_t size, size_t align) {
 			t = (PALLOCTABLE)t->next;
 		}
 		for(uintptr_t i = ps; i < pe; i++) {
-			PML4E page = get_page((void*)(i*0x1000));
-			if((page == 0) || (*(uintptr_t*)page & 1) == 0) {
-				void *t = palloc(0);
+			PPTE page = get_page((void*)(i*0x1000));
+			if((page == 0) || !page->present) {
+				void *t = palloc(1);
 				if((uintptr_t)t != (i * 0x1000)) {
 					f = 1;
 					break;
@@ -376,7 +378,7 @@ void* Memory::alloc(size_t size, size_t align) {
 	}
 	// Finding memory slot for alloc record
 	if(allocs == 0)
-		allocs = (PALLOCTABLE)palloc(1);
+		allocs = (PALLOCTABLE)palloc();
 	t = allocs;
 	int ai;
 	while(1) {
@@ -385,7 +387,7 @@ void* Memory::alloc(size_t size, size_t align) {
 			if(t->allocs[i].addr == 0) {ai = i; break;}
 		if(ai == -1) {
 			if(t->next == 0) {
-				t->next = (PALLOCTABLE)palloc(1);
+				t->next = (PALLOCTABLE)palloc();
 				((PALLOCTABLE)t->next)->next = 0;
 			}
 			t = (PALLOCTABLE)t->next;

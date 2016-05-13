@@ -18,10 +18,27 @@
 #include "pxlib.hpp"
 #include "interrupts.hpp"
 #include "multiboot_info.hpp"
-typedef void* PML4E, **PPML4E;
-typedef PPML4E PDPE, *PPDPE;
-typedef PPDPE PDE, *PPDE;
-typedef PPDE PTE, *PPTE;
+typedef struct {
+	union {
+		struct {
+			bool present:1;
+			bool readwrite:1;
+			bool user:1;
+			bool writethrough:1;
+			bool disablecache:1;
+			bool accessed:1;
+			bool dirty:1;
+			bool size:1;
+		} __attribute__((packed));
+		uint8_t flags;
+	} __attribute__((packed));
+	bool :1;
+	uint8_t avl:3;
+	uintptr_t _ptr:52;
+} __attribute__((packed)) PTE, *PPTE;
+#define PTE_GET_PTR(PTE) (void*)((PTE)._ptr << 12)
+#define PTE_MAKE(ptr, flags) PTE_MAKE_AVL(ptr, 0, flags)
+#define PTE_MAKE_AVL(ptr, avl, flags) (PTE) { { (flags & 1) >> 0, (flags & 2) >> 1, (flags & 4) >> 2, (flags & 8) >> 3, (flags & 16) >> 4, (flags & 32) >> 5, (flags & 64) >> 6, (flags & 128) >> 7 }, avl, (uintptr_t)(ptr) >> 12 }
 typedef struct {
 	uint32_t start;
 	uint32_t end;
@@ -58,14 +75,14 @@ class Memory {
 	static void* first_free;
 	static _uint64 last_page;
 	static GRUBMODULE modules[256];
-	static PPML4E get_page(void* base_addr);
+	static PPTE get_page(void* base_addr);
 	static Mutex page_mutex, heap_mutex;
-	static void* _palloc(bool sys = false);
+	static void* _palloc(uint8_t avl = 0);
 public:
 	static void map();
 	static void init();
 	static void* salloc(void* mem);
-	static void* palloc(bool sys = false);
+	static void* palloc(uint8_t avl = 0);
 	static void* alloc(size_t size, size_t align = 4);
 	static void pfree(void* page);
 	static void free(void* addr);

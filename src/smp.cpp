@@ -156,7 +156,7 @@ void SMP::init_gdt(uint32_t ncpu) {
 	});
 	GDT_SYS_ENT *gdtsys = (GDT_SYS_ENT*)&gdt[5];
 	for (uint32_t idx = 0; idx < ncpu; idx++) {
-		void *stack = Memory::palloc(1);
+		void *stack = Memory::palloc();
 		uintptr_t stack_ptr = (uintptr_t)stack + 0x1000;
 		tss[idx] = {
 			.reserved1 = 0,
@@ -223,7 +223,7 @@ void SMP::init() {
 		return;
 	}
 	
-	uintptr_t *smp_init_code = (uintptr_t*)Memory::palloc(1);
+	uintptr_t *smp_init_code = (uintptr_t*)Memory::palloc();
 	setup_gdt();
 	uintptr_t *stacks = (uintptr_t*)Memory::alloc(sizeof(uintptr_t)*cpuCount);
 	uintptr_t *cpuids = (uintptr_t*)Memory::alloc(sizeof(uintptr_t)*cpuCount);
@@ -231,7 +231,7 @@ void SMP::init() {
 	for(uint32_t i = 0; i < cpuCount; i++) {
 		cpuids[i] = acpi->getLapicIDOfCPU(i);
 		if(cpuids[i] != localId)
-			stacks[i] = ((uintptr_t)Memory::palloc(1))+0x1000;
+			stacks[i] = ((uintptr_t)Memory::palloc())+0x1000;
 		else
 			nullcpus++;
 	}
