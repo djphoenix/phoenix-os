@@ -124,7 +124,7 @@ void SMP::init_gdt(uint32_t ncpu) {
 								  ncpu * sizeof(GDT_SYS_ENT));
 	tss = (TSS64_ENT*)Memory::alloc(ncpu * sizeof(TSS64_ENT));
 	gdtrec.base = (uintptr_t)gdt;
-	gdtrec.size = 5 * sizeof(GDT_ENT) + ncpu * sizeof(GDT_SYS_ENT);
+	gdtrec.size = 5 * sizeof(GDT_ENT) + ncpu * sizeof(GDT_SYS_ENT) -1;
 	gdt[0] = GDT_ENT_zero;
 	gdt[1] = gdt_encode({
 		.base = 0, .limit = 0,
