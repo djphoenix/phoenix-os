@@ -205,7 +205,7 @@ uint64_t Interrupts::handle(unsigned char intr,
 		};
 		*info = {
 			cb_regs.rip, (uint64_t)(cb_regs.cs | cb_regs.dpl),
-			cb_regs.rflags | 0x200,
+			cb_regs.rflags | 0x202,
 			cb_regs.rsp, (uint64_t)(cb_regs.ss | cb_regs.dpl)
 		};
 		*cr3 = cb_regs.cr3;
