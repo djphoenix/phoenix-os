@@ -84,6 +84,7 @@ public:
 	static void* salloc(void* mem);
 	static void* palloc(uint8_t avl = 0);
 	static void* alloc(size_t size, size_t align = 4);
+	static void* realloc(void *addr, size_t size, size_t align = 4);
 	static void pfree(void* page);
 	static void free(void* addr);
 	static void copy(void* dest, void* src, size_t count);

@@ -420,6 +420,29 @@ void Memory::free(void* addr) {
 end:
 	heap_mutex.release();
 }
+void *Memory::realloc(void *addr, size_t size, size_t align) {
+	if (size == 0) return 0;
+	if (addr == 0) return alloc(size, align);
+	heap_mutex.lock();
+	PALLOCTABLE t = allocs;
+	size_t oldsize = 0;
+	while (t != 0) {
+		for(int i = 0; i < 255; i++) {
+			if (t->allocs[i].addr == addr) {
+				oldsize = t->allocs[i].size;
+				break;
+			}
+		}
+		if (oldsize != 0) break;
+		t = (PALLOCTABLE)t->next;
+	}
+	heap_mutex.release();
+	if (oldsize == 0) return 0;
+	void *newptr = Memory::alloc(size, align);
+	copy(newptr, addr, oldsize);
+	free(addr);
+	return newptr;
+}
 void Memory::copy(void *dest, void *src, size_t count) {
 	char *cdest = (char*)dest, *csrc = (char*)src;
 	while(count) {

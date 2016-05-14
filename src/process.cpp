@@ -94,10 +94,7 @@ uint64_t ProcessManager::RegisterProcess(Process *process) {
 		pid = MAX(pid, processes[pcount]->getId()+1);
 		pcount++;
 	}
-	Process **old = processes;
-	processes = (Process**)Memory::alloc(sizeof(Process*)*(pcount+2));
-	Memory::copy(processes, old, sizeof(Process*)*pcount);
-	Memory::free(old);
+	processes = (Process**)Memory::realloc(processes, sizeof(Process*)*(pcount+2));
 	processes[pcount+0] = process;
 	processes[pcount+1] = 0;
 	processSwitchMutex.release();
@@ -259,9 +256,8 @@ void Process::addSymbol(const char *name, uintptr_t ptr) {
 			   old[symbolcount].ptr != 0)
 			symbolcount++;
 	}
-	symbols = (ProcessSymbol*)Memory::alloc(sizeof(ProcessSymbol)*(symbolcount+2));
-	Memory::copy(symbols, old, sizeof(ProcessSymbol)*symbolcount);
-	Memory::free(old);
+	symbols = (ProcessSymbol*)Memory::realloc(symbols,
+											  sizeof(ProcessSymbol)*(symbolcount+2));
 	symbols[symbolcount].ptr = ptr;
 	size_t namelen = strlen(name);
 	symbols[symbolcount].name = (char*)Memory::alloc(namelen+1);
@@ -354,10 +350,7 @@ void Process::addThread(Thread *thread, bool suspended) {
 	
 	uint64_t tcount = 0;
 	while (threads != 0 && threads[tcount] != 0) tcount++;
-	Thread **old = threads;
-	threads = (Thread**)Memory::alloc(sizeof(Thread*)*(tcount+2));
-	Memory::copy(threads, old, sizeof(Thread*)*tcount);
-	Memory::free(old);
+	threads = (Thread**)Memory::realloc(threads, sizeof(Thread*)*(tcount+2));
 	threads[tcount+0] = thread;
 	threads[tcount+1] = 0;
 	ProcessManager::getManager()->queueThread(this, thread);
