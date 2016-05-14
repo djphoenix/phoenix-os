@@ -444,13 +444,13 @@ void *Memory::realloc(void *addr, size_t size, size_t align) {
 	return newptr;
 }
 void Memory::copy(void *dest, void *src, size_t count) {
-	char *cdest = (char*)dest, *csrc = (char*)src;
-	while(count) {
-		*cdest = *csrc;
-		cdest++;
-		csrc++;
-		count--;
-	}
+	asm(
+		"mov %0, %%rsi;"
+		"mov %1, %%rdi;"
+		"cld;"
+		"rep movsb;"
+		::"r"(src),"r"(dest),"c"(count)
+		);
 }
 
 void* operator new(size_t a) {
