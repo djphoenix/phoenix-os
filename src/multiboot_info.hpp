@@ -29,7 +29,7 @@ typedef struct {
 	uint32_t boot_device;
 	char* cmdline;
 	PMODULE mods;
-	uint32_t mmap_length; void *mmap_addr;
+	size_t mmap_length; void *mmap_addr;
 	char* boot_loader_name;
 	uintptr_t kernel, stack, stack_top, data, data_top, bss, bss_top, modules, modules_top;
 } GRUBDATA, *PGRUBDATA;
