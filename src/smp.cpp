@@ -238,9 +238,9 @@ void SMP::init() {
 	if (nullcpus > 0) nullcpus--;
 
 	char smp_init_vector = (((uintptr_t)smp_init_code) >> 12) & 0xFF;
-	uintptr_t *ptr = (uintptr_t*)&_smp_init;
-	while (ptr < (uintptr_t*)&_smp_end)
-		*(smp_init_code++) = *(ptr++);
+	size_t init_size = (char*)&_smp_end - (char*)&_smp_init;
+	Memory::copy(smp_init_code, &_smp_init, init_size);
+	smp_init_code += init_size/sizeof(*smp_init_code);
 	
 	*(smp_init_code++) = (uintptr_t)acpi->getLapicAddr();
 	*(smp_init_code++) = (uintptr_t)cpuids;
