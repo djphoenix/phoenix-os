@@ -81,12 +81,14 @@ void Memory::init() {
 	kernel_data.boot_device = grub_data->boot_device;
 	kernel_data.boot_device = grub_data->boot_device;
 	kernel_data.mods = (PMODULE)((uintptr_t)grub_data->pmods_addr & 0xFFFFFFFF);
-	if((uintptr_t)kernel_data.mods < 0x100000)
-		kernel_data.mods = (PMODULE)((uintptr_t)kernel_data.mods + 0x100000);
+	if((uintptr_t)kernel_data.mods < (uintptr_t)&__bss_end__)
+		kernel_data.mods = (PMODULE)((uintptr_t)kernel_data.mods +
+									 (uintptr_t)&__bss_end__);
 	kernel_data.mmap_length = grub_data->mmap_length;
 	kernel_data.mmap_addr = (void*)((uintptr_t)grub_data->pmmap_addr & 0xFFFFFFFF);
-	if((uintptr_t)kernel_data.mmap_addr < 0x100000)
-		kernel_data.mmap_addr = (void*)((uintptr_t)kernel_data.mmap_addr + 0x100000);
+	if((uintptr_t)kernel_data.mmap_addr < (uintptr_t)&__bss_end__)
+		kernel_data.mmap_addr = (void*)((uintptr_t)kernel_data.mmap_addr +
+										(uintptr_t)&__bss_end__);
 	
 	char cmdline[256]; int32_t cmdlinel = 0;
 	if (((kernel_data.flags & 4) == 4) && (grub_data->pcmdline != 0)) {
