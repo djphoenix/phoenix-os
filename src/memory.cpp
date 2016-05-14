@@ -244,17 +244,17 @@ void* Memory::salloc(void* mem) {
 	void *addr = (void*)(i << 12);
 	PTE pte = pagetable[(i >> 27) & 0x1FF];
 	if(!pte.present) {
-		pagetable[(i >> 27) & 0x1FF] = pte = PTE_MAKE(_palloc(), 3);
+		pagetable[(i >> 27) & 0x1FF] = pte = PTE_MAKE(_palloc(0, true), 3);
 	}
 	PPTE pde = (PPTE)PTE_GET_PTR(pte);
 	pte = pde[(i >> 18) & 0x1FF];
 	if(!pte.present) {
-		pde[(i >> 18) & 0x1FF] = pte = PTE_MAKE(_palloc(), 3);
+		pde[(i >> 18) & 0x1FF] = pte = PTE_MAKE(_palloc(0, true), 3);
 	}
 	PPTE pdpe = (PPTE)PTE_GET_PTR(pte);
 	pte = pdpe[(i >> 9) & 0x1FF];
 	if(!pte.present) {
-		pdpe[(i >> 9) & 0x1FF] = pte = PTE_MAKE(_palloc(), 3);
+		pdpe[(i >> 9) & 0x1FF] = pte = PTE_MAKE(_palloc(0, true), 3);
 	}
 	PPTE page = (PPTE)PTE_GET_PTR(pte);
 	page[i & 0x1FF] = PTE_MAKE(addr, 3);
@@ -262,17 +262,19 @@ void* Memory::salloc(void* mem) {
 	asm("popfq");
 	return addr;
 }
-void* Memory::_palloc(uint8_t avl) {
+void* Memory::_palloc(uint8_t avl, bool nolow) {
 start:
 	void *addr = 0; PPTE page;
 	uintptr_t i = last_page-1;
+	if (nolow && (i < 0x100))
+		i = 0x100;
 	while(i < KBTS4) {
 		i++;
 		addr = (void*)(i << 12);
 		page = get_page(addr);
 		if((page == 0) || (*(uintptr_t*)page & 1) == 0) break;
 	}
-	last_page = i;
+	if (!nolow) last_page = i;
 	PPTE pde = (PPTE)PTE_GET_PTR(pagetable[(i >> 27) & 0x1FF]);
 	PPTE pdpe = (PPTE)PTE_GET_PTR(pde[(i >> 18) & 0x1FF]);
 	PPTE pdpen = (PPTE)PTE_GET_PTR(pde[((i+1) >> 18) & 0x1FF]);

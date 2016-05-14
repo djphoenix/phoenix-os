@@ -77,7 +77,7 @@ class Memory {
 	static GRUBMODULE modules[256];
 	static PPTE get_page(void* base_addr);
 	static Mutex page_mutex, heap_mutex;
-	static void* _palloc(uint8_t avl = 0);
+	static void* _palloc(uint8_t avl = 0, bool nolow = false);
 public:
 	static void map();
 	static void init();
