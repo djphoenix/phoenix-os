@@ -127,6 +127,7 @@ for(uintptr_t addr = low; addr < top; addr += 0x1000) \
 	// BIOS Data
 	get_page(0)->present = 0;
 	
+	FILL_PAGES(0x09F000, 0x0A0000);  // Extended BIOS Data
 	FILL_PAGES(0x0A0000, 0x0C8000);  // Video data & VGA BIOS
 	FILL_PAGES(0x0C8000, 0x0F0000);  // Reserved for many systems
 	FILL_PAGES(0x0F0000, 0x100000);  // BIOS Code
