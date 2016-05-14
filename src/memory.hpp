@@ -38,7 +38,19 @@ typedef struct {
 } __attribute__((packed)) PTE, *PPTE;
 #define PTE_GET_PTR(PTE) (void*)((PTE)._ptr << 12)
 #define PTE_MAKE(ptr, flags) PTE_MAKE_AVL(ptr, 0, flags)
-#define PTE_MAKE_AVL(ptr, avl, flags) (PTE) { { (flags & 1) >> 0, (flags & 2) >> 1, (flags & 4) >> 2, (flags & 8) >> 3, (flags & 16) >> 4, (flags & 32) >> 5, (flags & 64) >> 6, (flags & 128) >> 7 }, avl, (uintptr_t)(ptr) >> 12 }
+#define PTE_MAKE_AVL(ptr, avl, flags) (PTE) {\
+	{\
+		(flags & 0x01) != 0,\
+		(flags & 0x02) != 0,\
+		(flags & 0x04) != 0,\
+		(flags & 0x08) != 0,\
+		(flags & 0x10) != 0,\
+		(flags & 0x20) != 0,\
+		(flags & 0x40) != 0,\
+		(flags & 0x80) != 0\
+	},\
+	avl, (uintptr_t)(ptr) >> 12\
+}
 typedef struct {
 	uint32_t start;
 	uint32_t end;
