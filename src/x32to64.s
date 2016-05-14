@@ -49,30 +49,34 @@ multiboot_header:
 multiboot_entry:
 	cli
 	
-	mov $__bss_start__, %edi
-._bss_loop:
-	movl $0, (%edi)
-	add $4, %edi
-	cmp $__bss_end__, %edi
-	jl ._bss_loop
-
 	cmp $0x2BADB002, %eax
 	jne .NoMultiboot
 
-	mov %ebx, grub_data
-	
-	# Moving first 512K to 0x100000
+	cld
+
+	# Clear BSS
+	mov $__bss_start__, %edi
+	xor %ecx, %ecx
+	mov $__bss_end__, %ecx
+	sub $__bss_start__, %ecx
 	xor %eax, %eax
-	mov $0x100000, %ebx
-	
-.mvloop:
-	mov (%eax), %ecx
-	mov %ecx, (%ebx)
-	add $4, %eax
-	add $4, %ebx
-	cmp $0x80000, %eax
-	jne .mvloop
-	
+	shr $2, %ecx
+	rep stosl
+
+    mov %ebx, grub_data
+
+	# Moving first 512K to BSS
+	xor %esi, %esi
+	mov $__bss_end__, %edi
+	mov $0x20000, %ecx
+	rep movsl
+
+	# Clear screen
+	mov $0xB8000, %edi
+	mov $0x0F000F00, %eax
+	mov $1000, %ecx
+	rep stosl
+
 	mov $0x3D4, %dx
 	mov $0xA, %al
 	out %al, %dx
@@ -81,13 +85,6 @@ multiboot_entry:
 	or $0x20, %al
 	out %al, %dx
 
-	mov $0xB8000, %eax
-._clr_loop:
-	movl $0x0F000F00, (%eax)
-	add $4, %eax
-	cmp $0xB8FA0, %eax
-	jnz ._clr_loop
-	
 	mov $__stack_end__, %esp
 
 	pushfl						# Store the FLAGS-register.
