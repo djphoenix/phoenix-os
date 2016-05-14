@@ -135,6 +135,8 @@ for(uintptr_t addr = low; addr < top; addr += 0x1000) \
 	FILL_PAGES(kernel_data.kernel, kernel_data.data_top);  // PXOS Code & Data
 	FILL_PAGES(kernel_data.modules, kernel_data.modules_top);  // PXOS Modules
 	FILL_PAGES(kernel_data.bss, kernel_data.bss_top);  // PXOS BSS
+	FILL_PAGES((uintptr_t)kernel_data.mmap_addr,
+			   (uintptr_t)kernel_data.mmap_addr + kernel_data.mmap_length);
 
 	// Page table
 	get_page(pagetable)->user = 0;
@@ -204,6 +206,20 @@ for(uintptr_t addr = low; addr < top; addr += 0x1000) \
 				mod = (PMODULE)(mod->next = (void*)alloc(sizeof(MODULE)));
 		}
 		mod->next = (void*)0;
+	}
+
+	// GRUB info
+	PGRUBMEMENT mmap = (PGRUBMEMENT)kernel_data.mmap_addr;
+	PGRUBMEMENT mmap_top = (PGRUBMEMENT)((char*)kernel_data.mmap_addr +
+										 kernel_data.mmap_length);
+	for (; mmap < mmap_top;) {
+		if (mmap->type != 1) {
+			uintptr_t low = (uintptr_t)mmap->base & KBTS4;
+			uintptr_t top = ALIGN((uintptr_t)mmap->base + mmap->length, 0x1000);
+			for(uintptr_t addr = low; addr < top; addr += 0x1000)
+				salloc((void*)addr);
+		}
+		mmap = (PGRUBMEMENT)((char*)mmap + mmap->size + sizeof(mmap->size));
 	}
 }
 void Memory::map() {

@@ -59,6 +59,12 @@ typedef struct {
 	uint64_t pvbe_control_info, pvbe_mode_info, pvbe_mode, pvbe_interface_seg, pvbe_interface_off, pvbe_interface_len;
 } GRUB, *PGRUB;
 typedef struct {
+	uint32_t size;
+	void *base;
+	size_t length;
+	uint32_t type;
+} __attribute__((packed)) GRUBMEMENT, *PGRUBMEMENT;
+typedef struct {
 	void* addr;
 	size_t size;
 } ALLOC, *PALLOC;
