@@ -22,7 +22,7 @@ uint64_t CPU::features = 0;
 char* CPU::getVendor() {
 	if (vendor[0] == 0) {
 		int eax = 0, ebx, ecx, edx;
-		asm("cpuid" : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) : "a"(eax));
+		asm volatile("cpuid" : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) : "a"(eax));
 		typedef union {
 			char s[12];
 			int i[3];
@@ -39,7 +39,7 @@ char* CPU::getVendor() {
 uint64_t CPU::getFeatures() {
 	if (features == 0) {
 		uint32_t eax = 1, ebx, ecx, edx;
-		asm("cpuid" : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) : "a"(eax));
+		asm volatile("cpuid" : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) : "a"(eax));
 		features = ecx;
 		features <<= 32;
 		features |= edx;

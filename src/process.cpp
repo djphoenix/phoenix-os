@@ -17,7 +17,7 @@
 #include "process.hpp"
 
 void process_loop() {
-	for(;;) asm("hlt");
+	for(;;) asm volatile("hlt");
 }
 
 ProcessManager* ProcessManager::manager = 0;
