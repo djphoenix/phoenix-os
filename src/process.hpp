@@ -58,6 +58,7 @@ public:
 		uint64_t r12, r13, r14, r15;
 	} regs;
 	uint64_t suspend_ticks;
+	uint64_t stack_top;
 };
 
 typedef enum : uint8_t {
