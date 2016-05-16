@@ -81,7 +81,12 @@ parse:
 		delete process;
 		goto end;
 	}
-	if(start) process->startup();
+	if (mod.name) Memory::free(mod.name);
+	if (mod.version) Memory::free(mod.version);
+	if (mod.description) Memory::free(mod.description);
+	if (mod.requirements) Memory::free(mod.requirements);
+	if (mod.developer) Memory::free(mod.developer);
+	if (start) process->startup();
 	sub->seek(size, -1);
 	if (!stream->eof()) {
 		Stream *_sub = sub->substream();
