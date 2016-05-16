@@ -23,11 +23,11 @@ void process_loop() {
 ProcessManager* ProcessManager::manager = 0;
 Mutex managerMutex = Mutex();
 ProcessManager* ProcessManager::getManager() {
-	asm volatile("pushfq; cli");
+	INTR_DISABLE_PUSH();
 	managerMutex.lock();
 	if (!manager) manager = new ProcessManager();
 	managerMutex.release();
-	asm volatile("popfq");
+	INTR_DISABLE_POP();
 	return manager;
 }
 ProcessManager::ProcessManager() {
@@ -106,14 +106,14 @@ void ProcessManager::queueThread(Process *process, Thread *thread) {
 	q->process = process;
 	q->thread = thread;
 	q->next = 0;
-	asm volatile("pushfq; cli");
+	INTR_DISABLE_PUSH();
 	processSwitchMutex.lock();
 	if (lastThread)
 		lastThread->next = q;
 	else
 		lastThread = nextThread = q;
 	processSwitchMutex.release();
-	asm volatile("popfq");
+	INTR_DISABLE_POP();
 }
 
 Thread::Thread() {

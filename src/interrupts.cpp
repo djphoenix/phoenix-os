@@ -353,7 +353,7 @@ void Interrupts::addCallback(uint8_t intr, intcb* cb) {
 	reg->next = 0;
 	reg->prev = 0;
 	
-	asm volatile("pushfq; cli");
+	INTR_DISABLE_PUSH();
 	callback_locks[intr].lock();
 	intcbreg *last = callbacks[intr];
 	if (last == 0) {
@@ -364,5 +364,5 @@ void Interrupts::addCallback(uint8_t intr, intcb* cb) {
 		last->next = reg;
 	}
 	callback_locks[intr].release();
-	asm volatile("popfq");
+	INTR_DISABLE_POP();;
 }

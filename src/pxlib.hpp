@@ -21,6 +21,8 @@
 #define MAX(a,b) ({ __typeof__ (a) _a = (a); __typeof__ (b) _b = (b); _a > _b ? _a : _b; })
 #define MIN(a,b) ({ __typeof__ (a) _a = (a); __typeof__ (b) _b = (b); _a < _b ? _a : _b; })
 #define ABS(a)   ({ __typeof__ (a) _a = (a); _a > 0 ? _a : -_a; })
+#define INTR_DISABLE_PUSH() asm volatile("pushfq; cli")
+#define INTR_DISABLE_POP() asm volatile("popfq")
 
 class Mutex {
 private:

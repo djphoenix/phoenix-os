@@ -27,11 +27,11 @@ static const uint32_t ACPI_SIG_CIPA = 0x43495041;
 Mutex controllerMutex = Mutex();
 
 ACPI* ACPI::getController() {
-	asm volatile("pushfq; cli");
+	INTR_DISABLE_PUSH();
 	controllerMutex.lock();
 	if (!controller) controller = new ACPI();
 	controllerMutex.release();
-	asm volatile("popfq");
+	INTR_DISABLE_POP();
 	return controller;
 }
 

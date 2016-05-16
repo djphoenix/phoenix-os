@@ -128,7 +128,7 @@ static char *longlong_to_hexstring(char *buf,
 }
 
 size_t vprintf(const char *fmt, va_list ap) {
-	asm volatile("pushfq; cli");
+	INTR_DISABLE_PUSH();
 	display_lock.lock();
 	char c;
 	unsigned char uc;
@@ -291,7 +291,7 @@ size_t vprintf(const char *fmt, va_list ap) {
 done:
 #undef OUTPUT_CHAR
 	display_lock.release();
-	asm volatile("popfq");
+	INTR_DISABLE_POP();
 	return chars_written;
 }
 

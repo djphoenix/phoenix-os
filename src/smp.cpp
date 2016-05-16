@@ -187,10 +187,10 @@ void SMP::setup_gdt() {
 	if (gdt == 0) init_gdt(acpi->getCPUCount());
 	uint32_t cpuid = acpi->getCPUID();
 	uint16_t tr = 5*sizeof(GDT_ENT) + cpuid*sizeof(GDT_SYS_ENT);
-	asm volatile("pushfq; cli");
+	INTR_DISABLE_PUSH();
 	asm volatile("lgdtq %0"::"m"(gdtrec));
 	asm volatile("ltr %w0"::"a"(tr));
-	asm volatile("popfq");
+	INTR_DISABLE_POP();
 }
 
 Mutex cpuinit = Mutex();
@@ -209,9 +209,9 @@ extern "C" {
 
 static inline void __msleep(uint64_t milliseconds) {
 	milliseconds *= 1000;
-	asm volatile("pushfq; cli");
+	INTR_DISABLE_PUSH();
 	while (milliseconds--) inportb(0x60);
-	asm volatile("popfq");
+	INTR_DISABLE_POP();
 }
 
 void SMP::init() {
