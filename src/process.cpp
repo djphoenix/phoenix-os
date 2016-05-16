@@ -138,6 +138,28 @@ void ProcessManager::queueThread(Process *process, Thread *thread) {
 	INTR_DISABLE_POP();
 }
 
+void ProcessManager::dequeueThread(Thread *thread) {
+	INTR_DISABLE_PUSH();
+	processSwitchMutex.lock();
+	QueuedThread *next = nextThread, *prev = 0;
+	while (next != 0) {
+		if (next->thread != thread) {
+			prev = next;
+			next = next->next; continue;
+		}
+		if (prev == 0)
+			nextThread = next->next;
+		else
+			prev->next = next->next;
+		if (lastThread == next)
+			lastThread = prev;
+		Memory::free(next);
+		next = prev ? prev->next : nextThread;
+	}
+	processSwitchMutex.release();
+	INTR_DISABLE_POP();
+}
+
 Thread::Thread() {
 	regs = {
 		0, 0,
@@ -201,7 +223,7 @@ Process::~Process() {
 	if (threads != 0) {
 		uint64_t tid = 0;
 		while (threads[tid] != 0) {
-			// TODO: unschedule thread
+			ProcessManager::getManager()->dequeueThread(threads[tid]);
 			delete threads[tid];
 			tid++;
 		}

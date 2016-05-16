@@ -44,6 +44,7 @@ public:
 	uint64_t RegisterProcess(Process *process);
 	void createNullThread(uint32_t cpuid, Thread thread);
 	void queueThread(Process *process, Thread *thread);
+	void dequeueThread(Thread *thread);
 	static ProcessManager* getManager();
 };
 
