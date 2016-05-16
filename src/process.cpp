@@ -16,7 +16,17 @@
 
 #include "process.hpp"
 
+void _loop();
 void process_loop() {
+	uint32_t cpuid = ACPI::getController()->getCPUID();
+	Thread nullThread = Thread();
+	asm volatile("mov %%rsp, %0":"=m"(nullThread.regs.rsp));
+	nullThread.regs.rip = (uintptr_t)&_loop;
+	ProcessManager::getManager()->createNullThread(cpuid, nullThread);
+	_loop();
+}
+
+void __attribute__((noreturn)) _loop() {
 	for(;;) asm volatile("hlt");
 }
 
@@ -39,12 +49,24 @@ ProcessManager::ProcessManager() {
 	cpuThreads = (QueuedThread**)Memory::alloc(sizeof(QueuedThread*)*cpus);
 	for (uint64_t c = 0; c < cpus; c++)
 		cpuThreads[c] = 0;
+	nullThreads = (Thread*)Memory::alloc(sizeof(Thread)*cpus);
 }
 bool ProcessManager::TimerHandler(uint32_t intr, intcb_regs *regs) {
 	return getManager()->SwitchProcess(regs);
 }
+void ProcessManager::createNullThread(uint32_t cpuid, Thread thread) {
+	INTR_DISABLE_PUSH();
+	processSwitchMutex.lock();
+	nullThreads[cpuid] = thread;
+	processSwitchMutex.release();
+	INTR_DISABLE_POP();
+}
 bool ProcessManager::SwitchProcess(intcb_regs *regs) {
 	processSwitchMutex.lock();
+	if (nullThreads[regs->cpuid].regs.rip != (uintptr_t)&_loop) {
+		processSwitchMutex.release();
+		return false;
+	}
 	QueuedThread *thread = nextThread;
 	if (thread == 0) {
 		processSwitchMutex.release();

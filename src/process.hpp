@@ -34,6 +34,7 @@ private:
 	ProcessManager();
 	QueuedThread *nextThread, *lastThread;
 	QueuedThread **cpuThreads;
+	Thread *nullThreads;
 	Process** processes;
 	Mutex processSwitchMutex;
 	static ProcessManager* manager;
@@ -41,6 +42,7 @@ private:
 	static bool TimerHandler(uint32_t intr, intcb_regs *regs);
 public:
 	uint64_t RegisterProcess(Process *process);
+	void createNullThread(uint32_t cpuid, Thread thread);
 	void queueThread(Process *process, Thread *thread);
 	static ProcessManager* getManager();
 };
