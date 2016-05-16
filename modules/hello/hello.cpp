@@ -23,5 +23,4 @@ const char* module_developer = "PhoeniX";
 extern "C" { void module(); }
 
 void module() {
-	for(;;) {}
 }
