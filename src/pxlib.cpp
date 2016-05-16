@@ -310,11 +310,10 @@ size_t strlen(const char* c, size_t limit) {
 }
 
 char* strcpy(const char* c) {
-	char* r = (char*)Memory::alloc(strlen(c)+1);
-	for(uint64_t i = 0; i < strlen(c); i++) {
-		r[i] = c[i];
-	}
-	r[strlen(c)] = 0;
+	size_t len = strlen(c);
+	char* r = (char*)Memory::alloc(len+1);
+	Memory::copy(r, (void*)c, len);
+	r[len] = 0;
 	return r;
 }
 
