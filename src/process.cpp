@@ -42,6 +42,9 @@ ProcessManager* ProcessManager::getManager() {
 }
 ProcessManager::ProcessManager() {
 	Interrupts::addCallback(0x20, &ProcessManager::TimerHandler);
+	for (int i=0; i < 0x20; i++) {
+		Interrupts::addCallback(i, &ProcessManager::FaultHandler);
+	}
 	processSwitchMutex = Mutex();
 	processes = 0;
 	nextThread = lastThread = 0;
@@ -53,6 +56,9 @@ ProcessManager::ProcessManager() {
 }
 bool ProcessManager::TimerHandler(uint32_t intr, intcb_regs *regs) {
 	return getManager()->SwitchProcess(regs);
+}
+bool ProcessManager::FaultHandler(uint32_t intr, intcb_regs *regs) {
+	return getManager()->KillProcess(intr, regs);
 }
 void ProcessManager::createNullThread(uint32_t cpuid, Thread thread) {
 	INTR_DISABLE_PUSH();
@@ -100,6 +106,73 @@ bool ProcessManager::SwitchProcess(intcb_regs *regs) {
 		th->regs.rflags,
 		th->regs.rsp, 0x20,
 		3,
+		th->regs.rax, th->regs.rcx, th->regs.rdx, th->regs.rbx,
+		th->regs.rbp, th->regs.rsi, th->regs.rdi,
+		th->regs.r8,  th->regs.r9,  th->regs.r10, th->regs.r11,
+		th->regs.r12, th->regs.r13, th->regs.r14, th->regs.r15
+	};
+	processSwitchMutex.release();
+	return true;
+}
+
+bool ProcessManager::KillProcess(uint32_t intr, intcb_regs *regs) {
+	if (regs->dpl != 3) return false;
+	processSwitchMutex.lock();
+	QueuedThread *thread = cpuThreads[regs->cpuid];
+	cpuThreads[regs->cpuid] = 0;
+	uint8_t instrbuf[3];
+	thread->process->readData(instrbuf, regs->rip, 3);
+	if ((intr != 0x0E) ||
+		(regs->rsp != thread->thread->stack_top) ||
+		!((instrbuf[0] == 0xF3 && instrbuf[1] == 0xC3) ||  // repz ret
+		  (instrbuf[0] == 0xC3) ||  // ret
+		  false) ||
+		false) {
+		char rflags_buf[10] = "---------";
+		if (regs->rflags & (1 <<  0)) rflags_buf[8] = 'C';
+		if (regs->rflags & (1 <<  2)) rflags_buf[7] = 'P';
+		if (regs->rflags & (1 <<  4)) rflags_buf[6] = 'A';
+		if (regs->rflags & (1 <<  6)) rflags_buf[5] = 'Z';
+		if (regs->rflags & (1 <<  7)) rflags_buf[4] = 'S';
+		if (regs->rflags & (1 <<  8)) rflags_buf[3] = 'T';
+		if (regs->rflags & (1 <<  9)) rflags_buf[2] = 'I';
+		if (regs->rflags & (1 << 10)) rflags_buf[1] = 'D';
+		if (regs->rflags & (1 << 11)) rflags_buf[0] = 'O';
+		printf(
+			   "\nUserspace fault 0x%lx (cpu=%llu)\n"
+			   "RIP=%016llx RSP=%016llx CS=%04llx SS=%04llx\n"
+			   "RFL=%016llx [%s]\n"
+			   "RBP=%016llx RSI=%016llx RDI=%016llx\n"
+			   "RAX=%016llx RCX=%016llx RDX=%016llx\n"
+			   "RBX=%016llx R8 =%016llx R9 =%016llx\n"
+			   "R10=%016llx R11=%016llx R12=%016llx\n"
+			   "R13=%016llx R14=%016llx R15=%016llx\n"
+			   ,
+			   intr, regs->cpuid,
+			   regs->rip, regs->rsp, regs->cs, regs->ss,
+			   regs->rflags, rflags_buf,
+			   regs->rbp, regs->rsi, regs->rdi,
+			   regs->rax, regs->rcx, regs->rdx,
+			   regs->rbx, regs->r8 , regs->r9,
+			   regs->r10, regs->r11, regs->r12,
+			   regs->r13, regs->r14, regs->r15);
+	} else {
+		printf("Exit\n");
+	}
+	processSwitchMutex.release();
+	delete thread->process;
+	Memory::free(thread);
+	if (SwitchProcess(regs)) return true;
+	processSwitchMutex.lock();
+	Thread *th = &nullThreads[regs->cpuid];
+	uintptr_t pagetable = 0;
+	asm volatile("mov %%cr3, %0":"=r"(pagetable));
+	*regs = {
+		regs->cpuid, pagetable,
+		th->regs.rip, 0x08,
+		th->regs.rflags,
+		th->regs.rsp, 0x10,
+		0,
 		th->regs.rax, th->regs.rcx, th->regs.rdx, th->regs.rbx,
 		th->regs.rbp, th->regs.rsi, th->regs.rdi,
 		th->regs.r8,  th->regs.r9,  th->regs.r10, th->regs.r11,
