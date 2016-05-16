@@ -38,7 +38,7 @@ private:
 	Mutex processSwitchMutex;
 	static ProcessManager* manager;
 	bool SwitchProcess(intcb_regs *regs);
-	static bool TimerHandler(intcb_regs *regs);
+	static bool TimerHandler(uint32_t intr, intcb_regs *regs);
 public:
 	uint64_t RegisterProcess(Process *process);
 	void queueThread(Process *process, Thread *thread);

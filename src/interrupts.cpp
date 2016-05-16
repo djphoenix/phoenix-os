@@ -187,7 +187,7 @@ uint64_t Interrupts::handle(unsigned char intr,
 	callback_locks[intr].release();
 	
 	while (reg != 0) {
-		if (cb != 0) handled = cb(&cb_regs);
+		if (cb != 0) handled = cb(intr, &cb_regs);
 		if (handled) break;
 		callback_locks[intr].lock();
 		reg = reg->next;

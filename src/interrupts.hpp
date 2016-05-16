@@ -69,7 +69,7 @@ typedef struct {
 	uint64_t r12, r13, r14, r15;
 } intcb_regs;
 
-typedef bool intcb(intcb_regs *regs);
+typedef bool intcb(uint32_t intr, intcb_regs *regs);
 struct _intcbreg;
 typedef struct _intcbreg {
 	intcb *cb;

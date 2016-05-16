@@ -40,7 +40,7 @@ ProcessManager::ProcessManager() {
 	for (uint64_t c = 0; c < cpus; c++)
 		cpuThreads[c] = 0;
 }
-bool ProcessManager::TimerHandler(intcb_regs *regs) {
+bool ProcessManager::TimerHandler(uint32_t intr, intcb_regs *regs) {
 	return getManager()->SwitchProcess(regs);
 }
 bool ProcessManager::SwitchProcess(intcb_regs *regs) {
