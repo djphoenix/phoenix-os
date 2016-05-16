@@ -259,10 +259,7 @@ void Process::addSymbol(const char *name, uintptr_t ptr) {
 	symbols = (ProcessSymbol*)Memory::realloc(symbols,
 											  sizeof(ProcessSymbol)*(symbolcount+2));
 	symbols[symbolcount].ptr = ptr;
-	size_t namelen = strlen(name);
-	symbols[symbolcount].name = (char*)Memory::alloc(namelen+1);
-	Memory::copy(symbols[symbolcount].name, (void*)name, namelen);
-	symbols[symbolcount].name[namelen] = 0;
+	symbols[symbolcount].name = strcpy(name);
 	symbols[symbolcount+1].ptr = 0;
 	symbols[symbolcount+1].name = 0;
 }
