@@ -187,25 +187,19 @@ uint32_t ACPI::getCPUIDOfLapic(uint32_t id) {
 }
 uint32_t ACPI::LapicIn(uint32_t reg) {
 	if (!localApicAddr) return 0;
-	Memory::salloc((char*)localApicAddr + reg);
 	return MmioRead32((char*)localApicAddr + reg);
 }
 void ACPI::LapicOut(uint32_t reg, uint32_t data) {
 	if (!localApicAddr) return;
-	Memory::salloc((char*)localApicAddr + reg);
 	MmioWrite32((char*)localApicAddr + reg, data);
 }
 uint32_t ACPI::IOapicIn(uint32_t reg) {
 	if (!ioApicAddr) return 0;
-	Memory::salloc((char*)ioApicAddr + IOAPIC_REGSEL);
-	Memory::salloc((char*)ioApicAddr + IOAPIC_REGWIN);
 	MmioWrite32((char*)ioApicAddr + IOAPIC_REGSEL, reg);
 	return MmioRead32((char*)ioApicAddr + IOAPIC_REGWIN);
 }
 void ACPI::IOapicOut(uint32_t reg, uint32_t data) {
 	if (!ioApicAddr) return;
-	Memory::salloc((char*)ioApicAddr + IOAPIC_REGSEL);
-	Memory::salloc((char*)ioApicAddr + IOAPIC_REGWIN);
 	MmioWrite32((char*)ioApicAddr + IOAPIC_REGSEL, reg);
 	MmioWrite32((char*)ioApicAddr + IOAPIC_REGWIN, data);
 }
