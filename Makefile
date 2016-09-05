@@ -30,54 +30,109 @@ CC=$(PREFIX)gcc
 LD=$(PREFIX)ld
 AS=$(PREFIX)as
 OBJCOPY=$(PREFIX)objcopy
-CFLAGS=-c -nostdlib -std=c++11 -s -m64 -O2 -Wno-multichar -ffreestanding -fno-exceptions -fno-rtti -Wall
-BIN=obj/pxkrnl
-ASSEMBLY=$(shell ls src/*.s)
-SOURCES=$(shell ls src/*.cpp)
-OBJECTS=$(ASSEMBLY:src/%.s=obj/%.o) $(SOURCES:src/%.cpp=obj/%.o)
-MODULES=hello
+
+CFLAGS := -c -s -m64
+CFLAGS += -nostdlib -std=c++11
+CFLAGS += -O2 -Wno-multichar -Wall
+CFLAGS += -ffreestanding -fno-exceptions -fno-rtti
+CFLAGS += -Iinclude
+
 QEMU=qemu-system-x86_64
 
+ODIR=.output
+OOBJDIR=$(ODIR)/obj
+OMODDIR=$(ODIR)/mod
+OBINDIR=$(ODIR)/bin
+OIMGDIR=$(ODIR)/img
+
+SRCDIR=src
+MODDIR=modules
+
+ASSEMBLY=$(shell ls $(SRCDIR)/*.s)
+SOURCES=$(shell ls $(SRCDIR)/*.cpp)
+MODULES=$(shell ls $(MODDIR))
+
+OBJECTS=$(ASSEMBLY:$(SRCDIR)/%.s=$(OOBJDIR)/%.o) $(SOURCES:$(SRCDIR)/%.cpp=$(OOBJDIR)/%.o)
+MODOBJS=$(MODULES:%=$(OMODDIR)/%.o)
+
+BIN=$(OIMGDIR)/pxkrnl
+
 ifeq ($(UNAME_S),Darwin)
-    OBJCOPY=gobjcopy
+	OBJCOPY=gobjcopy
 endif
 
-all: clean check $(BIN)
-$(BIN): ${OBJECTS} obj/modules-linked.o
-	$(LD) -T ld.script -belf64-x86-64 -o $(BIN).elf -s --nostdlib $?
-	$(OBJCOPY) -Opei-x86-64 --subsystem efi-app --file-alignment 1 --section-alignment 1 $(BIN).elf $(BIN)
+.PHONY: all clean images kernel iso check
 
-obj/%.o: src/%.cpp obj
-	$(CC) $(CFLAGS) $< -o $@
-obj/%.o: src/%.s obj
-	$(AS) -c -s $< -o $@
+all: check kernel
 
-obj/modules-linked.o: obj
-	for mod in $(MODULES); do \
-		$(CC) $(CFLAGS) modules/$$mod/$$mod.cpp -o obj/mod/$$mod.mo ;\
-		$(LD) -T ld-mod.script -r -belf64-x86-64 -o obj/mod/$$mod.o -s --nostdlib obj/mod/$$mod.mo ;\
-	done
-	cat $(MODULES:%=obj/mod/%.o) > $(@:.o=.b)
-	$(OBJCOPY) -Oelf64-x86-64 -Bi386 -Ibinary --rename-section .data=.modules $(@:.o=.b) $@
+$(BIN).elf: ${OBJECTS} $(OOBJDIR)/modules-linked.o
+	@ mkdir -p $(dir $@)
+	@ echo LD $@
+	@ $(LD) -T ld.script -belf64-x86-64 -o $@ -s --nostdlib $?
+
+$(BIN): $(BIN).elf
+	@ mkdir -p $(dir $@)
+	@ echo OC $@
+	@ $(OBJCOPY) -Opei-x86-64 --subsystem efi-app --file-alignment 1 --section-alignment 1 $? $@
+
+$(OOBJDIR)/%.o: $(SRCDIR)/%.cpp
+	@ mkdir -p $(dir $@)
+	@ echo CC $?
+	@ $(CC) $(CFLAGS) $? -o $@
+
+$(OOBJDIR)/%.o: $(SRCDIR)/%.s
+	@ mkdir -p $(dir $@)
+	@ echo AS $?
+	@ $(CC) -c -s $? -o $@
+
+define SCANMOD
+MOD_$(1)_SRCS := $(foreach f, $(shell ls $(MODDIR)/$(1)), $(MODDIR)/$(1)/$(f))
+MODSRCS := $$(MODSRCS) $$(MOD_$(1)_SRCS)
+$(OOBJDIR)/mod_$(1).o: $$(MOD_$(1)_SRCS)
+	@ mkdir -p $$(dir $$@)
+	@ echo MODCC $(1)
+	@ $(CC) $(CFLAGS) $$? -o $$@
+endef
+
+$(foreach mod, $(MODULES), $(eval $(call SCANMOD,$(mod))))
+
+$(OMODDIR)/%.o: $(OOBJDIR)/mod_%.o
+	@ mkdir -p $(dir $@)
+	@ echo MODLD $(@:$(OMODDIR)/%.o=%)
+	@ $(LD) -T ld-mod.script -r -belf64-x86-64 -o $@ -s --nostdlib $?
+
+$(OOBJDIR)/modules-linked.o: $(MODOBJS)
+	@ mkdir -p $(dir $@)
+	@ cat $? > $(@:.o=.b)
+	@ $(OBJCOPY) -Oelf64-x86-64 -Bi386 -Ibinary --rename-section .data=.modules $(@:.o=.b) $@
 
 clean:
-	rm -rf obj $(BIN).elf $(BIN) phoenixos phoenixos.iso
-obj:
-	mkdir -p obj/mod
-images: phoenixos phoenixos.iso
-check:
-	cpplint $(SOURCES) modules/*/*.cpp || echo "CPPLINT not found"
+	@ echo RM .output bin
+	@ rm -rf .output bin
 
-phoenixos: $(BIN)
-	cp $< $@
+images: bin/phoenixos bin/phoenixos.iso
 
-phoenixos.iso: $(BIN) deps/syslinux.zip
-	mkdir -p .isoroot
-	unzip -u -j deps/syslinux.zip -d .isoroot bios/core/isolinux.bin bios/com32/elflink/ldlinux/ldlinux.c32 bios/com32/lib/libcom32.c32 bios/com32/mboot/mboot.c32
-	cp $(BIN) .isoroot/phoenixos
-	echo 'default /mboot.c32 /phoenixos' > .isoroot/isolinux.cfg
-	$(MKISOFS) -r -J -V 'PhoeniX OS' -o phoenixos.iso -b isolinux.bin -c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table .isoroot/ || echo $(MKISOFS) not installed
-	rm -rf .isoroot
+check: $(SOURCES) $(MODSRCS)
+	@ echo CPPLINT $?
+	@ cpplint --quiet $? || echo "CPPLINT not found"
+
+bin/phoenixos: $(BIN)
+	@ mkdir -p $(dir $@)
+	@ cp $^ $@
+
+ISOROOT := $(ODIR)/iso
+
+bin/phoenixos.iso: $(BIN) deps/syslinux.zip
+	@ mkdir -p $(dir $@)
+	@ mkdir -p $(ISOROOT)
+	@ unzip -q -u -j deps/syslinux.zip -d $(ISOROOT) bios/core/isolinux.bin bios/com32/elflink/ldlinux/ldlinux.c32 bios/com32/lib/libcom32.c32 bios/com32/mboot/mboot.c32
+	@ cp $(BIN) $(ISOROOT)/phoenixos
+	@ echo 'default /mboot.c32 /phoenixos' > $(ISOROOT)/isolinux.cfg
+	@ $(MKISOFS) -quiet -r -J -V 'PhoeniX OS' -o $@ -b isolinux.bin -c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table $(ISOROOT)/ || echo $(MKISOFS) not installed
+	@ rm -rf $(ISOROOT)
+
+kernel: bin/phoenixos
+iso: bin/phoenixos.iso
 
 launch:
 	$(QEMU) -kernel $(BIN) -smp cores=2,threads=2 -cpu Nehalem
