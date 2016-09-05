@@ -3,10 +3,12 @@ stages:
 
 job1:
   stage: build
+  cache:
+    paths:
+      - deps
   only:
     - master
   script:
-    - curl 'https://www.kernel.org/pub/linux/utils/boot/syslinux/6.xx/syslinux-6.03.zip' > deps/syslinux.zip
     - make images
   artifacts:
     name: "%CI_BUILD_REF_NAME"

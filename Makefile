@@ -26,6 +26,9 @@ else
     endif
 endif
 
+DEP_SYSLINUX_VER = 6.03
+DEP_SYSLINUX_URL = https://www.kernel.org/pub/linux/utils/boot/syslinux/6.xx/syslinux-6.03.zip
+
 CC=$(PREFIX)gcc
 LD=$(PREFIX)ld
 AS=$(PREFIX)as
@@ -118,16 +121,23 @@ check: $(SOURCES) $(MODSRCS)
 
 bin/phoenixos: $(BIN)
 	@ mkdir -p $(dir $@)
+	@ echo CP $@
 	@ cp $^ $@
 
 ISOROOT := $(ODIR)/iso
 
-bin/phoenixos.iso: $(BIN) deps/syslinux.zip
+deps/syslinux-$(DEP_SYSLINUX_VER).zip:
+	@ mkdir -p $(dir $@)
+	@ echo DL $@
+	@ wget -q '$(DEP_SYSLINUX_URL)' -O $@
+
+bin/phoenixos.iso: $(BIN) deps/syslinux-$(DEP_SYSLINUX_VER).zip
 	@ mkdir -p $(dir $@)
 	@ mkdir -p $(ISOROOT)
-	@ unzip -q -u -j deps/syslinux.zip -d $(ISOROOT) bios/core/isolinux.bin bios/com32/elflink/ldlinux/ldlinux.c32 bios/com32/lib/libcom32.c32 bios/com32/mboot/mboot.c32
+	@ unzip -q -u -j deps/syslinux-$(DEP_SYSLINUX_VER).zip -d $(ISOROOT) bios/core/isolinux.bin bios/com32/elflink/ldlinux/ldlinux.c32 bios/com32/lib/libcom32.c32 bios/com32/mboot/mboot.c32
 	@ cp $(BIN) $(ISOROOT)/phoenixos
 	@ echo 'default /mboot.c32 /phoenixos' > $(ISOROOT)/isolinux.cfg
+	@ echo ISO $@
 	@ $(MKISOFS) -quiet -r -J -V 'PhoeniX OS' -o $@ -b isolinux.bin -c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table $(ISOROOT)/ || echo $(MKISOFS) not installed
 	@ rm -rf $(ISOROOT)
 
