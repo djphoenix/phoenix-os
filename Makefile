@@ -79,7 +79,7 @@ DEPS := $$(DEPS) $$(patsubst %.o,%.d,$$(call SRCOBJ,$(1)))
 endef
 
 define SCANMOD
-MOD_$(1)_SRCS := $(foreach f, $(shell ls $(MODDIR)/$(1)), $(MODDIR)/$(1)/$(f))
+MOD_$(1)_SRCS := $$(wildcard $(MODDIR)/$(1)/*.cpp)
 MODSRCS := $$(MODSRCS) $$(MOD_$(1)_SRCS)
 $(OOBJDIR)/mod_$(1).o: $$(MOD_$(1)_SRCS)
 	@ mkdir -p $$(dir $$@)
