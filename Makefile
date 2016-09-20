@@ -17,13 +17,13 @@
 PREFIX=x86_64-linux-gnu-
 MKISOFS=genisoimage
 ifeq ($(OS),Windows_NT)
-    PREFIX=x86_64-w64-mingw32-
+	PREFIX=x86_64-w64-mingw32-
 else
-    UNAME_S=$(shell uname -s)
-    ifeq ($(UNAME_S),Darwin)
-        PREFIX=x86_64-elf-
+	UNAME_S=$(shell uname -s)
+	ifeq ($(UNAME_S),Darwin)
+		PREFIX=x86_64-elf-
 		MKISOFS=mkisofs
-    endif
+	endif
 endif
 
 DEP_SYSLINUX_VER = 6.03
@@ -47,15 +47,15 @@ OOBJDIR=$(ODIR)/obj
 OMODDIR=$(ODIR)/mod
 OBINDIR=$(ODIR)/bin
 OIMGDIR=$(ODIR)/img
+ISOROOT=$(ODIR)/iso
 
 SRCDIR=src
 MODDIR=modules
 
-ASSEMBLY=$(shell ls $(SRCDIR)/*.s)
-SOURCES=$(shell ls $(SRCDIR)/*.cpp)
-MODULES=$(shell ls $(MODDIR))
+ASSEMBLY=$(wildcard $(SRCDIR)/*.s)
+SOURCES=$(wildcard $(SRCDIR)/*.cpp)
+MODULES=$(subst $(MODDIR)/,,$(wildcard $(MODDIR)/*))
 
-OBJECTS=$(ASSEMBLY:$(SRCDIR)/%.s=$(OOBJDIR)/%.o) $(SOURCES:$(SRCDIR)/%.cpp=$(OOBJDIR)/%.o)
 MODOBJS=$(MODULES:%=$(OMODDIR)/%.o)
 
 BIN=$(OIMGDIR)/pxkrnl
@@ -68,25 +68,15 @@ endif
 
 all: check kernel
 
-$(BIN).elf: ${OBJECTS} $(OOBJDIR)/modules-linked.o
-	@ mkdir -p $(dir $@)
-	@ echo LD $@
-	@ $(LD) -T ld.script -belf64-x86-64 -o $@ -s --nostdlib $?
+define SRCOBJ
+$(patsubst $(SRCDIR)/%.cpp, $(OOBJDIR)/%.o, $(patsubst $(SRCDIR)/%.s, $(OOBJDIR)/%.o, $(1)))
+endef
 
-$(BIN): $(BIN).elf
-	@ mkdir -p $(dir $@)
-	@ echo OC $@
-	@ $(OBJCOPY) -Opei-x86-64 --subsystem efi-app --file-alignment 1 --section-alignment 1 $? $@
+OBJECTS=$(call SRCOBJ,$(SOURCES) $(ASSEMBLY))
 
-$(OOBJDIR)/%.o: $(SRCDIR)/%.cpp
-	@ mkdir -p $(dir $@)
-	@ echo CC $?
-	@ $(CC) $(CFLAGS) $? -o $@
-
-$(OOBJDIR)/%.o: $(SRCDIR)/%.s
-	@ mkdir -p $(dir $@)
-	@ echo AS $?
-	@ $(CC) -c -s $? -o $@
+define DEPSRC
+DEPS := $$(DEPS) $$(patsubst %.o,%.d,$$(call SRCOBJ,$(1)))
+endef
 
 define SCANMOD
 MOD_$(1)_SRCS := $(foreach f, $(shell ls $(MODDIR)/$(1)), $(MODDIR)/$(1)/$(f))
@@ -94,19 +84,50 @@ MODSRCS := $$(MODSRCS) $$(MOD_$(1)_SRCS)
 $(OOBJDIR)/mod_$(1).o: $$(MOD_$(1)_SRCS)
 	@ mkdir -p $$(dir $$@)
 	@ echo MODCC $(1)
-	@ $(CC) $(CFLAGS) $$? -o $$@
+	@ $(CC) $(CFLAGS) $$^ -o $$@
 endef
 
 $(foreach mod, $(MODULES), $(eval $(call SCANMOD,$(mod))))
+$(foreach src, $(SOURCES) $(ASSEMBLY), $(eval $(call DEPSRC,$(src))))
+
+sinclude $(DEPS)
+
+$(BIN).elf: $(OBJECTS) $(OOBJDIR)/modules-linked.o
+	@ mkdir -p $(dir $@)
+	@ echo LD $(subst $(OIMGDIR)/,,$@)
+	@ $(LD) -T ld.script -belf64-x86-64 -o $@ -s --nostdlib $^
+
+$(BIN): $(BIN).elf
+	@ mkdir -p $(dir $@)
+	@ echo OC $(subst $(OIMGDIR)/,,$@)
+	@ $(OBJCOPY) -Opei-x86-64 --subsystem efi-app --file-alignment 1 --section-alignment 1 $^ $@
+
+$(OOBJDIR)/%.d: $(SRCDIR)/%.cpp
+	@ mkdir -p $(dir $@)
+	@ $(CC) $(CFLAGS) -MM -MT $(call SRCOBJ,$^) $^ -o $@
+
+$(OOBJDIR)/%.d: $(SRCDIR)/%.s
+	@ mkdir -p $(dir $@)
+	@ $(CC) -c -MM -MT $(call SRCOBJ,$^) $^ -o $@
+
+$(OOBJDIR)/%.o: $(SRCDIR)/%.cpp
+	@ mkdir -p $(dir $@)
+	@ echo CC $<
+	@ $(CC) $(CFLAGS) $< -o $@
+
+$(OOBJDIR)/%.o: $(SRCDIR)/%.s
+	@ mkdir -p $(dir $@)
+	@ echo AS $<
+	@ $(CC) -c -s $< -o $@
 
 $(OMODDIR)/%.o: $(OOBJDIR)/mod_%.o
 	@ mkdir -p $(dir $@)
 	@ echo MODLD $(@:$(OMODDIR)/%.o=%)
-	@ $(LD) -T ld-mod.script -r -belf64-x86-64 -o $@ -s --nostdlib $?
+	@ $(LD) -T ld-mod.script -r -belf64-x86-64 -o $@ -s --nostdlib $^
 
 $(OOBJDIR)/modules-linked.o: $(MODOBJS)
 	@ mkdir -p $(dir $@)
-	@ cat $? > $(@:.o=.b)
+	@ cat $^ > $(@:.o=.b)
 	@ $(OBJCOPY) -Oelf64-x86-64 -Bi386 -Ibinary --rename-section .data=.modules $(@:.o=.b) $@
 
 clean:
@@ -116,15 +137,12 @@ clean:
 images: bin/phoenixos bin/phoenixos.iso
 
 check: $(SOURCES) $(MODSRCS)
-	@ echo CPPLINT $?
-	@ cpplint --quiet $? || echo "CPPLINT not found"
+	@ cpplint --quiet $^ || echo "CPPLINT not found"
 
 bin/phoenixos: $(BIN)
 	@ mkdir -p $(dir $@)
 	@ echo CP $@
 	@ cp $^ $@
-
-ISOROOT := $(ODIR)/iso
 
 deps/syslinux-$(DEP_SYSLINUX_VER).zip:
 	@ mkdir -p $(dir $@)
