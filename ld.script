@@ -28,48 +28,43 @@ SECTIONS
     __text_start__ = . ;
     *(.text32)
     *(.init)
-	. = ALIGN(64);
-	__init_start__ = . ;
+	  . = ALIGN(64);
+
+	  __init_start__ = . ;
     KEEP (*(.init_array*))
     __init_end__ = . ;
-    *(.text)
-    *(SORT(.text$*))
-     *(.text.*)
-     *(.gnu.linkonce.t.*)
+
+    *(.text .text.*)
+
+		*(.gnu.linkonce.t.*)
     . = ALIGN(8);
-     ___CTOR_LIST__ = .; __CTOR_LIST__ = . ;
-			LONG (-1); LONG (-1);*(.ctors); *(.ctor); *(SORT(.ctors.*));  LONG (0); LONG (0);
-     ___DTOR_LIST__ = .; __DTOR_LIST__ = . ;
-			LONG (-1); LONG (-1); *(.dtors); *(.dtor); *(SORT(.dtors.*));  LONG (0); LONG (0);
-    PROVIDE (etext = .);
-     *(.fini)
-	. = ALIGN(64);
+		___CTOR_LIST__ = .; __CTOR_LIST__ = . ;
+		LONG (-1); LONG (-1); *(.ctors); *(.ctor); *(SORT(.ctors.*));  LONG (0); LONG (0);
+		___DTOR_LIST__ = .; __DTOR_LIST__ = . ;
+		LONG (-1); LONG (-1); *(.dtors); *(.dtor); *(SORT(.dtors.*));  LONG (0); LONG (0);
+		PROVIDE (etext = .);
+
+		*(.fini)
+	  . = ALIGN(64);
+
     __text_end__ = . ;
   }
   .data BLOCK(1) : ALIGN(1)
   {
     __data_start__ = . ;
-    *(.data)
-    *(SORT(.data$*))
-    *(.xdata.startup)
-    *(.xdata)
-    *(.pdata.startup)
-    *(.pdata)
-    *(.rodata*)
-    *(.rdata)
-    *(SORT(.rdata$*))
+		*(.rodata .rodata.*)
+    *(.data .data.*)
     __data_end__ = . ;
 
     __modules_start__ = . ;
     *(.modules)
-    *(SORT(.modules$*))
-	. = ALIGN(64);
+  	. = ALIGN(64);
     __modules_end__ = . ;
   }
   .bss BLOCK(1) : ALIGN(1)
   {
     __bss_start__ = . ;
-    *(.bss)
+    *(.bss .bss.*)
     *(COMMON)
     __bss_end__ = . ;
   }
