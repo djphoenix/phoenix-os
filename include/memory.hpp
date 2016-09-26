@@ -19,94 +19,116 @@
 #include "interrupts.hpp"
 #include "multiboot_info.hpp"
 typedef struct {
-	union {
-		struct {
-			bool present:1;
-			bool readwrite:1;
-			bool user:1;
-			bool writethrough:1;
-			bool disablecache:1;
-			bool accessed:1;
-			bool dirty:1;
-			bool size:1;
-		} __attribute__((packed));
-		uint8_t flags;
-	} __attribute__((packed));
-	bool :1;
-	uint8_t avl:3;
-	uintptr_t _ptr:52;
-} __attribute__((packed)) PTE, *PPTE;
+  union {
+    struct {
+      bool present :1;
+      bool readwrite :1;
+      bool user :1;
+      bool writethrough :1;
+      bool disablecache :1;
+      bool accessed :1;
+      bool dirty :1;
+      bool size :1;
+    }__attribute__((packed));
+    uint8_t flags;
+  }__attribute__((packed));
+  bool :1;
+  uint8_t avl :3;
+  uintptr_t _ptr :52;
+}__attribute__((packed)) PTE, *PPTE;
 #define PTE_GET_PTR(PTE) (void*)((PTE)._ptr << 12)
 #define PTE_MAKE(ptr, flags) PTE_MAKE_AVL(ptr, 0, flags)
-#define PTE_MAKE_AVL(ptr, avl, flags) (PTE) {\
-	{\
-		(flags & 0x01) != 0,\
-		(flags & 0x02) != 0,\
-		(flags & 0x04) != 0,\
-		(flags & 0x08) != 0,\
-		(flags & 0x10) != 0,\
-		(flags & 0x20) != 0,\
-		(flags & 0x40) != 0,\
-		(flags & 0x80) != 0\
-	},\
-	avl, (uintptr_t)(ptr) >> 12\
+#define PTE_MAKE_AVL(ptr, avl, flags) (PTE) { \
+    { \
+  (flags & 0x01) != 0, \
+  (flags & 0x02) != 0, \
+  (flags & 0x04) != 0, \
+  (flags & 0x08) != 0, \
+  (flags & 0x10) != 0, \
+  (flags & 0x20) != 0, \
+  (flags & 0x40) != 0, \
+  (flags & 0x80) != 0 \
+    }, \
+    avl, (uintptr_t)(ptr) >> 12 \
 }
 typedef struct {
-	uint32_t start;
-	uint32_t end;
+  uint32_t start;
+  uint32_t end;
 } GRUBMODULE, *PGRUBMODULE;
 
 typedef struct {
-	uint32_t flags;
-	uint32_t mem_lower, mem_upper;
-	uint32_t boot_device;
-	uint32_t pcmdline;
-	uint32_t mods_count; long pmods_addr;
-	uint32_t syms[3];
-	uint32_t mmap_length; long pmmap_addr;
-	uint32_t drives_length; long pdrives_addr;
-	uint32_t pconfig_table;
-	uint32_t pboot_loader_name;
-	uint32_t papm_table;
-	uint64_t pvbe_control_info, pvbe_mode_info, pvbe_mode, pvbe_interface_seg, pvbe_interface_off, pvbe_interface_len;
+  uint32_t flags;
+  uint32_t mem_lower, mem_upper;
+  uint32_t boot_device;
+  uint32_t pcmdline;
+  uint32_t mods_count;
+  uint32_t pmods_addr;
+  uint32_t syms[3];
+  uint32_t mmap_length;
+  uint32_t pmmap_addr;
+  uint32_t drives_length;
+  uint32_t pdrives_addr;
+  uint32_t pconfig_table;
+  uint32_t pboot_loader_name;
+  uint32_t papm_table;
+  uint64_t pvbe_control_info, pvbe_mode_info, pvbe_mode, pvbe_interface_seg,
+      pvbe_interface_off, pvbe_interface_len;
 } GRUB, *PGRUB;
 typedef struct {
-	uint32_t size;
-	void *base;
-	size_t length;
-	uint32_t type;
-} __attribute__((packed)) GRUBMEMENT, *PGRUBMEMENT;
+  uint32_t size;
+  void *base;
+  size_t length;
+  uint32_t type;
+}__attribute__((packed)) GRUBMEMENT, *PGRUBMEMENT;
 typedef struct {
-	void* addr;
-	size_t size;
+  void* addr;
+  size_t size;
 } ALLOC, *PALLOC;
 typedef struct {
-	ALLOC allocs[255];
-	void* next;
-	int64_t reserved;
+  ALLOC allocs[255];
+  void* next;
+  int64_t reserved;
 } ALLOCTABLE, *PALLOCTABLE;
 extern PGRUB grub_data;
 
 class Memory {
-	static PPTE pagetable;
-	static PALLOCTABLE allocs;
-	static void* first_free;
-	static _uint64 last_page;
-	static GRUBMODULE modules[256];
-	static PPTE get_page(void* base_addr);
-	static Mutex page_mutex, heap_mutex;
-	static void* _palloc(uint8_t avl = 0, bool nolow = false);
-public:
-	static void map();
-	static void init();
-	static void* salloc(void* mem);
-	static void* palloc(uint8_t avl = 0);
-	static void* alloc(size_t size, size_t align = 4);
-	static void* realloc(void *addr, size_t size, size_t align = 4);
-	static void pfree(void* page);
-	static void free(void* addr);
-	static void copy(void* dest, void* src, size_t count);
+  static PPTE pagetable;
+  static PALLOCTABLE allocs;
+  static void* first_free;
+  static _uint64 last_page;
+  static GRUBMODULE modules[256];
+  static PPTE
+  get_page(void* base_addr);
+  static Mutex page_mutex, heap_mutex;
+  static void*
+  _palloc(uint8_t avl = 0, bool nolow = false);
+
+ public:
+  static void map();
+  static void init();
+  static void* salloc(void* mem);
+  static void* palloc(uint8_t avl = 0);
+  static void* alloc(size_t size, size_t align = 4);
+  static void* realloc(void *addr, size_t size, size_t align = 4);
+  static void pfree(void* page);
+  static void free(void* addr);
+  static void copy(void* dest, void* src, size_t count);
+  static void zero(void *addr, size_t size);
+  static void fill(void *addr, uint8_t value, size_t size);
 };
 
-void __inline MmioWrite32(void *p, uint32_t data) { Memory::salloc(p); *(volatile int *)(p) = data; }
-uint32_t __inline MmioRead32(void *p) { Memory::salloc(p); return *(volatile int *)(p); }
+void __inline bzero(void *addr, size_t size) {
+  Memory::zero(addr, size);
+}
+void __inline memset(void *addr, uint8_t value, size_t size) {
+  Memory::fill(addr, value, size);
+}
+
+void __inline MmioWrite32(void *p, uint32_t data) {
+  Memory::salloc(p);
+  *(volatile int *)(p) = data;
+}
+uint32_t __inline MmioRead32(void *p) {
+  Memory::salloc(p);
+  return *(volatile int *)(p);
+}

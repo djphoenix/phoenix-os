@@ -19,105 +19,105 @@
 .global _smp_end
 .code16
 _smp_init:
-	cli
+  cli
 
-	xor %eax, %eax
-	mov %cs, %ax
-	mov %ax, %ds
-	shl $4, %eax
-	mov %eax, %ebp
-	
-	add $(gd_table-_smp_init), %eax
-	mov %eax, (gd_reg-_smp_init + 2)
-	
-	add $(_protected-gd_table), %eax
-	mov %ax, (.jmp-_smp_init+1)
-	
-	lgdt gd_reg-_smp_init
+  xor %eax, %eax
+  mov %cs, %ax
+  mov %ax, %ds
+  shl $4, %eax
+  mov %eax, %ebp
+  
+  add $(gd_table-_smp_init), %eax
+  mov %eax, (gd_reg-_smp_init + 2)
+  
+  add $(_protected-gd_table), %eax
+  mov %ax, (.jmp-_smp_init+1)
+  
+  lgdt gd_reg-_smp_init
 
-	mov %cr0, %eax
-	or $1, %al
-	mov %eax, %cr0
-	
+  mov %cr0, %eax
+  or $1, %al
+  mov %eax, %cr0
+  
 .jmp:
-	ljmp $8, $(_protected-_smp_init)
+  ljmp $8, $(_protected-_smp_init)
 
 .align 16
 gd_table:
-	.short 0, 0, 0, 0
-	.short 0xFFFF,0x0000,0x9A00,0x00CF
-	.short 0xFFFF,0x0000,0x9200,0x00CF
+  .short 0, 0, 0, 0
+  .short 0xFFFF,0x0000,0x9A00,0x00CF
+  .short 0xFFFF,0x0000,0x9200,0x00CF
  
 gd_reg: 
-	.short .-gd_table-1
-	.long gd_table - _smp_init
-	
+  .short .-gd_table-1
+  .long gd_table - _smp_init
+  
 .align 16
 .code32
 _protected:
-	mov $16, %ax
-	mov %ax, %ds
-	mov %ax, %es
-	mov %ax, %ss
+  mov $16, %ax
+  mov %ax, %ds
+  mov %ax, %es
+  mov %ax, %ss
 
-	mov %ebp, %eax
+  mov %ebp, %eax
 
-	add $(x64_entry - _smp_init), %eax
-	mov %eax, 1+.jmp64-_smp_init(%ebp)
+  add $(x64_entry - _smp_init), %eax
+  mov %eax, 1+.jmp64-_smp_init(%ebp)
 
-	.extern GDT64_PTR
-	lgdt GDT64_PTR
+  .extern GDT64_PTR
+  lgdt GDT64_PTR
 
-	mov %cr0, %eax
-	and $0x7FFFFFFF, %eax
-	mov %eax, %cr0
+  mov %cr0, %eax
+  and $0x7FFFFFFF, %eax
+  mov %eax, %cr0
 
-	.extern __pagetable__
-	mov $__pagetable__, %edi
-	mov %edi, %cr3
+  .extern __pagetable__
+  mov $__pagetable__, %edi
+  mov %edi, %cr3
 
-	mov %cr4, %eax
-	or $0x20, %eax
-	mov %eax, %cr4
+  mov %cr4, %eax
+  or $0x20, %eax
+  mov %eax, %cr4
 
-	mov $0xC0000080, %ecx
-	rdmsr
-	or $0x100, %eax
-	wrmsr
+  mov $0xC0000080, %ecx
+  rdmsr
+  or $0x100, %eax
+  wrmsr
 
-	mov %cr0, %eax
-	or $0x80000000, %eax
-	mov %eax, %cr0
+  mov %cr0, %eax
+  or $0x80000000, %eax
+  mov %eax, %cr0
 
 .jmp64:
-	ljmpl $8, $(x64_entry-_smp_init)
-	
+  ljmpl $8, $(x64_entry-_smp_init)
+  
 .align 16
 .code64
 x64_entry:
-	mov _smp_end-_smp_init(%rbp), %rbx
-	add $0x20, %rbx
-	xor %rcx, %rcx
-	mov (%rbx), %ecx
-	shr $24, %rcx
+  mov _smp_end-_smp_init(%rbp), %rbx
+  add $0x20, %rbx
+  xor %rcx, %rcx
+  mov (%rbx), %ecx
+  shr $24, %rcx
 
-	mov 8+_smp_end-_smp_init(%rbp), %rax
-	xor %rdx, %rdx
+  mov 8+_smp_end-_smp_init(%rbp), %rax
+  xor %rdx, %rdx
 .getid:
-	cmp (%rax), %rcx
-	je .foundid
-	add $8, %rax
-	inc %rdx
-	jmp .getid
+  cmp (%rax), %rcx
+  je .foundid
+  add $8, %rax
+  inc %rdx
+  jmp .getid
 .foundid:
 
-	shl $3, %rdx
-	add 16+_smp_end-_smp_init(%rbp), %rdx
-	mov (%rdx), %rsp
+  shl $3, %rdx
+  add 16+_smp_end-_smp_init(%rbp), %rdx
+  mov (%rdx), %rsp
 
-	mov 24+_smp_end-_smp_init(%rbp), %rax
-	mov %rsp, %rbp
-	jmpq *%rax
+  mov 24+_smp_end-_smp_init(%rbp), %rax
+  mov %rsp, %rbp
+  jmpq *%rax
 
 .align 8
 _smp_end:

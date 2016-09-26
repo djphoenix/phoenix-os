@@ -18,263 +18,225 @@
 #include "process.hpp"
 
 struct GDT_ENT {
-	uint64_t seg_lim_low:16;
-	uint64_t base_low:24;
-	uint8_t type:4;
-	bool system:1;
-	uint8_t dpl:2;
-	bool present:1;
-	uint64_t seg_lim_high:4;
-	bool avl:1;
-	bool islong:1;
-	bool db:1;
-	bool granularity:1;
-	uint64_t base_high:8;
-} __attribute__((packed));
+  uint64_t seg_lim_low :16;
+  uint64_t base_low :24;
+  uint8_t type :4;
+  bool system :1;
+  uint8_t dpl :2;
+  bool present :1;
+  uint64_t seg_lim_high :4;
+  bool avl :1;
+  bool islong :1;
+  bool db :1;
+  bool granularity :1;
+  uint64_t base_high :8;
+}__attribute__((packed));
 
 struct GDT_SYS_ENT {
-	GDT_ENT ent;
-	uint64_t base_high:32;
-	uint32_t rsvd;
-} __attribute__((packed));
+  GDT_ENT ent;
+  uint64_t base_high :32;
+  uint32_t rsvd;
+}__attribute__((packed));
 
 struct {
-	uint16_t size;
-	uintptr_t base;
-} __attribute__((packed)) gdtrec;
+  uint16_t size;
+  uintptr_t base;
+}__attribute__((packed)) gdtrec;
 
 struct GDT_ENT_def {
-	uint64_t base, limit;
-	uint8_t type, dpl;
-	bool system, present, avl;
-	bool islong, db, granularity;
+  uint64_t base, limit;
+  uint8_t type, dpl;
+  bool system, present, avl;
+  bool islong, db, granularity;
 };
 
-GDT_ENT inline gdt_encode(GDT_ENT_def def) {
-	return {
-		.seg_lim_low = def.limit & 0xFFFF,
-		.base_low = def.base & 0xFFFFFF,
-		.type = def.type, .system = def.system,
-		.dpl = def.dpl, .present = def.present,
-		.seg_lim_high = (def.limit >> 16) & 0xF,
-		.avl = def.avl, .islong = def.islong,
-		.db = def.db, .granularity = def.granularity,
-		.base_high = (def.base >> 24) & 0xFF
-	};
+inline GDT_ENT gdt_encode(GDT_ENT_def def) {
+  struct GDT_ENT res;
+  res.seg_lim_low = def.limit & 0xFFFF;
+  res.base_low = def.base & 0xFFFFFF;
+  res.type = def.type;
+  res.system = def.system;
+  res.dpl = def.dpl;
+  res.present = def.present;
+  res.seg_lim_high = (def.limit >> 16) & 0xF;
+  res.avl = def.avl;
+  res.islong = def.islong;
+  res.db = def.db;
+  res.granularity = def.granularity;
+  res.base_high = (def.base >> 24) & 0xFF;
+  return res;
 }
 
-GDT_ENT_def inline gdt_decode(GDT_ENT ent) {
-	return {
-		.base = ((uint64_t)ent.base_high << 24) | ent.base_low,
-		.limit = ((uint64_t)ent.seg_lim_high << 16) | ent.seg_lim_low,
-		.type = ent.type, .dpl = ent.dpl,
-		.system = ent.system, .present = ent.present,
-		.avl = ent.avl, .islong = ent.islong,
-		.db = ent.db, .granularity = ent.granularity
-	};
+inline GDT_ENT_def gdt_decode(GDT_ENT ent) {
+  struct GDT_ENT_def res;
+  res.base = ((uint64_t)ent.base_high << 24) | ent.base_low;
+  res.limit = ((uint64_t)ent.seg_lim_high << 16) | ent.seg_lim_low;
+  res.type = ent.type;
+  res.dpl = ent.dpl;
+  res.system = ent.system;
+  res.present = ent.present;
+  res.avl = ent.avl;
+  res.islong = ent.islong;
+  res.db = ent.db;
+  res.granularity = ent.granularity;
+  return res;
 }
 
-GDT_SYS_ENT inline gdt_sys_encode(GDT_ENT_def def) {
-	return {
-		.ent = {
-			.seg_lim_low = def.limit & 0xFFFF,
-			.base_low = def.base & 0xFFFFFF,
-			.type = def.type, .system = def.system,
-			.dpl = def.dpl, .present = def.present,
-			.seg_lim_high = (def.limit >> 16) & 0xF,
-			.avl = def.avl, .islong = def.islong,
-			.db = def.db, .granularity = def.granularity,
-			.base_high = (def.base >> 24) & 0xFF
-		},
-		.base_high = def.base >> 32,
-		.rsvd = 0
-	};
+inline GDT_SYS_ENT gdt_sys_encode(GDT_ENT_def def) {
+  struct GDT_SYS_ENT res;
+  res.ent = gdt_encode(def);
+  res.base_high = def.base >> 32;
+  res.rsvd = 0;
+  return res;
 }
 
-GDT_ENT_def inline gdt_sys_decode(GDT_SYS_ENT ent_sys) {
-	GDT_ENT ent = ent_sys.ent;
-	return {
-		.base = (ent_sys.base_high << 32) | (ent.base_high << 24) | ent.base_low,
-		.limit = ((uint64_t)ent.seg_lim_high << 16) | ent.seg_lim_low,
-		.type = ent.type, .dpl = ent.dpl,
-		.system = ent.system, .present = ent.present,
-		.avl = ent.avl, .islong = ent.islong,
-		.db = ent.db, .granularity = ent.granularity
-	};
+inline GDT_ENT_def gdt_sys_decode(GDT_SYS_ENT ent_sys) {
+  struct GDT_ENT_def res;
+  res = gdt_decode(ent_sys.ent);
+  res.base |= (ent_sys.base_high << 32);
+  return res;
 }
 
 struct TSS64_ENT {
-	uint32_t reserved1;
-	uint64_t rsp[3];
-	uint64_t reserved2;
-	uint64_t ist[7];
-	uint64_t reserved3;
-	uint16_t reserved4;
-	uint16_t iomap_base;
-} __attribute__((packed));
+  uint32_t reserved1;
+  uint64_t rsp[3];
+  uint64_t reserved2;
+  uint64_t ist[7];
+  uint64_t reserved3;
+  uint16_t reserved4;
+  uint16_t iomap_base;
+}__attribute__((packed));
 
-static const GDT_ENT GDT_ENT_zero = {};
+static const GDT_ENT GDT_ENT_zero = { };
 
 GDT_ENT *gdt = 0;
 TSS64_ENT *tss = 0;
 
 void SMP::init_gdt(uint32_t ncpu) {
-	gdt = (GDT_ENT*)Memory::alloc(
-								  5 * sizeof(GDT_ENT) +
-								  ncpu * sizeof(GDT_SYS_ENT));
-	tss = (TSS64_ENT*)Memory::alloc(ncpu * sizeof(TSS64_ENT));
-	gdtrec.base = (uintptr_t)gdt;
-	gdtrec.size = 5 * sizeof(GDT_ENT) + ncpu * sizeof(GDT_SYS_ENT) -1;
-	gdt[0] = GDT_ENT_zero;
-	gdt[1] = gdt_encode({
-		.base = 0, .limit = 0,
-		.type = 0xA, .dpl = 0,
-		.system = 1, .present = 1,
-		.avl = 0, .islong = 1,
-		.db = 0, .granularity = 0
-	});
-	gdt[2] = gdt_encode({
-		.base = 0, .limit = 0,
-		.type = 0x2, .dpl = 0,
-		.system = 1, .present = 1,
-		.avl = 0, .islong = 1,
-		.db = 0, .granularity = 0
-	});
-	gdt[3] = gdt_encode({
-		.base = 0, .limit = 0xFFFFFFFFFFFFFFFF,
-		.type = 0xA, .dpl = 3,
-		.system = 1, .present = 1,
-		.avl = 0, .islong = 1,
-		.db = 0, .granularity = 0
-	});
-	gdt[4] = gdt_encode({
-		.base = 0, .limit = 0xFFFFFFFFFFFFFFFF,
-		.type = 0x2, .dpl = 3,
-		.system = 1, .present = 1,
-		.avl = 0, .islong = 1,
-		.db = 0, .granularity = 0
-	});
-	GDT_SYS_ENT *gdtsys = (GDT_SYS_ENT*)&gdt[5];
-	for (uint32_t idx = 0; idx < ncpu; idx++) {
-		void *stack = Memory::palloc();
-		uintptr_t stack_ptr = (uintptr_t)stack + 0x1000;
-		tss[idx] = {
-			.reserved1 = 0,
-			.rsp = {
-				0, 0, 0
-			},
-			.reserved2 = 0,
-			.ist = {
-				stack_ptr, 0, 0, 0, 0, 0, 0
-			},
-			.reserved3 = 0,
-			.reserved4 = 0,
-			.iomap_base = 0
-		};
-		gdtsys[idx] = gdt_sys_encode({
-			.base = (uintptr_t)&tss[idx],
-			.limit = sizeof(TSS64_ENT),
-			.type = 0x9, .dpl = 0,
-			.system = 0, .present = 1,
-			.avl = 0, .islong = 1,
-			.db = 0, .granularity = 0
-		});
-	}
+  gdt = (GDT_ENT*)Memory::alloc(
+      5 * sizeof(GDT_ENT) + ncpu * sizeof(GDT_SYS_ENT));
+  tss = (TSS64_ENT*)Memory::alloc(ncpu * sizeof(TSS64_ENT));
+  gdtrec.base = (uintptr_t)gdt;
+  gdtrec.size = 5 * sizeof(GDT_ENT) + ncpu * sizeof(GDT_SYS_ENT) - 1;
+  gdt[0] = GDT_ENT_zero;
+  gdt[1] = gdt_encode({ 0, 0, 0xA, 0, 1, 1, 0, 1, 0, 0 });
+  gdt[2] = gdt_encode({ 0, 0, 0x2, 0, 1, 1, 0, 1, 0, 0 });
+  gdt[3] = gdt_encode({ 0, 0xFFFFFFFFFFFFFFFF, 0xA, 3, 1, 1, 0, 1, 0, 0 });
+  gdt[4] = gdt_encode({ 0, 0xFFFFFFFFFFFFFFFF, 0x2, 3, 1, 1, 0, 1, 0, 0 });
+  GDT_SYS_ENT *gdtsys = (GDT_SYS_ENT*)&gdt[5];
+  for (uint32_t idx = 0; idx < ncpu; idx++) {
+    void *stack = Memory::palloc();
+    uintptr_t stack_ptr = (uintptr_t)stack + 0x1000;
+    bzero(&tss[idx], sizeof(tss[idx]));
+    tss[idx].ist[0] = stack_ptr;
+    gdtsys[idx] = gdt_sys_encode({
+        (uintptr_t)&tss[idx], sizeof(TSS64_ENT), 0x9, 0, 0, 1, 0, 1, 0, 0 });
+  }
 }
 
 void SMP::setup_gdt() {
-	ACPI* acpi = ACPI::getController();
-	if (gdt == 0) init_gdt(acpi->getCPUCount());
-	uint32_t cpuid = acpi->getCPUID();
-	uint16_t tr = 5*sizeof(GDT_ENT) + cpuid*sizeof(GDT_SYS_ENT);
-	INTR_DISABLE_PUSH();
-	asm volatile("lgdtq %0"::"m"(gdtrec));
-	asm volatile("ltr %w0"::"a"(tr));
-	INTR_DISABLE_POP();
+  ACPI* acpi = ACPI::getController();
+  if (gdt == 0)
+    init_gdt(acpi->getCPUCount());
+  uint32_t cpuid = acpi->getCPUID();
+  uint16_t tr = 5 * sizeof(GDT_ENT) + cpuid * sizeof(GDT_SYS_ENT);
+  INTR_DISABLE_PUSH();
+  asm volatile("lgdtq %0"::"m"(gdtrec));
+  asm volatile("ltr %w0"::"a"(tr));
+  INTR_DISABLE_POP();
 }
 
 Mutex cpuinit = Mutex();
 
 void SMP::startup() {
-	setup_gdt();
-	ACPI::getController()->activateCPU();
-	cpuinit.lock(); cpuinit.release();
-	Interrupts::loadVector();
-	process_loop();
+  setup_gdt();
+  ACPI::getController()->activateCPU();
+  cpuinit.lock();
+  cpuinit.release();
+  Interrupts::loadVector();
+  process_loop();
 }
 
 extern "C" {
-	extern void *_smp_init, *_smp_end;
+  extern void *_smp_init, *_smp_end;
 }
 
 static inline void __msleep(uint64_t milliseconds) {
-	INTR_DISABLE_PUSH();
-	milliseconds *= 1000;
-	while(milliseconds--) {
-		outportb(0x43, 0xB2);
-		outportb(0x42, 0xA9);
-		inportb(0x60);
-		outportb(0x42, 0x04);
-		uint8_t t = inportb(0x61) & 0xFD;
-		outportb(0x61, t);
-		outportb(0x61, t|1);
-		while ((inportb(0x61) & 0x20) == 0) {}
-	}
-	INTR_DISABLE_POP();
+  INTR_DISABLE_PUSH();
+  milliseconds *= 1000;
+  while (milliseconds--) {
+    outportb(0x43, 0xB2);
+    outportb(0x42, 0xA9);
+    inportb(0x60);
+    outportb(0x42, 0x04);
+    uint8_t t = inportb(0x61) & 0xFD;
+    outportb(0x61, t);
+    outportb(0x61, t | 1);
+    while ((inportb(0x61) & 0x20) == 0) {}
+  }
+  INTR_DISABLE_POP();
 }
 
 void SMP::init() {
-	ACPI* acpi = ACPI::getController();
-	uint32_t localId = acpi->getLapicID();
-	uint32_t cpuCount = acpi->getCPUCount();
-	if (cpuCount == 1) {
-		setup_gdt();
-		return;
-	}
-	
-	uintptr_t *smp_init_code = (uintptr_t*)Memory::palloc();
-	setup_gdt();
-	uintptr_t *stacks = (uintptr_t*)Memory::alloc(sizeof(uintptr_t)*cpuCount);
-	uintptr_t *cpuids = (uintptr_t*)Memory::alloc(sizeof(uintptr_t)*cpuCount);
-	uint32_t nullcpus = 0;
-	for(uint32_t i = 0; i < cpuCount; i++) {
-		cpuids[i] = acpi->getLapicIDOfCPU(i);
-		if(cpuids[i] != localId)
-			stacks[i] = ((uintptr_t)Memory::palloc())+0x1000;
-		else
-			nullcpus++;
-	}
-	if (nullcpus > 0) nullcpus--;
+  ACPI* acpi = ACPI::getController();
+  uint32_t localId = acpi->getLapicID();
+  uint32_t cpuCount = acpi->getCPUCount();
+  if (cpuCount == 1) {
+    setup_gdt();
+    return;
+  }
 
-	char smp_init_vector = (((uintptr_t)smp_init_code) >> 12) & 0xFF;
-	size_t init_size = (char*)&_smp_end - (char*)&_smp_init;
-	Memory::copy(smp_init_code, &_smp_init, init_size);
-	smp_init_code += init_size/sizeof(*smp_init_code);
-	
-	*(smp_init_code++) = (uintptr_t)acpi->getLapicAddr();
-	*(smp_init_code++) = (uintptr_t)cpuids;
-	*(smp_init_code++) = (uintptr_t)stacks;
-	*(smp_init_code++) = (uintptr_t)(&SMP::startup);
-	
-	cpuinit.lock();
-	
-	for(uint32_t i = 0; i < cpuCount; i++)
-		if(cpuids[i] != localId)
-			acpi->sendCPUInit(cpuids[i]);
-	__msleep(1);
-	for(uint32_t i = 0; i < cpuCount; i++)
-		if(cpuids[i] != localId)
-			acpi->sendCPUStartup(cpuids[i], smp_init_vector);
-	__msleep(5);
-	for(uint32_t i = 0; i < cpuCount; i++)
-		if(cpuids[i] != localId)
-			acpi->sendCPUStartup(cpuids[i], smp_init_vector);
-	while (cpuCount - nullcpus != acpi->getActiveCPUCount())
-		__msleep(5);
-	
-	cpuinit.release();
-	
-	Memory::free(cpuids);
-	Memory::free(stacks);
-	Memory::pfree(smp_init_code);
+  uintptr_t *smp_init_code = (uintptr_t*)Memory::palloc();
+  setup_gdt();
+  uintptr_t *stacks = (uintptr_t*)Memory::alloc(sizeof(uintptr_t) * cpuCount);
+  uintptr_t *cpuids = (uintptr_t*)Memory::alloc(sizeof(uintptr_t) * cpuCount);
+  uint32_t nullcpus = 0;
+  for (uint32_t i = 0; i < cpuCount; i++) {
+    cpuids[i] = acpi->getLapicIDOfCPU(i);
+    if (cpuids[i] != localId)
+      stacks[i] = ((uintptr_t)Memory::palloc()) + 0x1000;
+    else
+      nullcpus++;
+  }
+  if (nullcpus > 0)
+    nullcpus--;
+
+  char smp_init_vector = (((uintptr_t)smp_init_code) >> 12) & 0xFF;
+  size_t init_size = (char*)&_smp_end - (char*)&_smp_init;
+  Memory::copy(smp_init_code, &_smp_init, init_size);
+  smp_init_code += init_size / sizeof(*smp_init_code);
+
+  *(smp_init_code++) = (uintptr_t)acpi->getLapicAddr();
+  *(smp_init_code++) = (uintptr_t)cpuids;
+  *(smp_init_code++) = (uintptr_t)stacks;
+  *(smp_init_code++) = (uintptr_t)(&SMP::startup);
+
+  cpuinit.lock();
+
+  for (uint32_t i = 0; i < cpuCount; i++) {
+    if (cpuids[i] != localId) {
+      acpi->sendCPUInit(cpuids[i]);
+    }
+  }
+  __msleep(1);
+  for (uint32_t i = 0; i < cpuCount; i++) {
+    if (cpuids[i] != localId) {
+      acpi->sendCPUStartup(cpuids[i], smp_init_vector);
+    }
+  }
+  __msleep(5);
+  for (uint32_t i = 0; i < cpuCount; i++) {
+    if (cpuids[i] != localId) {
+      acpi->sendCPUStartup(cpuids[i], smp_init_vector);
+    }
+  }
+  while (cpuCount - nullcpus != acpi->getActiveCPUCount()) {
+    __msleep(5);
+  }
+
+  cpuinit.release();
+
+  Memory::free(cpuids);
+  Memory::free(stacks);
+  Memory::pfree(smp_init_code);
 }

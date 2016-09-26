@@ -6,7 +6,7 @@ clean:
 	@ echo RM .output bin
 	@ rm -rf .output bin
 
-check: $(SOURCES) $(MODSRCS)
+check: $(SOURCES) $(MODSRCS) $(HEADERS)
 	@ $(LINT) $^
 
 all: check

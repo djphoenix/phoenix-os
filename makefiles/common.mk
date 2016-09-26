@@ -1,9 +1,11 @@
+INCLUDES := include
+
 CFLAGS := -c -g -m64
 CFLAGS += -nostdlib -std=c++11
 CFLAGS += -O2 -Wno-multichar -Wall
 CFLAGS += -ffreestanding -fno-exceptions -fno-rtti
 CFLAGS += -ffunction-sections -fdata-sections
-CFLAGS += -Iinclude
+CFLAGS += $(patsubst %,-I%,$(INCLUDES))
 
 ODIR=.output
 OOBJDIR=$(ODIR)/obj
@@ -18,6 +20,7 @@ MODDIR=modules
 ASSEMBLY=$(wildcard $(SRCDIR)/*.s)
 SOURCES=$(wildcard $(SRCDIR)/*.cpp)
 MODULES=$(subst $(MODDIR)/,,$(wildcard $(MODDIR)/*))
+HEADERS=$(foreach inc,$(INCLUDES),$(wildcard $(inc)/*.h) $(wildcard $(inc)/*.hpp))
 
 MODOBJS=$(MODULES:%=$(OMODDIR)/%.o)
 

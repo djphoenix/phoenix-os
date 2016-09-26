@@ -19,19 +19,20 @@
 #include "process.hpp"
 #include "stream.hpp"
 
-typedef struct{
-	char *name, *version, *description, *requirements, *developer;
+typedef struct {
+  char *name, *version, *description, *requirements, *developer;
 } MODULEINFO;
 class ModuleManager {
-private:
-	static ModuleManager* manager;
-	void parseInternal();
-	void parseInitRD();
-	void loadStream(Stream *stream, bool start=0);
-	bool parseModuleInfo(MODULEINFO *info, Process &process);
-public:
-	ModuleManager();
-	static ModuleManager* getManager();
-	static void init();
+ private:
+  static ModuleManager* manager;
+  void parseInternal();
+  void parseInitRD();
+  void loadStream(Stream *stream, bool start = 0);
+  bool parseModuleInfo(MODULEINFO *info, Process *process);
+
+ public:
+  ModuleManager();
+  static ModuleManager* getManager();
+  static void init();
 };
 

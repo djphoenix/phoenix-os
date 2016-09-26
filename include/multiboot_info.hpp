@@ -18,20 +18,22 @@
 #include "pxlib.hpp"
 #include "memory.hpp"
 typedef struct {
-	void* start;
-	void* end;
-	void* next;
+  void* start;
+  void* end;
+  void* next;
 } MODULE, *PMODULE;
 
 typedef struct {
-	uint32_t flags;
-	uint32_t mem_lower, mem_upper;
-	uint32_t boot_device;
-	char* cmdline;
-	PMODULE mods;
-	size_t mmap_length; void *mmap_addr;
-	char* boot_loader_name;
-	uintptr_t kernel, stack, stack_top, data, data_top, bss, bss_top, modules, modules_top;
+  uint32_t flags;
+  uint32_t mem_lower, mem_upper;
+  uint32_t boot_device;
+  char* cmdline;
+  PMODULE mods;
+  size_t mmap_length;
+  char* mmap_addr;
+  char* boot_loader_name;
+  uintptr_t kernel, stack, stack_top, data, data_top, bss, bss_top, modules,
+      modules_top;
 } GRUBDATA, *PGRUBDATA;
 
 extern GRUBDATA kernel_data;

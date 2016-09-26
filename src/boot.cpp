@@ -22,12 +22,12 @@
 #include "process.hpp"
 
 void __attribute__((noreturn)) main() {
-	static_init();
-	clrscr();
-	Memory::init();
-	SMP::init();
-	Interrupts::init();
-	ModuleManager::init();
-	ProcessManager::getManager();
-	process_loop();
+  static_init();
+  clrscr();
+  Memory::init();
+  SMP::init();
+  Interrupts::init();
+  ModuleManager::init();
+  ProcessManager::getManager();
+  process_loop();
 }

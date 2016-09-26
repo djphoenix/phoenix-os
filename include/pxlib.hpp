@@ -18,57 +18,74 @@
 #include <stdarg.h>
 #include <stdint.h>
 
-#define MAX(a,b) ({ __typeof__ (a) _a = (a); __typeof__ (b) _b = (b); _a > _b ? _a : _b; })
-#define MIN(a,b) ({ __typeof__ (a) _a = (a); __typeof__ (b) _b = (b); _a < _b ? _a : _b; })
-#define ABS(a)   ({ __typeof__ (a) _a = (a); _a > 0 ? _a : -_a; })
+#define MAX(a, b) ({ \
+  __typeof__(a) _a = (a); \
+  __typeof__(b) _b = (b); \
+  _a > _b ? _a : _b; \
+})
+#define MIN(a, b) ({ \
+  __typeof__(a) _a = (a); \
+  __typeof__(b) _b = (b); \
+  _a < _b ? _a : _b; \
+})
+#define ABS(a)   ({ \
+  __typeof__(a) _a = (a); \
+  _a > 0 ? _a : -_a; \
+})
 #define INTR_DISABLE_PUSH() asm volatile("pushfq; cli")
 #define INTR_DISABLE_POP() asm volatile("popfq")
 
 class Mutex {
-private:
-	bool state;
-public:
-	Mutex() {
-		state = 0;
-	}
-	void lock();
-	void release();
+ private:
+  bool state;
+ public:
+  Mutex() {
+    state = 0;
+  }
+  void lock();
+  void release();
 };
 
 typedef uint64_t _uint64;
 typedef uint64_t size_t;
 
 extern "C" {
-	extern size_t itoa(uint64_t value, char * str, uint8_t base = 10);
-	extern size_t printf(const char *fmt, ...);
-	extern size_t vprintf(const char *fmt, va_list args);
-	
-	extern void clrscr();
-	extern size_t strlen(const char*,size_t limit=-1);
-	extern char* strcpy(const char*);
-	extern bool strcmp(const char*,char*);
-	extern void static_init();
-	uint8_t __inline inportb(uint16_t port){
-		uint8_t c; asm volatile("inb %w1, %b0":"=a"(c):"d"(port)); return c;
-	}
-	uint16_t __inline inports(uint16_t port){
-		uint16_t c; asm volatile("inw %w1, %w0":"=a"(c):"d"(port)); return c;
-	}
-	uint32_t __inline inportl(uint16_t port){
-		uint32_t c; asm volatile("inl %w1, %d0":"=a"(c):"d"(port)); return c;
-	}
-	void __inline outportb(uint16_t port, uint8_t c){
-		asm volatile("outb %b0, %w1"::"a"(c),"d"(port));
-	}
-	void __inline outports(uint16_t port, uint16_t c){
-		asm volatile("outw %w0, %w1"::"a"(c),"d"(port));
-	}
-	void __inline outportl(uint16_t port, uint32_t c){
-		asm volatile("outl %d0, %w1"::"a"(c),"d"(port));
-	}
-	uint64_t __inline rdtsc() {
-		uint32_t eax, edx;
-		asm volatile("rdtsc":"=a"(eax),"=d"(edx));
-		return (((uint64_t)edx << 32) | eax);
-	}
+  extern size_t itoa(uint64_t value, char * str, uint8_t base = 10);
+  extern size_t printf(const char *fmt, ...);
+  extern size_t vprintf(const char *fmt, va_list args);
+
+  extern void clrscr();
+  extern size_t strlen(const char*, size_t limit = -1);
+  extern char* strcpy(const char*);
+  extern bool strcmp(const char*, char*);
+  extern void static_init();
+  uint8_t __inline inportb(uint16_t port) {
+    uint8_t c;
+    asm volatile("inb %w1, %b0":"=a"(c):"d"(port));
+    return c;
+  }
+  uint16_t __inline inports(uint16_t port) {
+    uint16_t c;
+    asm volatile("inw %w1, %w0":"=a"(c):"d"(port));
+    return c;
+  }
+  uint32_t __inline inportl(uint16_t port) {
+    uint32_t c;
+    asm volatile("inl %w1, %d0":"=a"(c):"d"(port));
+    return c;
+  }
+  void __inline outportb(uint16_t port, uint8_t c) {
+    asm volatile("outb %b0, %w1"::"a"(c), "d"(port));
+  }
+  void __inline outports(uint16_t port, uint16_t c) {
+    asm volatile("outw %w0, %w1"::"a"(c), "d"(port));
+  }
+  void __inline outportl(uint16_t port, uint32_t c) {
+    asm volatile("outl %d0, %w1"::"a"(c), "d"(port));
+  }
+  uint64_t __inline rdtsc() {
+    uint32_t eax, edx;
+    asm volatile("rdtsc":"=a"(eax), "=d"(edx));
+    return (((uint64_t)edx << 32) | eax);
+  }
 }

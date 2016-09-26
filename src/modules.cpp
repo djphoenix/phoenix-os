@@ -17,119 +17,115 @@
 #include "modules.hpp"
 #include "readelf.hpp"
 
-bool ModuleManager::parseModuleInfo(MODULEINFO *info, Process &process) {
-	struct {
-		uintptr_t entry, name, version, desc, reqs, dev;
-	} symbols = {
-		process.getSymbolByName("module"),
-		process.getSymbolByName("module_name"),
-		process.getSymbolByName("module_version"),
-		process.getSymbolByName("module_description"),
-		process.getSymbolByName("module_requirements"),
-		process.getSymbolByName("module_developer")
-	};
-	MODULEINFO mod = {0, 0, 0, 0, 0};
-	if ((symbols.entry == 0) ||
-		(symbols.name == 0) ||
-		(symbols.version == 0) ||
-		(symbols.desc == 0) ||
-		(symbols.reqs == 0) ||
-		(symbols.dev == 0))
-		return false;
+bool ModuleManager::parseModuleInfo(MODULEINFO *info, Process *process) {
+  struct {
+    uintptr_t entry, name, version, desc, reqs, dev;
+  } symbols = { process->getSymbolByName("module"), process->getSymbolByName(
+      "module_name"),
+                process->getSymbolByName("module_version"), process
+                    ->getSymbolByName("module_description"),
+                process->getSymbolByName("module_requirements"), process
+                    ->getSymbolByName("module_developer") };
+  MODULEINFO mod = { 0, 0, 0, 0, 0 };
+  if ((symbols.entry == 0) || (symbols.name == 0) || (symbols.version == 0)
+      || (symbols.desc == 0) || (symbols.reqs == 0) || (symbols.dev == 0))
+    return false;
 
-	process.readData(&symbols.name, symbols.name, sizeof(uintptr_t));
-	process.readData(&symbols.version, symbols.version, sizeof(uintptr_t));
-	process.readData(&symbols.desc, symbols.desc, sizeof(uintptr_t));
-	process.readData(&symbols.reqs, symbols.reqs, sizeof(uintptr_t));
-	process.readData(&symbols.dev, symbols.dev, sizeof(uintptr_t));
+  process->readData(&symbols.name, symbols.name, sizeof(uintptr_t));
+  process->readData(&symbols.version, symbols.version, sizeof(uintptr_t));
+  process->readData(&symbols.desc, symbols.desc, sizeof(uintptr_t));
+  process->readData(&symbols.reqs, symbols.reqs, sizeof(uintptr_t));
+  process->readData(&symbols.dev, symbols.dev, sizeof(uintptr_t));
 
-	if ((symbols.entry == 0) ||
-		(symbols.name == 0) ||
-		(symbols.version == 0) ||
-		(symbols.desc == 0) ||
-		(symbols.reqs == 0) ||
-		(symbols.dev == 0))
-		return false;
+  if ((symbols.entry == 0) || (symbols.name == 0) || (symbols.version == 0)
+      || (symbols.desc == 0) || (symbols.reqs == 0) || (symbols.dev == 0))
+    return false;
 
-	process.setEntryAddress(symbols.entry);
-	
-	mod.name = process.readString(symbols.name);
-	mod.version = process.readString(symbols.version);
-	mod.description = process.readString(symbols.desc);
-	mod.requirements = process.readString(symbols.reqs);
-	mod.developer = process.readString(symbols.dev);
+  process->setEntryAddress(symbols.entry);
 
-	*info = mod;
-	
-	return true;
+  mod.name = process->readString(symbols.name);
+  mod.version = process->readString(symbols.version);
+  mod.description = process->readString(symbols.desc);
+  mod.requirements = process->readString(symbols.reqs);
+  mod.developer = process->readString(symbols.dev);
+
+  *info = mod;
+
+  return true;
 }
 
 ModuleManager* ModuleManager::manager = 0;
 void ModuleManager::loadStream(Stream *stream, bool start) {
-	Stream *sub = stream;
-	size_t size;
-	MODULEINFO mod;
-parse:
-	mod = {0, 0, 0, 0, 0};
-	Process *process = new Process();
-	size = readelf(process, sub);
-	if (size == 0) {
-		delete process;
-		goto end;
-	}
-	if (!parseModuleInfo(&mod, *process)) {
-		delete process;
-		goto end;
-	}
-	if (mod.name) Memory::free(mod.name);
-	if (mod.version) Memory::free(mod.version);
-	if (mod.description) Memory::free(mod.description);
-	if (mod.requirements) Memory::free(mod.requirements);
-	if (mod.developer) Memory::free(mod.developer);
-	if (start) process->startup();
-	sub->seek(size, -1);
-	if (!stream->eof()) {
-		Stream *_sub = sub->substream();
-		if (sub != stream)
-			delete sub;
-		sub = _sub;
-		goto parse;
-	}
-end:
-	if (sub != stream)
-		delete sub;
+  Stream *sub = stream;
+  size_t size;
+  MODULEINFO mod;
+  parse: mod = {0, 0, 0, 0, 0};
+  Process *process = new Process();
+  size = readelf(process, sub);
+  if (size == 0) {
+    delete process;
+    goto end;
+  }
+  if (!parseModuleInfo(&mod, process)) {
+    delete process;
+    goto end;
+  }
+  if (mod.name)
+    Memory::free(mod.name);
+  if (mod.version)
+    Memory::free(mod.version);
+  if (mod.description)
+    Memory::free(mod.description);
+  if (mod.requirements)
+    Memory::free(mod.requirements);
+  if (mod.developer)
+    Memory::free(mod.developer);
+  if (start)
+    process->startup();
+  sub->seek(size, -1);
+  if (!stream->eof()) {
+    Stream *_sub = sub->substream();
+    if (sub != stream)
+      delete sub;
+    sub = _sub;
+    goto parse;
+  }
+  end: if (sub != stream)
+    delete sub;
 }
 void ModuleManager::parseInternal() {
-	if((kernel_data.modules != 0) &&
-	   (kernel_data.modules != kernel_data.modules_top)) {
-		Stream *ms = new MemoryStream((void*)kernel_data.modules,
-									  kernel_data.modules_top-kernel_data.modules);
-		loadStream(ms, 1);
-		delete ms;
-	}
+  if ((kernel_data.modules != 0) && (kernel_data.modules
+      != kernel_data.modules_top)) {
+    Stream *ms = new MemoryStream(
+        (void*)kernel_data.modules,
+        kernel_data.modules_top - kernel_data.modules);
+    loadStream(ms, 1);
+    delete ms;
+  }
 }
 void ModuleManager::parseInitRD() {
-	if(kernel_data.mods != 0) {
-		PMODULE mod = kernel_data.mods;
-		while(mod != 0) {
-			Stream *ms = new MemoryStream((void*)mod->start,
-										  ((_uint64)mod->end)-((_uint64)mod->start));
-			loadStream(ms, 1);
-			mod = (PMODULE)mod->next;
-			delete ms;
-		}
-	}
+  if (kernel_data.mods != 0) {
+    PMODULE mod = kernel_data.mods;
+    while (mod != 0) {
+      Stream *ms = new MemoryStream(
+          (void*)mod->start, ((_uint64)mod->end) - ((_uint64)mod->start));
+      loadStream(ms, 1);
+      mod = (PMODULE)mod->next;
+      delete ms;
+    }
+  }
 }
 void ModuleManager::init() {
-	ModuleManager *mm = getManager();
-	mm->parseInternal();
-	mm->parseInitRD();
+  ModuleManager *mm = getManager();
+  mm->parseInternal();
+  mm->parseInitRD();
 }
 Mutex moduleManagerMutex = Mutex();
 ModuleManager* ModuleManager::getManager() {
-	moduleManagerMutex.lock();
-	if (!manager) manager = new ModuleManager();
-	moduleManagerMutex.release();
-	return manager;
+  moduleManagerMutex.lock();
+  if (!manager)
+    manager = new ModuleManager();
+  moduleManagerMutex.release();
+  return manager;
 }
 ModuleManager::ModuleManager() {}
