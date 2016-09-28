@@ -65,31 +65,31 @@ extern "C" {
   char* strdup(const char*);
   bool strcmp(const char*, char*);
   void static_init();
-  uint8_t __inline inportb(uint16_t port) {
+  inline static uint8_t inportb(uint16_t port) {
     uint8_t c;
     asm volatile("inb %w1, %b0":"=a"(c):"d"(port));
     return c;
   }
-  uint16_t __inline inports(uint16_t port) {
+  inline static uint16_t inports(uint16_t port) {
     uint16_t c;
     asm volatile("inw %w1, %w0":"=a"(c):"d"(port));
     return c;
   }
-  uint32_t __inline inportl(uint16_t port) {
+  inline static uint32_t inportl(uint16_t port) {
     uint32_t c;
     asm volatile("inl %w1, %d0":"=a"(c):"d"(port));
     return c;
   }
-  void __inline outportb(uint16_t port, uint8_t c) {
+  inline static void outportb(uint16_t port, uint8_t c) {
     asm volatile("outb %b0, %w1"::"a"(c), "d"(port));
   }
-  void __inline outports(uint16_t port, uint16_t c) {
+  inline static void outports(uint16_t port, uint16_t c) {
     asm volatile("outw %w0, %w1"::"a"(c), "d"(port));
   }
-  void __inline outportl(uint16_t port, uint32_t c) {
+  inline static void outportl(uint16_t port, uint32_t c) {
     asm volatile("outl %d0, %w1"::"a"(c), "d"(port));
   }
-  uint64_t __inline rdtsc() {
+  inline static uint64_t rdtsc() {
     uint32_t eax, edx;
     asm volatile("rdtsc":"=a"(eax), "=d"(edx));
     return (((uint64_t)edx << 32) | eax);
