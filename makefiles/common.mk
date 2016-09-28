@@ -4,7 +4,7 @@ CFLAGS := -g -m64
 CFLAGS += -nostdlib -std=c++11
 CFLAGS += -O2 -Wno-multichar -Wall
 CFLAGS += -ffreestanding -fno-exceptions -fno-rtti
-CFLAGS += -ffunction-sections -fdata-sections
+CFLAGS += -ffunction-sections -fdata-sections -fPIC
 CFLAGS += $(patsubst %,-I%,$(INCLUDES))
 
 ODIR=.output
