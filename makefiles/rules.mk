@@ -6,7 +6,7 @@ sinclude $(DEPS)
 $(BIN).elf: $(OBJECTS) $(OOBJDIR)/modules-linked.o
 	@ mkdir -p $(dir $@)
 	@ echo LD $(subst $(OIMGDIR)/,,$@)
-	@ $(LD) -T ld.script -belf64-x86-64 -o $@ -g --nostdlib $^
+	@ $(CC) $(CFLAGS) -Tld.script -o $@ -Wl,--start-group $^ -Wl,--end-group
 
 $(BIN).elf.strip: $(BIN).elf
 	@ $(STRIP) -o $@ $^
@@ -18,7 +18,7 @@ $(BIN): $(BIN).elf.strip
 
 $(OOBJDIR)/%.d: $(SRCDIR)/%.cpp
 	@ mkdir -p $(dir $@)
-	@ $(CC) $(CFLAGS) -MM -MT $(call SRCOBJ,$^) $^ -o $@
+	@ $(CC) $(CFLAGS) -MM -MT $(call SRCOBJ,$^) -c $^ -o $@
 
 $(OOBJDIR)/%.d: $(SRCDIR)/%.s
 	@ mkdir -p $(dir $@)
@@ -27,7 +27,7 @@ $(OOBJDIR)/%.d: $(SRCDIR)/%.s
 $(OOBJDIR)/%.o: $(SRCDIR)/%.cpp
 	@ mkdir -p $(dir $@)
 	@ echo CC $<
-	@ $(CC) $(CFLAGS) $< -o $@
+	@ $(CC) $(CFLAGS) -c $< -o $@
 
 $(OOBJDIR)/%.o: $(SRCDIR)/%.s
 	@ mkdir -p $(dir $@)
@@ -37,7 +37,7 @@ $(OOBJDIR)/%.o: $(SRCDIR)/%.s
 $(OMODDIR)/%.o: $(OOBJDIR)/mod_%.o
 	@ mkdir -p $(dir $@)
 	@ echo MODLD $(@:$(OMODDIR)/%.o=%)
-	@ $(LD) -T ld-mod.script -r -belf64-x86-64 -o $@ -s --nostdlib $^
+	@ $(CC) $(CFLAGS) -Tld-mod.script -r -o $@ -s $^
 
 $(OOBJDIR)/modules-linked.o: $(MODOBJS)
 	@ mkdir -p $(dir $@)

@@ -1,6 +1,6 @@
 INCLUDES := include
 
-CFLAGS := -c -g -m64
+CFLAGS := -g -m64
 CFLAGS += -nostdlib -std=c++11
 CFLAGS += -O2 -Wno-multichar -Wall
 CFLAGS += -ffreestanding -fno-exceptions -fno-rtti

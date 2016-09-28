@@ -12,5 +12,5 @@ MODSRCS := $$(MODSRCS) $$(MOD_$(1)_SRCS)
 $$(OOBJDIR)/mod_$(1).o: $$(MOD_$(1)_SRCS)
 	@ mkdir -p $$(dir $$@)
 	@ echo MODCC $(1)
-	@ $$(CC) $$(CFLAGS) $$^ -o $$@
+	@ $$(CC) $$(CFLAGS) -c $$^ -o $$@
 endef

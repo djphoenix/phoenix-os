@@ -11,9 +11,7 @@ else
   endif
 endif
 
-CC=$(PREFIX)gcc
-LD=$(PREFIX)ld
-AS=$(PREFIX)as
+CC=$(PREFIX)g++
 OBJCOPY=$(PREFIX)objcopy
 STRIP=$(PREFIX)strip
 
@@ -27,4 +25,8 @@ ifneq ($(shell which cpplint),)
 	LINT=$(shell which cpplint) --quiet
 else
 	LINT=sh -c "echo No lint found"
+endif
+
+ifeq ($(shell which $(MKISOFS)),)
+	MKISOFS := sh -c "echo MKISOFS unavailable"
 endif
