@@ -51,6 +51,15 @@ void putc(const char c) {
   }
 }
 
+void puts(const char *str) {
+  INTR_DISABLE_PUSH();
+  display_lock.lock();
+  while (*str != 0)
+    putc(*(str++));
+  display_lock.release();
+  INTR_DISABLE_POP();
+}
+
 size_t itoa(uint64_t value, char * str, uint8_t base) {
   char * ptr;
   char * low;
@@ -129,12 +138,11 @@ static char *longlong_to_hexstring(char *buf, uint64_t u, size_t len,
 #define OUTPUT_CHAR(c) do {\
   char _c = c; \
   if (_c == 0) goto done; \
-  putc(_c); \
+  if (chars_written < size) str[chars_written] = _c; \
+  chars_written++; \
 } while (0)
 
-size_t vprintf(const char *fmt, va_list ap) {
-  INTR_DISABLE_PUSH();
-  display_lock.lock();
+int vsnprintf(char *str, size_t size, const char *format, va_list ap) {
   char c;
   unsigned char uc;
   const char *s;
@@ -145,7 +153,7 @@ size_t vprintf(const char *fmt, va_list ap) {
   size_t chars_written = 0;
   char num_buffer[32];
   for (;;) {
-    while ((c = *fmt++) != 0) {
+    while ((c = *format++) != 0) {
       if (c == '%')
         break;
       OUTPUT_CHAR(c);
@@ -154,7 +162,7 @@ size_t vprintf(const char *fmt, va_list ap) {
       break;
     flags = 0;
     format_num = 0;
-    next_format: c = *fmt++;
+    next_format: c = *format++;
     if (c == 0)
       break;
 
@@ -231,8 +239,7 @@ size_t vprintf(const char *fmt, va_list ap) {
       case 'X':
         flags |= CAPSFLAG;
         /* @suppress("No break at end of case") */
-      hex:
-      case 'x':
+        hex: case 'x':
         n = (flags & LONGLONGFLAG) ? va_arg(ap, uint64_t) :
             (flags & LONGFLAG) ? va_arg(ap, uint32_t) :
             (flags & HALFHALFFLAG) ? (uint8_t)va_arg(ap, uint32_t) :
@@ -283,15 +290,31 @@ size_t vprintf(const char *fmt, va_list ap) {
     }
     continue;
   }
-  done: display_lock.release();
-  INTR_DISABLE_POP();
-  return chars_written;
+  done: return chars_written;
 }
 
-size_t printf(const char *fmt, ...) {
+int vprintf(const char *format, va_list ap) {
+  va_list tmp;
+  va_copy(tmp, ap);
+  int len = vsnprintf(0, 0, format, tmp);
+  char buf[len + 1];
+  len = vsnprintf(buf, len, format, ap);
+  buf[len] = 0;
+  puts(buf);
+  return len;
+}
+
+int printf(const char *format, ...) {
   va_list args;
-  va_start(args, fmt);
-  int len = vprintf(fmt, args);
+  va_start(args, format);
+  int len = vprintf(format, args);
+  va_end(args);
+  return len;
+}
+int snprintf(char *str, size_t size, const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  int len = vsnprintf(str, size, format, args);
   va_end(args);
   return len;
 }
@@ -305,7 +328,7 @@ size_t strlen(const char* c, size_t limit) {
   return 0;
 }
 
-char* strcpy(const char* c) {
+char* strdup(const char* c) {
   size_t len = strlen(c);
   char* r = (char*)Memory::alloc(len + 1);
   Memory::copy(r, (void*)c, len);

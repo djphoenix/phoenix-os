@@ -51,14 +51,20 @@ typedef uint64_t size_t;
 
 extern "C" {
   extern size_t itoa(uint64_t value, char * str, uint8_t base = 10);
-  extern size_t printf(const char *fmt, ...);
-  extern size_t vprintf(const char *fmt, va_list args);
 
-  extern void clrscr();
-  extern size_t strlen(const char*, size_t limit = -1);
-  extern char* strcpy(const char*);
-  extern bool strcmp(const char*, char*);
-  extern void static_init();
+  void puts(const char *str);
+
+  int printf(const char *format, ...);
+  int snprintf(char *str, size_t size, const char *format, ...);
+
+  int vprintf(const char *format, va_list ap);
+  int vsnprintf(char *str, size_t size, const char *format, va_list ap);
+
+  void clrscr();
+  size_t strlen(const char*, size_t limit = -1);
+  char* strdup(const char*);
+  bool strcmp(const char*, char*);
+  void static_init();
   uint8_t __inline inportb(uint16_t port) {
     uint8_t c;
     asm volatile("inb %w1, %b0":"=a"(c):"d"(port));
