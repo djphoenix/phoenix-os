@@ -18,33 +18,21 @@
 OUTPUT_FORMAT(elf64-x86-64)
 SECTIONS
 {
-  .text BLOCK(1) : ALIGN(1)
-  {
-    *(.init)
-    *(.text)
-    *(SORT(.text$*))
-     *(.text.*)
-     *(.gnu.linkonce.t.*)
-     *(.fini)
-  }
-  .data BLOCK(1) : ALIGN(1)
-  {
-	KEEP (*(.init_array*))
-    *(.data)
-    *(SORT(.data$*))
-    *(.xdata.startup)
-    *(.xdata)
-    *(.pdata.startup)
-    *(.pdata)
-    *(.rodata*)
-    *(.rdata)
-    *(SORT(.rdata$*))
-	*(.data.*)
-  }
-  .bss BLOCK(1) : ALIGN(1)
-  {
-    *(.bss)
-    *(COMMON)
-  }
-  /DISCARD/ : { *(.comment) *(.eh_frame) }
+    .text BLOCK(1) : ALIGN(1) {
+        *(.init)
+        *(.text .text.*)
+        *(.gnu.linkonce.t.*)
+        *(.fini)
+    }
+    .data BLOCK(1) : ALIGN(1) {
+        *(.init_array*)
+        *(.rodata .rodata.* .rdata .rdata.*)
+        *(.data .data.*)
+        *(.xdata .xdata.* .pdata .pdata.*)
+    }
+    .bss BLOCK(1) : ALIGN(1) {
+        *(.bss .bss.*)
+        *(COMMON)
+    }
+    /DISCARD/ : { *(.comment) *(.eh_frame) }
 }
