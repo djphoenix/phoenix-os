@@ -203,7 +203,7 @@ size_t vprintf(const char *fmt, va_list ap) {
         goto next_format;
       case 'D':
         flags |= LONGFLAG;
-        /* fallthrough */
+        /* @suppress("No break at end of case") */
       case 'i':
       case 'd':
         n = (flags & LONGLONGFLAG) ? va_arg(ap, int64_t) :
@@ -216,7 +216,7 @@ size_t vprintf(const char *fmt, va_list ap) {
         goto _output_string;
       case 'U':
         flags |= LONGFLAG;
-        /* fallthrough */
+        /* @suppress("No break at end of case") */
       case 'u':
         n = (flags & LONGLONGFLAG) ? va_arg(ap, uint64_t) :
             (flags & LONGFLAG) ? va_arg(ap, uint32_t) :
@@ -230,8 +230,9 @@ size_t vprintf(const char *fmt, va_list ap) {
         goto hex;
       case 'X':
         flags |= CAPSFLAG;
-        /* fallthrough */
-        hex: case 'x':
+        /* @suppress("No break at end of case") */
+      hex:
+      case 'x':
         n = (flags & LONGLONGFLAG) ? va_arg(ap, uint64_t) :
             (flags & LONGFLAG) ? va_arg(ap, uint32_t) :
             (flags & HALFHALFFLAG) ? (uint8_t)va_arg(ap, uint32_t) :
