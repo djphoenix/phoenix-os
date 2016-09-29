@@ -196,6 +196,10 @@ x64_entry:
 __main: # Fix for Windows builds
   ret
 
+  .data
+dummy:
+  .long 0
+
 aNoMultiboot: .ascii "This kernel can boot only from multiboot-compatible bootloader\0"
 aNoLongMode: .ascii "Your CPU are not support x86_64 mode\0"
 aNoCPUID: .ascii "Your CPU are not support CPUID instruction\0"
@@ -214,3 +218,8 @@ GDT64.Code:
 GDT64.Data:
   .long 0, 0x00009200
 GDT64.End:
+
+  .section .reloc, "a"
+  .long 0
+  .long 10
+  .word 0
