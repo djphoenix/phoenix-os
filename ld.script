@@ -17,12 +17,15 @@
 
 OUTPUT_FORMAT(elf64-x86-64)
 ENTRY(_efi_start)
+
+PROVIDE(__stack_start__ = 0x1000);
+PROVIDE(__stack_end__ = 0x2000);
+PROVIDE(__first_page__ = 0x2000);
+PROVIDE(__pagetable__ = 0x20000);
+
 SECTIONS
 {
-    __stack_start__ = 0x1000;
-    __stack_end__ = 0x2000;
-    __first_page__ = 0x2000;
-    __pagetable__ = 0x20000;
+    .reloc 0x400FE0 : ALIGN(1) {}
     .text 0x401000 : ALIGN(1) {
         __text_start__ = . ;
         *(.text32)
