@@ -52,7 +52,7 @@ SECTIONS
         __data_start__ = . ;
         *(.rodata .rodata.*)
         *(.data .data.*)
-        *(.got.plt)
+        *(.got .got.*)
         __data_end__ = . ;
 
         __modules_start__ = . ;
