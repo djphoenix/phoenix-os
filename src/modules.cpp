@@ -122,6 +122,7 @@ void ModuleManager::init() {
 }
 Mutex moduleManagerMutex = Mutex();
 ModuleManager* ModuleManager::getManager() {
+  if (manager) return manager;
   moduleManagerMutex.lock();
   if (!manager)
     manager = new ModuleManager();

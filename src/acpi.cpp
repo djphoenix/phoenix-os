@@ -27,6 +27,7 @@ static const uint32_t ACPI_SIG_CIPA = 0x43495041;
 Mutex controllerMutex = Mutex();
 
 ACPI* ACPI::getController() {
+  if (controller) return controller;
   uint64_t t = EnterCritical();
   controllerMutex.lock();
   if (!controller)

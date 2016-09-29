@@ -34,6 +34,7 @@ void __attribute__((noreturn)) _loop() {
 ProcessManager* ProcessManager::manager = 0;
 Mutex managerMutex = Mutex();
 ProcessManager* ProcessManager::getManager() {
+  if (manager) return manager;
   uint64_t t = EnterCritical();
   managerMutex.lock();
   if (!manager)
