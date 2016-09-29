@@ -320,12 +320,9 @@ int snprintf(char *str, size_t size, const char *format, ...) {
 }
 
 size_t strlen(const char* c, size_t limit) {
-  for (size_t i = 0; i < limit; i++) {
-    if (c[i] == 0) {
-      return i;
-    }
-  }
-  return 0;
+  const char *e = c;
+  while ((*e++) != 0) {}
+  return e - c - 1;
 }
 
 char* strdup(const char* c) {
