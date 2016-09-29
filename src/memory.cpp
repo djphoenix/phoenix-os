@@ -17,7 +17,7 @@
 #include "memory.hpp"
 PGRUB grub_data;
 
-static const _uint64 KBTS4 = 0xFFFFFFFFFFFFF000;
+static const uint64_t KBTS4 = 0xFFFFFFFFFFFFF000;
 
 extern "C" {
   extern void *__first_page__;
@@ -106,7 +106,7 @@ void Memory::init() {
   int32_t cmdlinel = 0;
   if (((kernel_data.flags & 4) == 4) && (grub_data->pcmdline != 0)) {
     char* c = (char*)((uintptr_t)grub_data->pcmdline & 0xFFFFFFFF);
-    if ((_uint64)c < 0x100000)
+    if ((uint64_t)c < 0x100000)
       c = (char*)((uintptr_t)c + 0x100000);
     int i = 0;
     while ((c[i] != 0) && (i < 255)) {
@@ -243,9 +243,9 @@ void Memory::map() {
   INTR_DISABLE_PUSH();
   page_mutex.lock();
   clrscr();
-  _uint64 i;
+  uint64_t i;
   char c = 0, nc = 0;
-  _uint64 start = 0;
+  uint64_t start = 0;
   for (i = 0; i < 0xFFFFF000; i += 0x1000) {
     PPTE page = get_page((void*)i);
     nc = !page ? 0 : page->flags;
@@ -333,7 +333,7 @@ void* Memory::_palloc(uint8_t avl, bool nolow) {
   }
   page[i & 0x1FF] = PTE_MAKE_AVL(addr, avl, 3);
   for (i = 0; i < 0x200; i++)
-    ((_uint64*)addr)[i] = 0;
+    ((uint64_t*)addr)[i] = 0;
   return addr;
 }
 void* Memory::palloc(uint8_t avl) {

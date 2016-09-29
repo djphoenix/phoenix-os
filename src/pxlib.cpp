@@ -22,19 +22,19 @@ void clrscr() {
   display_lock.lock();
   display = (char*)0xB8FA0;
   while (display != (char*)0xB8000)
-    ((_uint64*)(display -= 8))[0] = 0x0F000F000F000F00;
+    ((uint64_t*)(display -= 8))[0] = 0x0F000F000F000F00;
   display_lock.release();
 }
 void putc(const char c) {
   if (c == 0)
     return;
   if (c == 10) {
-    display += 160 - (((_uint64)display - 0xB8000) % 160);
+    display += 160 - (((uint64_t)display - 0xB8000) % 160);
   } else if (c == 9) {
     do {
       display[0] = ' ';
       display += 2;
-    } while ((_uint64)display % 8 != 0);
+    } while ((uint64_t)display % 8 != 0);
   } else {
     display[0] = c;
     display += 2;
@@ -42,12 +42,12 @@ void putc(const char c) {
   if (display >= (char*)0xB8FA0) {
     display = (char*)0xB8000;
     while (display != (char*)0xB8F00) {
-      ((_uint64*)(display))[0] = ((_uint64*)(display + 160))[0];
+      ((uint64_t*)(display))[0] = ((uint64_t*)(display + 160))[0];
       display += 8;
     }
     display = (char*)0xB8FA0;
     while (display != (char*)0xB8F00)
-      ((_uint64*)(display -= 8))[0] = 0x0F000F000F000F00;
+      ((uint64_t*)(display -= 8))[0] = 0x0F000F000F000F00;
   }
 }
 
@@ -281,7 +281,7 @@ int vsnprintf(char *str, size_t size, const char *format, va_list ap) {
       for (; format_num > count; format_num--)
         OUTPUT_CHAR(' ');
     } else {
-      _uint64 string_len = strlen(s);
+      uint64_t string_len = strlen(s);
       char outchar = (flags & LEADZEROFLAG) ? '0' : ' ';
       for (; format_num > string_len; format_num--)
         OUTPUT_CHAR(outchar);

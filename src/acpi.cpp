@@ -84,8 +84,8 @@ void ACPI::ParseRsdt(AcpiHeader *rsdt) {
 
   while (p < end) {
     Memory::salloc(p);
-    Memory::salloc((_uint64*)p + 1);
-    _uint64 address = (_uint64)((uint32_t)(*p++) & 0xFFFFFFFF);
+    Memory::salloc((uint64_t*)p + 1);
+    uint64_t address = (uint64_t)((uint32_t)(*p++) & 0xFFFFFFFF);
     ParseDT((AcpiHeader *)(uintptr_t)address);
   }
 }
@@ -96,7 +96,7 @@ void ACPI::ParseXsdt(AcpiHeader *xsdt) {
 
   while (p < end) {
     Memory::salloc(p);
-    Memory::salloc((_uint64*)p + 1);
+    Memory::salloc((uint64_t*)p + 1);
     uint64_t address = *p++;
     ParseDT((AcpiHeader *)(uintptr_t)address);
   }
@@ -152,17 +152,17 @@ bool ACPI::ParseRsdp(char *p) {
   Memory::salloc((int *)(p + 16) + 1);
   if (revision == 0) {
     int rsdtAddr = *(int *)(p + 16);
-    ParseRsdt((AcpiHeader *)(uintptr_t)((_uint64)rsdtAddr & 0xFFFFFFFF));
+    ParseRsdt((AcpiHeader *)(uintptr_t)((uint64_t)rsdtAddr & 0xFFFFFFFF));
   } else if (revision == 2) {
     int rsdtAddr = *(int *)(p + 16);
-    Memory::salloc((_uint64 *)(p + 24));
-    Memory::salloc((_uint64 *)(p + 24) + 1);
-    _uint64 xsdtAddr = *(_uint64 *)(p + 24);
+    Memory::salloc((uint64_t *)(p + 24));
+    Memory::salloc((uint64_t *)(p + 24) + 1);
+    uint64_t xsdtAddr = *(uint64_t *)(p + 24);
 
     if (xsdtAddr)
       ParseXsdt((AcpiHeader *)(uintptr_t)xsdtAddr);
     else
-      ParseRsdt((AcpiHeader *)(uintptr_t)((_uint64)rsdtAddr & 0xFFFFFFFF));
+      ParseRsdt((AcpiHeader *)(uintptr_t)((uint64_t)rsdtAddr & 0xFFFFFFFF));
   }
 
   return true;
@@ -257,7 +257,7 @@ void ACPI::activateCPU() {
 
   LapicOut(LAPIC_SPURIOUS, 0x27 | LAPIC_SW_ENABLE);
 
-  _uint64 c = (ACPI::busfreq / 1000) >> 4;
+  uint64_t c = (ACPI::busfreq / 1000) >> 4;
   if (c < 0x10)
     c = 0x10;
 

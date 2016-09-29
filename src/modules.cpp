@@ -108,7 +108,7 @@ void ModuleManager::parseInitRD() {
     PMODULE mod = kernel_data.mods;
     while (mod != 0) {
       Stream *ms = new MemoryStream(
-          (void*)mod->start, ((_uint64)mod->end) - ((_uint64)mod->start));
+          (void*)mod->start, ((uint64_t)mod->end) - ((uint64_t)mod->start));
       loadStream(ms, 1);
       mod = (PMODULE)mod->next;
       delete ms;

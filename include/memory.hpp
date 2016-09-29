@@ -95,7 +95,7 @@ class Memory {
   static PPTE pagetable;
   static PALLOCTABLE allocs;
   static void* first_free;
-  static _uint64 last_page;
+  static uint64_t last_page;
   static GRUBMODULE modules[256];
   static PPTE
   get_page(void* base_addr);
