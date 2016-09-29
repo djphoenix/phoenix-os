@@ -328,20 +328,13 @@ size_t strlen(const char* c, size_t limit) {
 char* strdup(const char* c) {
   size_t len = strlen(c);
   char* r = (char*)Memory::alloc(len + 1);
-  Memory::copy(r, (void*)c, len);
-  r[len] = 0;
+  Memory::copy(r, (void*)c, len + 1);
   return r;
 }
 
-bool strcmp(const char* a, char* b) {
-  int i = 0;
-  while (true) {
-    if (a[i] != b[i])
-      return false;
-    if (a[i] == 0)
-      return true;
-    i++;
-  }
+int strcmp(const char* a, char* b) {
+  while ((*a != 0) && (*b != 0) && (*a++) == (*b++)) {}
+  return *a - *b;
 }
 
 extern "C" {

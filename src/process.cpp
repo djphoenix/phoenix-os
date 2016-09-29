@@ -403,7 +403,7 @@ uintptr_t Process::getSymbolByName(const char* name) {
     return 0;
   size_t idx = 0;
   while (symbols[idx].ptr != 0 && symbols[idx].name != 0) {
-    if (strcmp(symbols[idx].name, (char*)name) == 1)
+    if (strcmp(symbols[idx].name, (char*)name) == 0)
       return symbols[idx].ptr;
     idx++;
   }
