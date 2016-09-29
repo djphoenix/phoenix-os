@@ -127,7 +127,7 @@ void SMP::init_gdt(uint32_t ncpu) {
   for (uint32_t idx = 0; idx < ncpu; idx++) {
     void *stack = Memory::palloc();
     uintptr_t stack_ptr = (uintptr_t)stack + 0x1000;
-    bzero(&tss[idx], sizeof(tss[idx]));
+    Memory::zero(&tss[idx], sizeof(tss[idx]));
     tss[idx].ist[0] = stack_ptr;
     gdtsys[idx] = gdt_sys_encode({
         (uintptr_t)&tss[idx], sizeof(TSS64_ENT), 0x9, 0, 0, 1, 0, 1, 0, 0 });

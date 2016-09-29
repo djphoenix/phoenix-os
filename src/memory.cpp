@@ -20,18 +20,18 @@ PGRUB grub_data;
 static const uint64_t KBTS4 = 0xFFFFFFFFFFFFF000;
 
 extern "C" {
-  extern void *__first_page__;
-  extern void *__pagetable__;
-  extern void *__stack_start__, *__stack_end__;
-  extern void *__text_start__, *__text_end__;
-  extern void *__data_start__, *__data_end__;
-  extern void *__modules_start__, *__modules_end__;
-  extern void *__bss_start__, *__bss_end__;
+  extern char __first_page__;
+  extern char __pagetable__;
+  extern char __stack_start__, __stack_end__;
+  extern char __text_start__, __text_end__;
+  extern char __data_start__, __data_end__;
+  extern char __modules_start__, __modules_end__;
+  extern char __bss_start__, __bss_end__;
 }
 
 PPTE Memory::pagetable = (PPTE)&__pagetable__;
 PALLOCTABLE Memory::allocs = 0;
-void* Memory::first_free = (void*)&__first_page__;
+void* Memory::first_free = &__first_page__;
 uintptr_t Memory::last_page = 1;
 Mutex Memory::page_mutex = Mutex();
 Mutex Memory::heap_mutex = Mutex();
@@ -518,14 +518,15 @@ void Memory::copy(void *dest, void *src, size_t count) {
 
 void Memory::zero(void *addr, size_t size) {
   fill(addr, 0, size);
-  // TODO: optimize zero-fill
 }
 
 void Memory::fill(void *addr, uint8_t value, size_t size) {
-  uint8_t* ptr = (uint8_t*)addr;
-  for (size_t off = 0; off < size; off++) {
-    ptr[off] = value;
-  }
+  asm volatile(
+      "mov %0, %%rdi;"
+      "cld;"
+      "rep stosb;"
+      ::"r"(addr),"a"(value),"c"(size):"rdi"
+  );
 }
 
 void* operator new(size_t a) {

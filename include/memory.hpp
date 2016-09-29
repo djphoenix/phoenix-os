@@ -117,13 +117,6 @@ class Memory {
   static void fill(void *addr, uint8_t value, size_t size);
 };
 
-inline static void bzero(void *addr, size_t size) {
-  Memory::zero(addr, size);
-}
-inline static void memset(void *addr, uint8_t value, size_t size) {
-  Memory::fill(addr, value, size);
-}
-
 inline static void MmioWrite32(void *p, uint32_t data) {
   Memory::salloc(p);
   *(volatile int *)(p) = data;
