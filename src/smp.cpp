@@ -157,7 +157,7 @@ void SMP::startup() {
 }
 
 extern "C" {
-  extern void *_smp_init, *_smp_end;
+  extern char _smp_init, _smp_end;
 }
 
 static inline void __msleep(uint64_t milliseconds) {
@@ -201,7 +201,7 @@ void SMP::init() {
     nullcpus--;
 
   char smp_init_vector = (((uintptr_t)smp_init_code) >> 12) & 0xFF;
-  size_t init_size = (char*)&_smp_end - (char*)&_smp_init;
+  size_t init_size = &_smp_end - &_smp_init;
   Memory::copy(smp_init_code, &_smp_init, init_size);
   smp_init_code += init_size / sizeof(*smp_init_code);
 
