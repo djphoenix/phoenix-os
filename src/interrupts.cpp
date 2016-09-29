@@ -357,7 +357,7 @@ void Interrupts::addCallback(uint8_t intr, intcb* cb) {
   reg->next = 0;
   reg->prev = 0;
 
-  INTR_DISABLE_PUSH();
+  uint64_t t = EnterCritical();
   callback_locks[intr].lock();
   intcbreg *last = callbacks[intr];
   if (last == 0) {
@@ -369,5 +369,5 @@ void Interrupts::addCallback(uint8_t intr, intcb* cb) {
     last->next = reg;
   }
   callback_locks[intr].release();
-  INTR_DISABLE_POP();
+  LeaveCritical(t);
 }

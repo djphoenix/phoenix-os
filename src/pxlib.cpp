@@ -52,12 +52,12 @@ void putc(const char c) {
 }
 
 void puts(const char *str) {
-  INTR_DISABLE_PUSH();
+  uint64_t t = EnterCritical();
   display_lock.lock();
   while (*str != 0)
     putc(*(str++));
   display_lock.release();
-  INTR_DISABLE_POP();
+  LeaveCritical(t);
 }
 
 size_t itoa(uint64_t value, char * str, uint8_t base) {

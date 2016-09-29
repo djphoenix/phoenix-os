@@ -240,7 +240,7 @@ void Memory::init() {
   }
 }
 void Memory::map() {
-  INTR_DISABLE_PUSH();
+  uint64_t t = EnterCritical();
   page_mutex.lock();
   clrscr();
   uint64_t i;
@@ -268,10 +268,10 @@ void Memory::map() {
   if (c != 0 && c != 'E')
     printf("%c: %016x - %016x\n", c, start, i);
   page_mutex.release();
-  INTR_DISABLE_POP();
+  LeaveCritical(t);
 }
 void* Memory::salloc(void* mem) {
-  INTR_DISABLE_PUSH();
+  uint64_t t = EnterCritical();
   page_mutex.lock();
   uintptr_t i = (uintptr_t)(mem) >> 12;
   void *addr = (void*)(i << 12);
@@ -292,7 +292,7 @@ void* Memory::salloc(void* mem) {
   PPTE page = (PPTE)PTE_GET_PTR(pte);
   page[i & 0x1FF] = PTE_MAKE(addr, 3);
   page_mutex.release();
-  INTR_DISABLE_POP();
+  LeaveCritical(t);
   return addr;
 }
 void* Memory::_palloc(uint8_t avl, bool nolow) {
@@ -337,15 +337,15 @@ void* Memory::_palloc(uint8_t avl, bool nolow) {
   return addr;
 }
 void* Memory::palloc(uint8_t avl) {
-  INTR_DISABLE_PUSH();
+  uint64_t t = EnterCritical();
   page_mutex.lock();
   void* ret = _palloc(avl);
   page_mutex.release();
-  INTR_DISABLE_POP();
+  LeaveCritical(t);
   return ret;
 }
 void Memory::pfree(void* page) {
-  INTR_DISABLE_PUSH();
+  uint64_t t = EnterCritical();
   page_mutex.lock();
   PPTE pdata = get_page(page);
   if ((pdata != 0) && pdata->present) {
@@ -355,7 +355,7 @@ void Memory::pfree(void* page) {
       last_page = (uintptr_t)addr >> 12;
   }
   page_mutex.release();
-  INTR_DISABLE_POP();
+  LeaveCritical(t);
 }
 void* Memory::alloc(size_t size, size_t align) {
   if (size == 0)

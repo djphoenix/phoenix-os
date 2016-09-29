@@ -140,10 +140,10 @@ void SMP::setup_gdt() {
     init_gdt(acpi->getCPUCount());
   uint32_t cpuid = acpi->getCPUID();
   uint16_t tr = 5 * sizeof(GDT_ENT) + cpuid * sizeof(GDT_SYS_ENT);
-  INTR_DISABLE_PUSH();
+  uint64_t t = EnterCritical();
   asm volatile("lgdtq %0"::"m"(gdtrec));
   asm volatile("ltr %w0"::"a"(tr));
-  INTR_DISABLE_POP();
+  LeaveCritical(t);
 }
 
 Mutex cpuinit = Mutex();
@@ -162,7 +162,7 @@ extern "C" {
 }
 
 static inline void __msleep(uint64_t milliseconds) {
-  INTR_DISABLE_PUSH();
+  uint64_t t = EnterCritical();
   milliseconds *= 1000;
   while (milliseconds--) {
     outportb(0x43, 0xB2);
@@ -174,7 +174,7 @@ static inline void __msleep(uint64_t milliseconds) {
     outportb(0x61, t | 1);
     while ((inportb(0x61) & 0x20) == 0) {}
   }
-  INTR_DISABLE_POP();
+  LeaveCritical(t);
 }
 
 void SMP::init() {

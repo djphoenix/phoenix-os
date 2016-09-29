@@ -32,8 +32,6 @@
   __typeof__(a) _a = (a); \
   _a > 0 ? _a : -_a; \
 })
-#define INTR_DISABLE_PUSH() asm volatile("pushfq; cli")
-#define INTR_DISABLE_POP() asm volatile("popfq")
 
 class Mutex {
  private:
@@ -93,5 +91,13 @@ extern "C" {
     uint32_t eax, edx;
     asm volatile("rdtsc":"=a"(eax), "=d"(edx));
     return (((uint64_t)edx << 32) | eax);
+  }
+  inline static uint64_t EnterCritical() {
+    uint64_t flags;
+    asm volatile("pushfq; cli; pop %q0":"=r"(flags));
+    return flags;
+  }
+  inline static void LeaveCritical(uint64_t flags) {
+    asm volatile("push %q0; popfq"::"r"(flags));
   }
 }

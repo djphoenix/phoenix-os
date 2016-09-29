@@ -34,12 +34,12 @@ void __attribute__((noreturn)) _loop() {
 ProcessManager* ProcessManager::manager = 0;
 Mutex managerMutex = Mutex();
 ProcessManager* ProcessManager::getManager() {
-  INTR_DISABLE_PUSH();
+  uint64_t t = EnterCritical();
   managerMutex.lock();
   if (!manager)
     manager = new ProcessManager();
   managerMutex.release();
-  INTR_DISABLE_POP();
+  LeaveCritical(t);
   return manager;
 }
 ProcessManager::ProcessManager() {
@@ -63,11 +63,11 @@ bool ProcessManager::FaultHandler(uint32_t intr, intcb_regs *regs) {
   return getManager()->KillProcess(intr, regs);
 }
 void ProcessManager::createNullThread(uint32_t cpuid, Thread thread) {
-  INTR_DISABLE_PUSH();
+  uint64_t t = EnterCritical();
   processSwitchMutex.lock();
   nullThreads[cpuid] = thread;
   processSwitchMutex.release();
-  INTR_DISABLE_POP();
+  LeaveCritical(t);
 }
 bool ProcessManager::SwitchProcess(intcb_regs *regs) {
   processSwitchMutex.lock();
@@ -208,18 +208,18 @@ void ProcessManager::queueThread(Process *process, Thread *thread) {
   q->process = process;
   q->thread = thread;
   q->next = 0;
-  INTR_DISABLE_PUSH();
+  uint64_t t = EnterCritical();
   processSwitchMutex.lock();
   if (lastThread)
     lastThread->next = q;
   else
     lastThread = nextThread = q;
   processSwitchMutex.release();
-  INTR_DISABLE_POP();
+  LeaveCritical(t);
 }
 
 void ProcessManager::dequeueThread(Thread *thread) {
-  INTR_DISABLE_PUSH();
+  uint64_t t = EnterCritical();
   processSwitchMutex.lock();
   QueuedThread *next = nextThread, *prev = 0;
   while (next != 0) {
@@ -238,7 +238,7 @@ void ProcessManager::dequeueThread(Thread *thread) {
     next = prev ? prev->next : nextThread;
   }
   processSwitchMutex.release();
-  INTR_DISABLE_POP();
+  LeaveCritical(t);
 }
 
 Thread::Thread() {
