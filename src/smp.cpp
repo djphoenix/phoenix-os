@@ -141,8 +141,7 @@ void SMP::setup_gdt() {
   uint32_t cpuid = acpi->getCPUID();
   uint16_t tr = 5 * sizeof(GDT_ENT) + cpuid * sizeof(GDT_SYS_ENT);
   uint64_t t = EnterCritical();
-  asm volatile("lgdtq %0"::"m"(gdtrec));
-  asm volatile("ltr %w0"::"a"(tr));
+  asm volatile("lgdtq %0; ltr %w1"::"m"(gdtrec), "a"(tr));
   LeaveCritical(t);
 }
 

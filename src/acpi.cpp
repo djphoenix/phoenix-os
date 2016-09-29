@@ -253,7 +253,7 @@ void ACPI::activateCPU() {
   LapicOut(LAPIC_LVT_LINT1, LAPIC_DISABLE);
   LapicOut(LAPIC_TASKPRIOR, 0);
 
-  asm volatile("mov $0x1B,%ecx \n rdmsr \n bts $11,%eax \n wrmsr");
+  asm volatile("rdmsr; bts $11,%%eax; wrmsr"::"c"(0x1B):"rax");
 
   LapicOut(LAPIC_SPURIOUS, 0x27 | LAPIC_SW_ENABLE);
 
@@ -318,7 +318,7 @@ bool ACPI::initAPIC() {
   LapicOut(LAPIC_LVT_LINT1, LAPIC_DISABLE);
   LapicOut(LAPIC_TASKPRIOR, 0);
 
-  asm volatile("mov $0x1B,%ecx \n rdmsr \n bts $11,%eax \n wrmsr");
+  asm volatile("rdmsr; bts $11,%%eax; wrmsr"::"c"(0x1B):"rax");
 
   LapicOut(LAPIC_SPURIOUS, 0x27 | LAPIC_SW_ENABLE);
 

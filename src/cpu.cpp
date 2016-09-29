@@ -105,10 +105,10 @@ char* CPU::getVendor() {
 
 uint32_t CPU::getMaxCPUID() {
   if (maxCPUID == 0) {
-    uint32_t eax = 0x80000000, ebx, ecx, edx;
+    uint32_t eax = 0x80000000;
     asm volatile("cpuid" :
-        "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) :
-        "a"(eax));
+        "=a"(eax):
+        "a"(eax):"ecx","ebx","edx");
     maxCPUID = eax;
   }
   return maxCPUID;
@@ -116,10 +116,10 @@ uint32_t CPU::getMaxCPUID() {
 
 uint64_t CPU::getFeatures() {
   if (features == 0) {
-    uint32_t eax = 1, ebx, ecx, edx;
+    uint32_t eax = 1, ecx, edx;
     asm volatile("cpuid" :
-        "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) :
-        "a"(eax));
+        "=a"(eax), "=c"(ecx), "=d"(edx) :
+        "a"(eax) :"ebx");
     features = ((uint64_t)edx << 32) | (uint64_t)ecx;
     union {
       struct cpu_info {
@@ -147,10 +147,10 @@ uint64_t CPU::getFeatures() {
 
 uint64_t CPU::getFeaturesExt() {
   if (features_ext == 0) {
-    uint32_t eax = 7, ebx, ecx = 0, edx;
+    uint32_t eax = 7, ebx, ecx = 0;
     asm volatile("cpuid" :
-        "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) :
-        "a"(eax), "c"(ecx));
+        "=a"(eax), "=b"(ebx), "=c"(ecx) :
+        "a"(eax), "c"(ecx): "edx");
     features_ext = (uint64_t)ebx | ((uint64_t)ecx << 32);
   }
   return features_ext;
@@ -158,10 +158,10 @@ uint64_t CPU::getFeaturesExt() {
 
 uint64_t CPU::getExtFeatures() {
   if (ext_features == 0 && (getMaxCPUID() >= 0x80000001)) {
-    uint32_t eax = 0x80000001, ebx, ecx, edx;
+    uint32_t eax = 0x80000001, ecx, edx;
     asm volatile("cpuid" :
-        "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) :
-        "a"(eax));
+        "=a"(eax), "=c"(ecx), "=d"(edx) :
+        "a"(eax): "ebx");
     ext_features = (uint64_t)edx | ((uint64_t)ecx << 32);
   }
   return ext_features;

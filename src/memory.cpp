@@ -512,7 +512,7 @@ void Memory::copy(void *dest, void *src, size_t count) {
       "mov %1, %%rdi;"
       "cld;"
       "rep movsb;"
-      ::"r"(src),"r"(dest),"c"(count)
+      ::"r"(src),"r"(dest),"c"(count):"rsi","rdi"
   );
 }
 

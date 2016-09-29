@@ -528,8 +528,7 @@ void Process::startup() {
     }__attribute__((packed));
     DT gdt = { 0, 0 };
     DT idt = { 0, 0 };
-    asm volatile("sgdtq %0":"=m"(gdt));
-    asm volatile("sidtq %0":"=m"(idt));
+    asm volatile("sgdtq %0; sidtq %1":"=m"(gdt), "=m"(idt));
 
     static const uintptr_t KB4 = 0xFFFFFFFFFFFFF000;
     for (uintptr_t addr = gdt.ptr & KB4; addr < (gdt.ptr + gdt.limit); addr +=
