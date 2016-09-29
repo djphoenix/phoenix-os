@@ -127,6 +127,7 @@ class ACPI {
   void ParseDT(AcpiHeader* dt);
   void ParseApic(AcpiMadt *madt);
   void initIOAPIC();
+  void initCPU();
 
  public:
   ACPI();

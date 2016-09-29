@@ -218,10 +218,9 @@ union ioapic_redir_ints {
   int i[2];
 };
 void ACPI::IOapicMap(uint32_t idx, ioapic_redir r) {
-  ioapic_redir_ints a;
-  a.r = r;
-  IOapicOut(IOAPIC_REDTBL + idx * 2 + 0, a.i[0]);
-  IOapicOut(IOAPIC_REDTBL + idx * 2 + 1, a.i[1]);
+  ioapic_redir_ints *a = (ioapic_redir_ints *)&r;
+  IOapicOut(IOAPIC_REDTBL + idx * 2 + 0, a->i[0]);
+  IOapicOut(IOAPIC_REDTBL + idx * 2 + 1, a->i[1]);
 }
 ioapic_redir ACPI::IOapicReadMap(uint32_t idx) {
   ioapic_redir_ints a;
@@ -242,9 +241,8 @@ uint32_t ACPI::getActiveCPUCount() {
     return 1;
   return activeCpuCount;
 }
-void ACPI::activateCPU() {
-  if (!localApicAddr)
-    return;
+
+void ACPI::initCPU() {
   LapicOut(LAPIC_DFR, 0xFFFFFFFF);
   LapicOut(LAPIC_LDR, (LapicIn(LAPIC_LDR) & 0x00FFFFFF) | 1);
   LapicOut(LAPIC_LVT_TMR, LAPIC_DISABLE);
@@ -264,8 +262,13 @@ void ACPI::activateCPU() {
   LapicOut(LAPIC_TMRINITCNT, c & 0xFFFFFFFF);
   LapicOut(LAPIC_TMRDIV, 3);
   LapicOut(LAPIC_LVT_TMR, 0x20 | TMR_PERIODIC);
+}
 
-  int ret_val;
+void ACPI::activateCPU() {
+  if (!localApicAddr)
+    return;
+  initCPU();
+  uint64_t ret_val;
   asm volatile("lock incq %1":"=a"(ret_val):"m"(activeCpuCount):"memory");
   EOI();
 }
@@ -309,26 +312,7 @@ bool ACPI::initAPIC() {
     return false;
   if (localApicAddr == 0)
     return false;
-
-  LapicOut(LAPIC_DFR, 0xFFFFFFFF);
-  LapicOut(LAPIC_LDR, (LapicIn(LAPIC_LDR) & 0x00FFFFFF) | 1);
-  LapicOut(LAPIC_LVT_TMR, LAPIC_DISABLE);
-  LapicOut(LAPIC_LVT_PERF, LAPIC_NMI);
-  LapicOut(LAPIC_LVT_LINT0, LAPIC_DISABLE);
-  LapicOut(LAPIC_LVT_LINT1, LAPIC_DISABLE);
-  LapicOut(LAPIC_TASKPRIOR, 0);
-
-  asm volatile("rdmsr; bts $11,%%eax; wrmsr"::"c"(0x1B):"rax");
-
-  LapicOut(LAPIC_SPURIOUS, 0x27 | LAPIC_SW_ENABLE);
-
-  uint64_t c = (busfreq / 1000) >> 4;
-  if (c < 0x10)
-    c = 0x10;
-
-  LapicOut(LAPIC_TMRINITCNT, c & 0xFFFFFFFF);
-  LapicOut(LAPIC_TMRDIV, 3);
-  LapicOut(LAPIC_LVT_TMR, 0x20 | TMR_PERIODIC);
+  initCPU();
   initIOAPIC();
   EOI();
   return true;
