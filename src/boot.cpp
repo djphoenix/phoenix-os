@@ -28,6 +28,5 @@ void __attribute__((noreturn)) main() {
   SMP::init();
   Interrupts::init();
   ModuleManager::init();
-  ProcessManager::getManager();
   process_loop();
 }
