@@ -160,22 +160,6 @@ extern "C" {
   extern char _smp_init, _smp_end;
 }
 
-static inline void __msleep(uint64_t milliseconds) {
-  uint64_t t = EnterCritical();
-  milliseconds *= 1000;
-  while (milliseconds--) {
-    outportb(0x43, 0xB2);
-    outportb(0x42, 0xA9);
-    inportb(0x60);
-    outportb(0x42, 0x04);
-    uint8_t t = inportb(0x61) & 0xFD;
-    outportb(0x61, t);
-    outportb(0x61, t | 1);
-    while ((inportb(0x61) & 0x20) == 0) {}
-  }
-  LeaveCritical(t);
-}
-
 void SMP::init() {
   ACPI* acpi = ACPI::getController();
   uint32_t localId = acpi->getLapicID();
@@ -217,20 +201,12 @@ void SMP::init() {
       acpi->sendCPUInit(cpuids[i]);
     }
   }
-  __msleep(1);
-  for (uint32_t i = 0; i < cpuCount; i++) {
-    if (cpuids[i] != localId) {
-      acpi->sendCPUStartup(cpuids[i], smp_init_vector);
-    }
-  }
-  __msleep(5);
-  for (uint32_t i = 0; i < cpuCount; i++) {
-    if (cpuids[i] != localId) {
-      acpi->sendCPUStartup(cpuids[i], smp_init_vector);
-    }
-  }
   while (cpuCount - nullcpus != acpi->getActiveCPUCount()) {
-    __msleep(5);
+    for (uint32_t i = 0; i < cpuCount; i++) {
+      if (cpuids[i] != localId) {
+        acpi->sendCPUStartup(cpuids[i], smp_init_vector);
+      }
+    }
   }
 
   cpuinit.release();
