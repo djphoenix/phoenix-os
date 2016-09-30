@@ -11,10 +11,14 @@ isofiles: $(BIN) deps/syslinux-$(DEP_SYSLINUX_VER).zip
 	@ cp $(BIN) $(ISOROOT)/phoenixos
 	@ echo 'default /mboot.c32 /phoenixos' > $(ISOROOT)/isolinux.cfg
 
+ISOOPTS := -quiet -U -A $(ISONAME) -V $(ISONAME) -volset $(ISONAME) -J -joliet-long -r
+ISOOPTS += -b isolinux.bin -c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table
+
 bin/phoenixos.iso: isofiles
 	@ mkdir -p $(dir $@)
 	@ echo ISO $@
-	@ $(MKISOFS) -quiet -r -J -V 'PhoeniX OS' -o $@ -b isolinux.bin -c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table $(ISOROOT)/
+	@ rm -f $@
+	@ $(MKISO) $(ISOOPTS) -o $@ $(ISOROOT)
 
 .PHONY: images kernel iso
 

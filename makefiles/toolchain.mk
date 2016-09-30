@@ -1,5 +1,4 @@
 PREFIX=x86_64-linux-gnu-
-MKISOFS=genisoimage
 
 ifeq ($(OS),Windows_NT)
   PREFIX=x86_64-w64-mingw32-
@@ -7,7 +6,6 @@ else
   UNAME_S=$(shell uname -s)
   ifeq ($(UNAME_S),Darwin)
     PREFIX=x86_64-elf-
-    MKISOFS=mkisofs
   endif
 endif
 
@@ -27,6 +25,17 @@ else
 	LINT=sh -c "echo No lint found"
 endif
 
-ifeq ($(shell which $(MKISOFS)),)
-	MKISOFS := sh -c "echo MKISOFS unavailable"
+ifneq ($(shell which xorriso),)
+	MKISO := $(shell which xorriso) -as mkisofs
+else
+	ifneq ($(shell which mkisofs),)
+		MKISO := $(shell which mkisofs)
+	else
+		ifneq ($(shell which genisoimage),)
+			MKISO := $(shell which genisoimage)
+		else
+			MKISO=sh -c "echo Neither xorriso nor mkisofs nor genisoimage was found"
+		endif
+	endif
 endif
+
