@@ -121,9 +121,12 @@ bool ProcessManager::SwitchProcess(intcb_regs *regs) {
 bool ProcessManager::KillProcess(uint32_t intr, intcb_regs *regs) {
   if (regs->dpl != 3)
     return false;
+  uint64_t t = EnterCritical();
   processSwitchMutex.lock();
   QueuedThread *thread = cpuThreads[regs->cpuid];
   cpuThreads[regs->cpuid] = 0;
+  processSwitchMutex.release();
+  LeaveCritical(t);
   uint8_t instrbuf[3];
   thread->process->readData(instrbuf, regs->rip, 3);
   if ((intr != 0x0E) || (regs->rsp != thread->thread->stack_top)
@@ -165,11 +168,11 @@ bool ProcessManager::KillProcess(uint32_t intr, intcb_regs *regs) {
   } else {
     printf("Exit\n");
   }
-  processSwitchMutex.release();
   delete thread->process;
   Memory::free(thread);
   if (SwitchProcess(regs))
     return true;
+  t = EnterCritical();
   processSwitchMutex.lock();
   Thread *th = &nullThreads[regs->cpuid];
   uintptr_t pagetable = 0;
@@ -186,10 +189,12 @@ bool ProcessManager::KillProcess(uint32_t intr, intcb_regs *regs) {
     th->regs.r12, th->regs.r13, th->regs.r14, th->regs.r15
   };
   processSwitchMutex.release();
+  LeaveCritical(t);
   return true;
 }
 
 uint64_t ProcessManager::RegisterProcess(Process *process) {
+  uint64_t t = EnterCritical();
   processSwitchMutex.lock();
   uint64_t pcount = 0, pid = 1;
   while (processes != 0 && processes[pcount] != 0) {
@@ -201,6 +206,7 @@ uint64_t ProcessManager::RegisterProcess(Process *process) {
   processes[pcount + 0] = process;
   processes[pcount + 1] = 0;
   processSwitchMutex.release();
+  LeaveCritical(t);
   return pid;
 }
 
