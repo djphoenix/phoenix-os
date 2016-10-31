@@ -17,6 +17,7 @@
 #pragma once
 #include <stdarg.h>
 #include <stdint.h>
+#include <stddef.h>
 
 #define MAX(a, b) ({ \
   __typeof__(a) _a = (a); \
@@ -43,9 +44,6 @@ class Mutex {
   void lock();
   void release();
 };
-
-typedef uint64_t _uint64;
-typedef uint64_t size_t;
 
 extern "C" {
   extern size_t itoa(uint64_t value, char * str, uint8_t base = 10);
