@@ -2,7 +2,7 @@ INCLUDES := include
 
 CFLAGS := -g -m64
 CFLAGS += -nostdlib -std=c++11
-CFLAGS += -O2 -Os -Wno-multichar -Wall
+CFLAGS += -O2 -Os -Wall -Wextra -Werror -Wno-multichar
 CFLAGS += -ffreestanding -fno-exceptions -fno-rtti
 CFLAGS += -ffunction-sections -fdata-sections -fPIC
 CFLAGS += $(patsubst %,-I%,$(INCLUDES))

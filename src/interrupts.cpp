@@ -85,13 +85,13 @@ asm volatile(
     "iretq;"
     ".align 16");
 extern "C" {
-  uint64_t volatile __attribute__((sysv_abi)) interrupt_handler(uint64_t intr,
-                                                                uint64_t stack);
+  uint64_t __attribute__((sysv_abi)) interrupt_handler(uint64_t intr,
+                                                       uint64_t stack);
   extern void *__pagetable__;
   extern void *__interrupt_wrap;
 }
-uint64_t volatile __attribute__((sysv_abi)) interrupt_handler(uint64_t intr,
-                                                              uint64_t stack) {
+uint64_t __attribute__((sysv_abi)) interrupt_handler(uint64_t intr,
+                                                     uint64_t stack) {
   uint64_t cr3 = 0;
   asm volatile("mov %%cr3, %0":"=a"(cr3));
   asm volatile("mov %0, %%cr3"::"a"(&__pagetable__));

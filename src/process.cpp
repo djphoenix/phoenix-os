@@ -58,6 +58,7 @@ ProcessManager::ProcessManager() {
   nullThreads = (Thread*)Memory::alloc(sizeof(Thread) * cpus);
 }
 bool ProcessManager::TimerHandler(uint32_t intr, intcb_regs *regs) {
+  (void)intr;
   return getManager()->SwitchProcess(regs);
 }
 bool ProcessManager::FaultHandler(uint32_t intr, intcb_regs *regs) {
@@ -456,6 +457,7 @@ char *Process::readString(uintptr_t address) {
   return buf;
 }
 uintptr_t Process::getVirtualAddress(void* addr) {
+  (void)addr;
   // TODO: make this work
   return 0;
 }

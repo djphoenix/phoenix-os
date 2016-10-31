@@ -121,10 +121,7 @@ void ACPI::ParseApic(AcpiMadt *a_madt) {
     Memory::salloc(header);
     if (type == 0) {
       ApicLocalApic *s = (ApicLocalApic *)p;
-      if (acpiCpuCount < 256) {
-        acpiCpuIds[acpiCpuCount] = s->apicId;
-        ++acpiCpuCount;
-      }
+      acpiCpuIds[acpiCpuCount++] = s->apicId;
     } else if (type == 1) {
       ApicIoApic *s = (ApicIoApic *)p;
       ioApicAddr = (uint32_t *)((uintptr_t)s->ioApicAddress & 0xFFFFFFFF);

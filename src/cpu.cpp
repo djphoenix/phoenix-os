@@ -21,7 +21,7 @@ char CPU::brandString[49] = "";
 uint64_t CPU::features = 0;
 uint64_t CPU::features_ext = 0;
 uint64_t CPU::ext_features = 0;
-struct cpu_info CPU::info = { 0xFFFFFFFF, 0, 0 };
+struct cpu_info CPU::info = { 0xFFFFFFFF, 0, 0, 0 };
 uint32_t CPU::maxCPUID = 0;
 
 static const char CPUID_FEAT_STR[64][16] = {
