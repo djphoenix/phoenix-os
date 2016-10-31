@@ -333,7 +333,7 @@ char* strdup(const char* c) {
   return r;
 }
 
-int strcmp(const char* a, char* b) {
+int strcmp(const char* a, const char* b) {
   while ((*a != 0) && (*b != 0) && (*a++) == (*b++)) {}
   return *a - *b;
 }

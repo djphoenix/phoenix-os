@@ -59,7 +59,7 @@ extern "C" {
   void clrscr();
   size_t strlen(const char*, size_t limit = -1);
   char* strdup(const char*);
-  int strcmp(const char*, char*);
+  int strcmp(const char*, const char*);
   void static_init();
   inline static uint8_t inportb(uint16_t port) {
     uint8_t c;
