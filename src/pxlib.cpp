@@ -449,9 +449,8 @@ int snprintf(char *str, size_t size, const char *format, ...) {
 }
 
 size_t strlen(const char* c, size_t limit) {
-  (void)limit;  // TODO: limits
   const char *e = c;
-  while ((*e++) != 0) {}
+  while (((size_t)(e - c) < limit) && (*e++) != 0) {}
   return e - c - 1;
 }
 
