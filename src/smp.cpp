@@ -107,7 +107,7 @@ struct TSS64_ENT {
   uint16_t iomap_base;
 } PACKED;
 
-static const GDT_ENT GDT_ENT_zero = { };
+static const GDT_ENT GDT_ENT_zero = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 GDT_ENT *gdt = 0;
 TSS64_ENT *tss = 0;
