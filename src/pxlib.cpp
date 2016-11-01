@@ -307,9 +307,9 @@ parse_size:
         goto get_num;
       case 'p':
         flags.fl_altfmt = 1;
-        flags.raw_size = 0;
-        flags.sz_longlong = 1;
-        /* @suppress("No break at end of case") */
+        numsig = 0;
+        numval = (uintptr_t)va_arg(ap, void*);
+        goto out_num;
       case 'x':
         numbase = 16;
         goto get_num;
@@ -336,7 +336,7 @@ get_num:
         else if (flags.sz_longdbl)
           goto invalid_fmt;
         else
-          numval = va_arg(ap, int);
+          numval = va_arg(ap, unsigned int);
         goto out_num;
       case 'n': {
         void *ptrval = va_arg(ap, void*);
