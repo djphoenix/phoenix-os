@@ -27,8 +27,7 @@ struct {
   uint32_t flags;
   uint16_t ehsize, phentsize, phnum, shentsize, shnum, shstrndx;
 }__attribute__((packed)) Elf;
-typedef enum
-  : uint32_t {
+enum ELF64_SECT_TYPE: uint32_t {
     SHT_NULL,
   SHT_PROGBITS,
   SHT_SYMTAB,
@@ -41,38 +40,37 @@ typedef enum
   SHT_REL,
   SHT_SHLIB,
   SHT_DYNSYM
-} ELF64_SECT_TYPE;
-typedef enum
-  : uint64_t {
+};
+enum ELF64_SECT_FLAGS: uint64_t {
     SHF_WRITE = 1, SHF_ALLOC = 2, SHF_EXECINSTR = 4
-} ELF64_SECT_FLAGS;
-typedef struct {
+};
+struct ELF64SECT {
   uint32_t name;
   ELF64_SECT_TYPE type;
   uint64_t flags, addr, offset, size;
   uint32_t link, info;
   uint64_t addralign, entsize;
-}__attribute__((packed)) ELF64SECT;
-typedef struct {
+}__attribute__((packed));
+struct ELF64SYM {
   uint32_t name;
   uint8_t info, other;
   uint16_t shndx;
   uint64_t value;
   uint64_t size;
-}__attribute__((packed)) ELF64SYM;
-typedef struct {
+}__attribute__((packed));
+struct ELF64RELA {
   uint64_t addr;
   struct {
     uint32_t type, sym;
   } info;
   uint64_t add;
-}__attribute__((packed)) ELF64RELA;
-typedef struct {
+}__attribute__((packed));
+struct ELF64REL {
   uint64_t addr;
   struct {
     uint32_t type, sym;
   } info;
-}__attribute__((packed)) ELF64REL;
+}__attribute__((packed));
 
 size_t readelf(Process *process, Stream *stream) {
   if ((stream->read(&Elf, sizeof(Elf)) != sizeof(Elf)) || (Elf.ident.magic

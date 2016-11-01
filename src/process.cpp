@@ -275,17 +275,17 @@ Process::~Process() {
       addr = pagetable[ptx];
       if (!addr.present)
         continue;
-      PPTE ppde = (PPTE)PTE_GET_PTR(addr);
+      PTE *ppde = (PTE*)PTE_GET_PTR(addr);
       for (uint16_t pdx = 0; pdx < 512; pdx++) {
         addr = ppde[pdx];
         if (!addr.present)
           continue;
-        PPTE pppde = (PPTE)PTE_GET_PTR(addr);
+        PTE *pppde = (PTE*)PTE_GET_PTR(addr);
         for (uint16_t pdpx = 0; pdpx < 512; pdpx++) {
           addr = pppde[pdpx];
           if (!addr.present)
             continue;
-          PPTE ppml4e = (PPTE)PTE_GET_PTR(addr);
+          PTE *ppml4e = (PTE*)PTE_GET_PTR(addr);
           for (uint16_t pml4x = 0; pml4x < 512; pml4x++) {
             addr = ppml4e[pml4x];
             if (!addr.present)
@@ -334,7 +334,7 @@ void Process::addPage(uintptr_t vaddr, void* paddr, uint8_t flags) {
   uint16_t pdpx = (vaddr >> (12 + 9)) & 0x1FF;
   uint16_t pml4x = (vaddr >> (12)) & 0x1FF;
   if (pagetable == 0) {
-    pagetable = (PPTE)Memory::palloc();
+    pagetable = (PTE*)Memory::palloc();
     addPage((uintptr_t)pagetable, pagetable, 5);
   }
   PTE pte = pagetable[ptx];
@@ -342,19 +342,19 @@ void Process::addPage(uintptr_t vaddr, void* paddr, uint8_t flags) {
     pagetable[ptx] = pte = PTE_MAKE(Memory::palloc(), 5);
     addPage((uintptr_t)PTE_GET_PTR(pte), PTE_GET_PTR(pte), 5);
   }
-  PPTE pde = (PPTE)PTE_GET_PTR(pte);
+  PTE *pde = (PTE*)PTE_GET_PTR(pte);
   pte = pde[pdx];
   if (!pte.present) {
     pde[pdx] = pte = PTE_MAKE(Memory::palloc(), 5);
     addPage((uintptr_t)PTE_GET_PTR(pte), PTE_GET_PTR(pte), 5);
   }
-  PPTE pdpe = (PPTE)PTE_GET_PTR(pte);
+  PTE *pdpe = (PTE*)PTE_GET_PTR(pte);
   pte = pdpe[pdpx];
   if (!pte.present) {
     pdpe[pdpx] = pte = PTE_MAKE(Memory::palloc(), 5);
     addPage((uintptr_t)PTE_GET_PTR(pte), PTE_GET_PTR(pte), 5);
   }
-  PPTE pml4e = (PPTE)PTE_GET_PTR(pte);
+  PTE *pml4e = (PTE*)PTE_GET_PTR(pte);
   flags |= 1;
   pml4e[pml4x] = PTE_MAKE(paddr, flags);
 }
@@ -471,15 +471,15 @@ void *Process::getPhysicalAddress(uintptr_t ptr) {
   uintptr_t off = ptr & 0xFFF;
   PTE addr;
   addr = pagetable[ptx];
-  PPTE pde = addr.present ? (PPTE)PTE_GET_PTR(addr) : 0;
+  PTE *pde = addr.present ? (PTE*)PTE_GET_PTR(addr) : 0;
   if (pde == 0)
     return 0;
   addr = pde[pdx];
-  PPTE pdpe = addr.present ? (PPTE)PTE_GET_PTR(addr) : 0;
+  PTE *pdpe = addr.present ? (PTE*)PTE_GET_PTR(addr) : 0;
   if (pdpe == 0)
     return 0;
   addr = pdpe[pdpx];
-  PPTE page = addr.present ? (PPTE)PTE_GET_PTR(addr) : 0;
+  PTE *page = addr.present ? (PTE*)PTE_GET_PTR(addr) : 0;
   if (page == 0)
     return 0;
   addr = page[pml4x];

@@ -90,10 +90,10 @@ char* CPU::getVendor() {
     asm volatile("cpuid" :
         "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) :
         "a"(eax));
-    typedef union {
+    union u {
       char s[12];
       int i[3];
-    } u;
+    };
     u *v = (u*)&vendor;
     v->i[0] = ebx;
     v->i[1] = edx;
@@ -215,10 +215,10 @@ char* CPU::getFeaturesStr() {
 
 char* CPU::getBrandString() {
   if ((brandString[0] == 0) && (getMaxCPUID() >= 0x80000004)) {
-    typedef union {
+    union u {
       uint32_t i[12];
       char s[48];
-    } u;
+    };
     u *v = (u*)brandString;
     uint32_t eax = 0x80000002, ebx, ecx, edx;
     asm volatile("cpuid" :

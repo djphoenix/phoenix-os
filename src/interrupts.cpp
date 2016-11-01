@@ -15,7 +15,7 @@
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "interrupts.hpp"
-PIDT Interrupts::idt = 0;
+IDT *Interrupts::idt = 0;
 intcbreg *Interrupts::callbacks[256];
 Mutex Interrupts::callback_locks[256];
 Mutex Interrupts::fault;
@@ -266,7 +266,7 @@ void Interrupts::init() {
     return;
   }
   fault = Mutex();
-  idt = (PIDT)Memory::alloc(sizeof(IDT), 0x1000);
+  idt = (IDT*)Memory::alloc(sizeof(IDT), 0x1000);
   idt->rec.limit = sizeof(idt->ints) - 1;
   idt->rec.addr = &idt->ints[0];
   handlers = (int_handler*)Memory::alloc(sizeof(int_handler) * 256, 0x1000);

@@ -105,12 +105,12 @@ void ModuleManager::parseInternal() {
 }
 void ModuleManager::parseInitRD() {
   if (kernel_data.mods != 0) {
-    PMODULE mod = kernel_data.mods;
+    MODULE *mod = kernel_data.mods;
     while (mod != 0) {
       Stream *ms = new MemoryStream(
           (void*)mod->start, ((uint64_t)mod->end) - ((uint64_t)mod->start));
       loadStream(ms, 1);
-      mod = (PMODULE)mod->next;
+      mod = (MODULE*)mod->next;
       delete ms;
     }
   }

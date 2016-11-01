@@ -17,23 +17,23 @@
 #pragma once
 #include "pxlib.hpp"
 #include "memory.hpp"
-typedef struct {
+struct MODULE {
   void* start;
   void* end;
-  void* next;
-} MODULE, *PMODULE;
+  MODULE* next;
+};
 
-typedef struct {
+struct GRUBDATA {
   uint32_t flags;
   uint32_t mem_lower, mem_upper;
   uint32_t boot_device;
   char* cmdline;
-  PMODULE mods;
+  MODULE *mods;
   size_t mmap_length;
   char* mmap_addr;
   char* boot_loader_name;
   uintptr_t kernel, stack, stack_top, data, data_top, bss, bss_top, modules,
       modules_top;
-} GRUBDATA, *PGRUBDATA;
+};
 
 extern GRUBDATA kernel_data;

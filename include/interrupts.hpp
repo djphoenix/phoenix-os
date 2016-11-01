@@ -18,14 +18,14 @@
 #include "pxlib.hpp"
 #include "memory.hpp"
 #include "acpi.hpp"
-typedef struct {
+struct INTERRUPT32 {
   uint16_t offset_low;
   uint16_t selector;
   uint8_t zero;
   uint8_t type;
   uint16_t offset_middle;
-}__attribute__((packed)) INTERRUPT32, *PINTERRUPT32;
-typedef struct {
+}__attribute__((packed));
+struct INTERRUPT64 {
   uint16_t offset_low;
   uint16_t selector;
   uint8_t ist :3;
@@ -37,11 +37,11 @@ typedef struct {
   uint16_t offset_middle;
   uint32_t offset_high;
   uint32_t rsvd3;
-}__attribute__((packed)) INTERRUPT64, *PINTERRUPT64;
-typedef struct {
+}__attribute__((packed));
+struct IDTR {
   uint16_t limit;
   void* addr;
-}__attribute__((packed)) IDTR, *PIDTR;
+}__attribute__((packed));
 struct int_handler {
   // 68 04 03 02 01  pushq  ${int_num}
   // e9 46 ec 3f 00  jmp . + {diff}
@@ -50,12 +50,12 @@ struct int_handler {
   uint8_t reljmp;  // == 0xE9
   uint32_t diff;
 }__attribute__((packed));
-typedef struct {
+struct IDT {
   INTERRUPT64 ints[256];
   IDTR rec;
-} IDT, *PIDT;
+};
 
-typedef struct {
+struct intcb_regs {
   uint32_t cpuid;
   uint64_t cr3;
   uint64_t rip;
@@ -68,15 +68,14 @@ typedef struct {
   uint64_t rbp, rsi, rdi;
   uint64_t r8, r9, r10, r11;
   uint64_t r12, r13, r14, r15;
-} intcb_regs;
+};
 
-typedef bool
-intcb(uint32_t intr, intcb_regs *regs);
-struct _intcbreg;
-typedef struct _intcbreg {
+typedef bool intcb(uint32_t intr, intcb_regs *regs);
+
+struct intcbreg {
   intcb *cb;
-  _intcbreg *prev, *next;
-} intcbreg;
+  intcbreg *prev, *next;
+};
 
 class Interrupts {
  private:
@@ -84,7 +83,7 @@ class Interrupts {
   static Mutex callback_locks[256];
   static Mutex fault, init_lock;
   static int_handler* handlers;
-  static PIDT idt;
+  static IDT *idt;
  public:
   static INTERRUPT32 interrupts32[256];
   static void init();

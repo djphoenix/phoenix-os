@@ -57,7 +57,7 @@ enum IOAPIC_REGS {
   IOAPIC_ID = 0x0, IOAPIC_VER = 0x1, IOAPIC_REDTBL = 0x10,
 };
 
-typedef struct {
+struct AcpiHeader {
   uint32_t signature;
   uint32_t length;
   uint8_t revision;
@@ -67,38 +67,38 @@ typedef struct {
   uint32_t oemRevision;
   uint32_t creatorId;
   uint32_t creatorRevision;
-} AcpiHeader;
-typedef struct AcpiMadt {
+};
+struct AcpiMadt {
   AcpiHeader header;
   uint32_t localApicAddr;
   uint32_t flags;
-} AcpiMadt;
-typedef struct ApicHeader {
+};
+struct ApicHeader {
   uint8_t type;
   uint8_t length;
-} ApicHeader;
-typedef struct ApicLocalApic {
+};
+struct ApicLocalApic {
   ApicHeader header;
   uint8_t acpiProcessorId;
   uint8_t apicId;
   uint32_t flags;
-} ApicLocalApic;
-typedef struct ApicIoApic {
+};
+struct ApicIoApic {
   ApicHeader header;
   uint8_t ioApicId;
   uint8_t reserved;
   uint32_t ioApicAddress;
   uint32_t globalSystemInterruptBase;
-} ApicIoApic;
-typedef struct ApicInterruptOverride {
+};
+struct ApicInterruptOverride {
   ApicHeader header;
   uint8_t bus;
   uint8_t source;
   uint32_t interrupt;
   uint16_t flags;
-} ApicInterruptOverride;
+};
 
-typedef struct {
+struct ioapic_redir {
   uint8_t vector :8;
   uint8_t deliveryMode :3;
   bool destinationMode :1;
@@ -109,7 +109,7 @@ typedef struct {
   bool mask :1;
   uint64_t reserved :39;
   uint8_t destination :8;
-} ioapic_redir;
+};
 
 class ACPI {
  private:

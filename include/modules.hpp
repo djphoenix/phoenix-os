@@ -19,9 +19,9 @@
 #include "process.hpp"
 #include "stream.hpp"
 
-typedef struct {
+struct MODULEINFO {
   char *name, *version, *description, *requirements, *developer;
-} MODULEINFO;
+};
 class ModuleManager {
  private:
   static ModuleManager* manager;

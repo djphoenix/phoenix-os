@@ -18,7 +18,7 @@
 #include "pxlib.hpp"
 #include "interrupts.hpp"
 #include "multiboot_info.hpp"
-typedef struct {
+struct PTE {
   union {
     struct {
       bool present :1;
@@ -35,7 +35,7 @@ typedef struct {
   bool :1;
   uint8_t avl :3;
   uintptr_t _ptr :52;
-}__attribute__((packed)) PTE, *PPTE;
+}__attribute__((packed));
 #define PTE_GET_PTR(PTE) (void*)((PTE)._ptr << 12)
 #define PTE_MAKE(ptr, flags) PTE_MAKE_AVL(ptr, 0, flags)
 #define PTE_MAKE_AVL(ptr, avl, flags) (PTE) { \
@@ -51,12 +51,12 @@ typedef struct {
     }, \
     avl, (uintptr_t)(ptr) >> 12 \
 }
-typedef struct {
+struct GRUBMODULE {
   uint32_t start;
   uint32_t end;
-} GRUBMODULE, *PGRUBMODULE;
+};
 
-typedef struct {
+struct GRUB {
   uint32_t flags;
   uint32_t mem_lower, mem_upper;
   uint32_t boot_device;
@@ -73,35 +73,33 @@ typedef struct {
   uint32_t papm_table;
   uint64_t pvbe_control_info, pvbe_mode_info, pvbe_mode, pvbe_interface_seg,
       pvbe_interface_off, pvbe_interface_len;
-} GRUB, *PGRUB;
-typedef struct {
+};
+struct GRUBMEMENT {
   uint32_t size;
   void *base;
   size_t length;
   uint32_t type;
-}__attribute__((packed)) GRUBMEMENT, *PGRUBMEMENT;
-typedef struct {
+}__attribute__((packed));
+struct ALLOC {
   void* addr;
   size_t size;
-} ALLOC, *PALLOC;
-typedef struct {
+};
+struct ALLOCTABLE {
   ALLOC allocs[255];
   void* next;
   int64_t reserved;
-} ALLOCTABLE, *PALLOCTABLE;
-extern PGRUB grub_data;
+};
+extern GRUB *grub_data;
 
 class Memory {
-  static PPTE pagetable;
-  static PALLOCTABLE allocs;
+  static PTE *pagetable;
+  static ALLOCTABLE *allocs;
   static void* first_free;
   static uint64_t last_page;
   static GRUBMODULE modules[256];
-  static PPTE
-  get_page(void* base_addr);
+  static PTE *get_page(void* base_addr);
   static Mutex page_mutex, heap_mutex;
-  static void*
-  _palloc(uint8_t avl = 0, bool nolow = false);
+  static void* _palloc(uint8_t avl = 0, bool nolow = false);
 
  public:
   static void map();

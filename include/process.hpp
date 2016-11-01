@@ -17,12 +17,12 @@
 #pragma once
 #include "pxlib.hpp"
 #include "memory.hpp"
-extern void __attribute__((noreturn))
-process_loop();
-typedef struct {
+
+extern void __attribute__((noreturn)) process_loop();
+struct ProcessSymbol {
   uintptr_t ptr;
   char* name;
-} ProcessSymbol;
+};
 class Process;
 class Thread;
 struct QueuedThread {
@@ -66,10 +66,9 @@ class Thread {
   uint64_t stack_top;
 };
 
-typedef enum
-  : uint8_t {
+enum SectionType: uint8_t {
     SectionTypeCode, SectionTypeData, SectionTypeBSS, SectionTypeStack,
-} SectionType;
+};
 
 class Process {
  private:
@@ -87,7 +86,7 @@ class Process {
 
   uint64_t getId();
 
-  PPTE pagetable;
+  PTE *pagetable;
   uintptr_t addSection(SectionType type, size_t size);
   void addSymbol(const char *name, uintptr_t ptr);
   void setEntryAddress(uintptr_t ptr);

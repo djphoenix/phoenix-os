@@ -123,7 +123,7 @@ static inline void printf_putc(char *str, size_t *size, int *len, char c) {
 }
 
 int vsnprintf(char *str, size_t size, const char *format, va_list ap) {
-  typedef union {
+  union flags_t {
     struct {
       struct {
         uint8_t fl_leftfmt :1;    // %-
@@ -148,7 +148,7 @@ int vsnprintf(char *str, size_t size, const char *format, va_list ap) {
       uint32_t raw_size :8;
     } __attribute__((packed));
     uint32_t raw;
-  } __attribute__((packed)) flags_t;
+  } __attribute__((packed));
 
   char c;
   const char *fmt_start;
