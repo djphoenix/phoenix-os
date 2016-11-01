@@ -185,24 +185,25 @@ char* CPU::getFeaturesStr() {
 
   uint32_t count = bitcnt(f) + bitcnt(ef) + bitcnt(fe);
 
-  char buf[count * 17];
-  char *end = &buf[0];
+  size_t bufsize = 17 * count;
+  char *buf = (char*)alloca(bufsize);
+  char *end = buf;
 
   for (int i = 0; i < 64; i++) {
     if (((f & (1 << i)) != 0) && CPUID_FEAT_STR[i][0]) {
-      end += snprintf(end, sizeof(buf), "%s ", CPUID_FEAT_STR[i]);
+      end += snprintf(end, bufsize - (end - buf), "%s ", CPUID_FEAT_STR[i]);
     }
   }
 
   for (int i = 0; i < 64; i++) {
     if (((ef & (1 << i)) != 0) && CPUID_EXT_FEAT_STR[i][0]) {
-      end += snprintf(end, sizeof(buf), "%s ", CPUID_EXT_FEAT_STR[i]);
+      end += snprintf(end, bufsize - (end - buf), "%s ", CPUID_EXT_FEAT_STR[i]);
     }
   }
 
   for (int i = 0; i < 64; i++) {
     if (((fe & (1 << i)) != 0) && CPUID_FEAT_EXT_STR[i][0]) {
-      end += snprintf(end, sizeof(buf), "%s ", CPUID_FEAT_EXT_STR[i]);
+      end += snprintf(end, bufsize - (end - buf), "%s ", CPUID_FEAT_EXT_STR[i]);
     }
   }
 

@@ -426,7 +426,7 @@ int vprintf(const char *format, va_list ap) {
   va_copy(tmp, ap);
   int len = vsnprintf(0, 0, format, tmp);
   va_end(tmp);
-  char buf[len + 1];
+  char *buf = (char*)alloca(len + 1);
   len = vsnprintf(buf, len, format, ap);
   buf[len] = 0;
   puts(buf);
