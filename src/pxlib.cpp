@@ -470,12 +470,11 @@ extern "C" {
   void __cxa_pure_virtual() {
     while (1) {}
   }
-  extern char __init_start__, __init_end__;
+  extern void (*__init_start__)(), (*__init_end__)();
 }
 
 void static_init() {
-  for (void (**p)() = (void(**)())&__init_start__;
-      p < (void (**)())&__init_end__; ++p)
+  for (void (**p)() = &__init_start__; p < &__init_end__; ++p)
     (*p)();
 }
 
