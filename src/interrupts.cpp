@@ -116,31 +116,31 @@ static const FAULT FAULTS[0x20] = {
   /* 07 */{ "#NM", false },
 
   /* 08 */{ "#DF", true },
-  /* 09 */{ },
+  /* 09 */{ "", false },
   /* 0A */{ "#TS", true },
   /* 0B */{ "#NP", true },
   /* 0C */{ "#SS", true },
   /* 0D */{ "#GP", true },
   /* 0E */{ "#PF", true },
-  /* 0F */{ },
+  /* 0F */{ "", false },
 
   /* 10 */{ "#MF", false },
   /* 11 */{ "#AC", true },
   /* 12 */{ "#MC", false },
   /* 13 */{ "#XM", false },
   /* 14 */{ "#VE", false },
-  /* 15 */{ },
-  /* 16 */{ },
-  /* 17 */{ },
+  /* 15 */{ "", false },
+  /* 16 */{ "", false },
+  /* 17 */{ "", false },
 
-  /* 18 */{ },
-  /* 19 */{ },
-  /* 1A */{ },
-  /* 1B */{ },
-  /* 1C */{ },
-  /* 1D */{ },
+  /* 18 */{ "", false },
+  /* 19 */{ "", false },
+  /* 1A */{ "", false },
+  /* 1B */{ "", false },
+  /* 1C */{ "", false },
+  /* 1D */{ "", false },
   /* 1E */{ "#SX", true },
-  /* 1F */{ }
+  /* 1F */{ "", false }
 };
 
 struct int_regs {
