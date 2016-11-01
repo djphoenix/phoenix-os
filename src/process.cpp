@@ -62,7 +62,7 @@ bool ProcessManager::TimerHandler(uint32_t intr, intcb_regs *regs) {
   return getManager()->SwitchProcess(regs);
 }
 bool ProcessManager::FaultHandler(uint32_t intr, intcb_regs *regs) {
-  return getManager()->KillProcess(intr, regs);
+  return getManager()->HandleFault(intr, regs);
 }
 void ProcessManager::createNullThread(uint32_t cpuid, Thread thread) {
   uint64_t t = EnterCritical();
@@ -119,7 +119,7 @@ bool ProcessManager::SwitchProcess(intcb_regs *regs) {
   return true;
 }
 
-bool ProcessManager::KillProcess(uint32_t intr, intcb_regs *regs) {
+bool ProcessManager::HandleFault(uint32_t intr, intcb_regs *regs) {
   if (regs->dpl != 3)
     return false;
   uint64_t t = EnterCritical();

@@ -254,14 +254,8 @@ uint64_t Interrupts::handle(unsigned char intr, uint64_t stack, uint64_t *cr3) {
            info->rsp, regs->rbp, cr2, regs->rsi, regs->rdi, regs->rax,
            regs->rcx, regs->rdx, regs->rbx, regs->r8, regs->r9, regs->r10,
            regs->r11, regs->r12, regs->r13, regs->r14, regs->r15);
-    if ((info->cs & 0x7) == 0) {
-      for (;;)
-        asm volatile("hlt");
-    } else {
-      fault.release();
-      // TODO: Kill process
-    }
-    return has_code ? 8 : 0;
+    for (;;)
+      asm volatile("hlt");
   } else if (intr == 0x21) {
     printf("KBD %02xh\n", inportb(0x60));
   } else if (intr != 0x20) {
