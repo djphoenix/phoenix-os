@@ -506,83 +506,82 @@ extern "C" {
   extern void* interrupt_handler;
 }
 void Process::startup() {
-  do {
-    struct DT {
-      uint16_t limit;
-      uintptr_t ptr;
-    }__attribute__((packed));
-    struct GDT_ENT {
-      uint64_t seg_lim_low :16;
-      uint64_t base_low :24;
-      uint8_t type :4;
-      bool system :1;
-      uint8_t dpl :2;
-      bool present :1;
-      uint64_t seg_lim_high :4;
-      bool avl :1;
-      bool islong :1;
-      bool db :1;
-      bool granularity :1;
-      uint64_t base_high :40;
-      uint32_t rsvd;
-    }__attribute__((packed));
-    struct TSS64_ENT {
-      uint32_t reserved1;
-      uint64_t rsp[3];
-      uint64_t reserved2;
-      uint64_t ist[7];
-      uint64_t reserved3;
-      uint16_t reserved4;
-      uint16_t iomap_base;
-    }__attribute__((packed));
-    DT gdt = { 0, 0 };
-    DT idt = { 0, 0 };
-    asm volatile("sgdtq %0; sidtq %1":"=m"(gdt), "=m"(idt));
+  struct DT {
+    uint16_t limit;
+    uintptr_t ptr;
+  }PACKED;
+  struct GDT_ENT {
+    uint64_t seg_lim_low :16;
+    uint64_t base_low :24;
+    uint8_t type :4;
+    bool system :1;
+    uint8_t dpl :2;
+    bool present :1;
+    uint64_t seg_lim_high :4;
+    bool avl :1;
+    bool islong :1;
+    bool db :1;
+    bool granularity :1;
+    uint64_t base_high :40;
+    uint32_t rsvd;
+  }PACKED;
+  struct TSS64_ENT {
+    uint32_t reserved1;
+    uint64_t rsp[3];
+    uint64_t reserved2;
+    uint64_t ist[7];
+    uint64_t reserved3;
+    uint16_t reserved4;
+    uint16_t iomap_base;
+  }PACKED;
+  DT gdt = { 0, 0 };
+  DT idt = { 0, 0 };
+  asm volatile("sgdtq %0; sidtq %1":"=m"(gdt), "=m"(idt));
 
-    static const uintptr_t KB4 = 0xFFFFFFFFFFFFF000;
-    for (uintptr_t addr = gdt.ptr & KB4; addr < (gdt.ptr + gdt.limit); addr +=
-        0x1000) {
-      addPage(addr, (void*)addr, 5);
-    }
-    for (uintptr_t addr = idt.ptr & KB4; addr < (idt.ptr + idt.limit); addr +=
-        0x1000) {
-      addPage(addr, (void*)addr, 5);
-    }
-    INTERRUPT64 *recs = (INTERRUPT64*)idt.ptr;
-    uintptr_t page = 0;
-    for (uint16_t i = 0; i < 0x100; i++) {
-      uintptr_t handler = ((uintptr_t)recs[i].offset_low
-          | ((uintptr_t)recs[i].offset_middle << 16)
-          | ((uintptr_t)recs[i].offset_high << 32));
-      if (page != (handler & KB4)) {
-        page = handler & KB4;
-        addPage(page, (void*)page, 5);
-      }
-    }
-    uintptr_t handler = (uintptr_t)&__interrupt_wrap & KB4;
-    addPage(handler, (void*)handler, 5);
-    handler = (uintptr_t)&interrupt_handler & KB4;
-    addPage(handler, (void*)handler, 5);
-    GDT_ENT *gdt_ent = (GDT_ENT*)(gdt.ptr + 8 * 3);
-    GDT_ENT *gdt_top = (GDT_ENT*)(gdt.ptr + gdt.limit);
-    while (gdt_ent < gdt_top) {
-      uintptr_t base = gdt_ent->base_low | (gdt_ent->base_high << 24);
-      size_t limit = gdt_ent->seg_lim_low | (gdt_ent->seg_lim_high << 16);
-      if (((gdt_ent->type != 0x9) && (gdt_ent->type != 0xB)) || (limit
-          != sizeof(TSS64_ENT))) {
-        gdt_ent++;
-        continue;
-      }
-      uintptr_t page = base & KB4;
+  static const uintptr_t KB4 = 0xFFFFFFFFFFFFF000;
+  for (uintptr_t addr = gdt.ptr & KB4; addr < (gdt.ptr + gdt.limit); addr +=
+      0x1000) {
+    addPage(addr, (void*)addr, 5);
+  }
+  for (uintptr_t addr = idt.ptr & KB4; addr < (idt.ptr + idt.limit); addr +=
+      0x1000) {
+    addPage(addr, (void*)addr, 5);
+  }
+  INTERRUPT64 *recs = (INTERRUPT64*)idt.ptr;
+  uintptr_t page = 0;
+  for (uint16_t i = 0; i < 0x100; i++) {
+    uintptr_t handler = ((uintptr_t)recs[i].offset_low
+        | ((uintptr_t)recs[i].offset_middle << 16)
+        | ((uintptr_t)recs[i].offset_high << 32));
+    if (page != (handler & KB4)) {
+      page = handler & KB4;
       addPage(page, (void*)page, 5);
-
-      TSS64_ENT *tss = (TSS64_ENT*)base;
-      uintptr_t stack = tss->ist[0];
-      page = stack - 0x1000;
-      addPage(page, (void*)page, 5);
+    }
+  }
+  uintptr_t handler = (uintptr_t)&__interrupt_wrap & KB4;
+  addPage(handler, (void*)handler, 5);
+  handler = (uintptr_t)&interrupt_handler & KB4;
+  addPage(handler, (void*)handler, 5);
+  GDT_ENT *gdt_ent = (GDT_ENT*)(gdt.ptr + 8 * 3);
+  GDT_ENT *gdt_top = (GDT_ENT*)(gdt.ptr + gdt.limit);
+  while (gdt_ent < gdt_top) {
+    uintptr_t base = gdt_ent->base_low | (gdt_ent->base_high << 24);
+    size_t limit = gdt_ent->seg_lim_low | (gdt_ent->seg_lim_high << 16);
+    if (((gdt_ent->type != 0x9) && (gdt_ent->type != 0xB)) || (limit
+        != sizeof(TSS64_ENT))) {
       gdt_ent++;
+      continue;
     }
-  } while (0);
+    uintptr_t page = base & KB4;
+    addPage(page, (void*)page, 5);
+
+    TSS64_ENT *tss = (TSS64_ENT*)base;
+    uintptr_t stack = tss->ist[0];
+    page = stack - 0x1000;
+    addPage(page, (void*)page, 5);
+    gdt_ent++;
+  }
+
   Thread *thread = new Thread();
   thread->regs.rip = entry;
   thread->regs.rflags = 0;
