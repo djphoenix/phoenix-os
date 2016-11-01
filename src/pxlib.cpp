@@ -16,38 +16,53 @@
 
 #include "pxlib.hpp"
 #include "memory.hpp"
-char* display = (char*)0xB8000;
+
+static char *const display_start = (char*)0xB8000;
+static char *const display_top = (char*)0xB8FA0;
+static const size_t display_size = display_top - display_start;
+
+char* display = display_start;
 Mutex display_lock = Mutex();
+
+static inline void display_fill(char *base, size_t len) {
+  asm volatile(
+      "mov %0, %%rdi;"
+      "cld;"
+      "rep stosq;"
+      ::
+      "r"(base),
+      "a"(0x0F000F000F000F00),
+      "c"(len / sizeof(uint64_t))
+      :"rdi"
+  );
+}
+
 void clrscr() {
   display_lock.lock();
-  display = (char*)0xB8FA0;
-  while (display != (char*)0xB8000)
-    ((uint64_t*)(display -= 8))[0] = 0x0F000F000F000F00;
+  display_fill(display_start, display_size);
+  display = display_start;
   display_lock.release();
 }
+
 void putc(const char c) {
   if (c == 0)
     return;
-  if (c == 10) {
-    display += 160 - (((uint64_t)display - 0xB8000) % 160);
-  } else if (c == 9) {
+  size_t pos = display - display_start;
+  if (c == '\n') {
+    display += 160 - (pos % 160);
+  } else if (c == '\t') {
     do {
       display[0] = ' ';
       display += 2;
-    } while ((uint64_t)display % 8 != 0);
+    } while (pos % 8 != 0);
   } else {
     display[0] = c;
     display += 2;
   }
-  if (display >= (char*)0xB8FA0) {
-    display = (char*)0xB8000;
-    while (display != (char*)0xB8F00) {
-      ((uint64_t*)(display))[0] = ((uint64_t*)(display + 160))[0];
-      display += 8;
-    }
-    display = (char*)0xB8FA0;
-    while (display != (char*)0xB8F00)
-      ((uint64_t*)(display -= 8))[0] = 0x0F000F000F000F00;
+  if (display >= display_top) {
+    Memory::copy(display_start, display_start + 160, display_size - 160);
+    display = display_top - 160;
+    display_fill(display, 160);
   }
 }
 
