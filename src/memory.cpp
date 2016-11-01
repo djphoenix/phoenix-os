@@ -270,7 +270,7 @@ void Memory::map() {
   page_mutex.release();
   LeaveCritical(t);
 }
-void* Memory::salloc(void* mem) {
+void* Memory::salloc(const void* mem) {
   uint64_t t = EnterCritical();
   page_mutex.lock();
   uintptr_t i = (uintptr_t)(mem) >> 12;
@@ -506,7 +506,7 @@ void *Memory::realloc(void *addr, size_t size, size_t align) {
   free(addr);
   return newptr;
 }
-void Memory::copy(void *dest, void *src, size_t count) {
+void Memory::copy(void *dest, const void *src, size_t count) {
   asm volatile(
       "mov %0, %%rsi;"
       "mov %1, %%rdi;"
