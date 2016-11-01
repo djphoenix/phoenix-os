@@ -511,7 +511,14 @@ void Memory::copy(void *dest, const void *src, size_t count) {
       "mov %0, %%rsi;"
       "mov %1, %%rdi;"
       "cld;"
+      "cmp %%rdi, %%rsi;"
+      "jae 1f;"
+      "add %%rcx, %%rsi; dec %%rsi;"
+      "add %%rcx, %%rdi; dec %%rdi;"
+      "std;"
+      "\n1:"
       "rep movsb;"
+      "cld;"
       ::"r"(src),"r"(dest),"c"(count):"rsi","rdi"
   );
 }
