@@ -179,24 +179,18 @@ uint64_t Interrupts::handle(unsigned char intr, uint64_t stack, uint64_t *cr3) {
       regs->r8, regs->r9, regs->r10, regs->r11, regs->r12, regs->r13, regs->r14,
       regs->r15 };
 
-  callback_locks[intr].lock();
-  intcbreg *reg = callbacks[intr];
-  while (reg != 0 && reg->next != 0 && reg->cb == 0)
-    reg = reg->next;
-  intcb *cb = (reg != 0) ? reg->cb : 0;
-  callback_locks[intr].release();
-
-  while (reg != 0) {
-    if (cb != 0)
-      handled = cb(intr, &cb_regs);
-    if (handled)
-      break;
+  intcbreg *reg = 0;
+  intcb *cb;
+  for (;;) {
     callback_locks[intr].lock();
-    reg = reg->next;
-    while (reg != 0 && reg->next != 0 && reg->cb == 0)
+    reg = reg ? reg->next : callbacks[intr];
+    while (reg != 0 && reg->cb == 0)
       reg = reg->next;
     cb = (reg != 0) ? reg->cb : 0;
     callback_locks[intr].release();
+    if (cb == 0) break;
+    handled = cb(intr, &cb_regs);
+    if (handled) break;
   }
 
   if (handled) {
