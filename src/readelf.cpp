@@ -16,7 +16,7 @@
 
 #include "readelf.hpp"
 
-struct {
+struct Elf_t {
   struct {
     uint32_t magic;
     uint8_t eclass, data, version, osabi, abiversion, pad, rsvd[6];
@@ -26,7 +26,7 @@ struct {
   uint64_t entry, phoff, shoff;
   uint32_t flags;
   uint16_t ehsize, phentsize, phnum, shentsize, shnum, shstrndx;
-} PACKED Elf;
+} PACKED;
 enum ELF64_SECT_TYPE: uint32_t {
     SHT_NULL,
   SHT_PROGBITS,
@@ -73,6 +73,7 @@ struct ELF64REL {
 } PACKED;
 
 size_t readelf(Process *process, Stream *stream) {
+  Elf_t Elf;
   if ((stream->read(&Elf, sizeof(Elf)) != sizeof(Elf)) || (Elf.ident.magic
       != 'FLE\x7F')
       || (Elf.ident.eclass != 2) || (Elf.ident.data != 1)
