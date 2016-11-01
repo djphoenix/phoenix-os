@@ -131,7 +131,7 @@ int vsnprintf(char *str, size_t size, const char *format, va_list ap) {
         uint8_t fl_leadspace :1;  // % [space]
         uint8_t fl_altfmt :1;     // %#
         uint8_t fl_leadzero :1;   // %0
-      } __attribute__((packed));
+      } PACKED;
       struct {
         uint8_t sz_halfhalf :1;   // %hh
         uint8_t sz_half :1;       // %h
@@ -142,13 +142,13 @@ int vsnprintf(char *str, size_t size, const char *format, va_list ap) {
         uint8_t sz_ptrdiff :1;    // %t
         uint8_t sz_longdbl :1;    // %L
       };
-    } __attribute__((packed));
+    } PACKED;
     struct {
       uint32_t raw_flags :5;
       uint32_t raw_size :8;
-    } __attribute__((packed));
+    } PACKED;
     uint32_t raw;
-  } __attribute__((packed));
+  } PACKED;
 
   char c;
   const char *fmt_start;

@@ -21,7 +21,7 @@
 #include "modules.hpp"
 #include "process.hpp"
 
-void __attribute__((noreturn)) main() {
+void NORETURN main() {
   static_init();
   clrscr();
   Memory::init();

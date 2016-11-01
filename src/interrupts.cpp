@@ -103,7 +103,7 @@ uint64_t __attribute__((sysv_abi)) interrupt_handler(uint64_t intr,
 struct FAULT {
   char code[5];
   bool has_error_code;
-}__attribute__((packed));
+} PACKED;
 
 static const FAULT FAULTS[0x20] = {
   /* 00 */{ "#DE", false },
@@ -148,10 +148,10 @@ struct int_regs {
   uint64_t r11, r10, r9, r8;
   uint64_t rdi, rsi, rbp;
   uint64_t rbx, rdx, rcx, rax;
-}__attribute__((packed));
+} PACKED;
 struct int_info {
   uint64_t rip, cs, rflags, rsp, ss;
-}__attribute__((packed));
+} PACKED;
 
 uint64_t Interrupts::handle(unsigned char intr, uint64_t stack, uint64_t *cr3) {
   fault.lock();

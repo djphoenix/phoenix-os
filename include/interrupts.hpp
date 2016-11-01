@@ -24,7 +24,7 @@ struct INTERRUPT32 {
   uint8_t zero;
   uint8_t type;
   uint16_t offset_middle;
-}__attribute__((packed));
+} PACKED;
 struct INTERRUPT64 {
   uint16_t offset_low;
   uint16_t selector;
@@ -37,11 +37,11 @@ struct INTERRUPT64 {
   uint16_t offset_middle;
   uint32_t offset_high;
   uint32_t rsvd3;
-}__attribute__((packed));
+} PACKED;
 struct IDTR {
   uint16_t limit;
   void* addr;
-}__attribute__((packed));
+} PACKED;
 struct int_handler {
   // 68 04 03 02 01  pushq  ${int_num}
   // e9 46 ec 3f 00  jmp . + {diff}
@@ -49,7 +49,7 @@ struct int_handler {
   uint32_t int_num;
   uint8_t reljmp;  // == 0xE9
   uint32_t diff;
-}__attribute__((packed));
+} PACKED;
 struct IDT {
   INTERRUPT64 ints[256];
   IDTR rec;

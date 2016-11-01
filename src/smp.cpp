@@ -30,18 +30,18 @@ struct GDT_ENT {
   bool db :1;
   bool granularity :1;
   uint64_t base_high :8;
-}__attribute__((packed));
+} PACKED;
 
 struct GDT_SYS_ENT {
   GDT_ENT ent;
   uint64_t base_high :32;
   uint32_t rsvd;
-}__attribute__((packed));
+} PACKED;
 
 struct {
   uint16_t size;
   uintptr_t base;
-}__attribute__((packed)) gdtrec;
+} PACKED gdtrec;
 
 struct GDT_ENT_def {
   uint64_t base, limit;
@@ -105,7 +105,7 @@ struct TSS64_ENT {
   uint64_t reserved3;
   uint16_t reserved4;
   uint16_t iomap_base;
-}__attribute__((packed));
+} PACKED;
 
 static const GDT_ENT GDT_ENT_zero = { };
 

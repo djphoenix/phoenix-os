@@ -26,7 +26,7 @@ void process_loop() {
   _loop();
 }
 
-void __attribute__((noreturn)) _loop() {
+void NORETURN _loop() {
   for (;;)
     asm volatile("hlt");
 }

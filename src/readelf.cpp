@@ -26,7 +26,7 @@ struct {
   uint64_t entry, phoff, shoff;
   uint32_t flags;
   uint16_t ehsize, phentsize, phnum, shentsize, shnum, shstrndx;
-}__attribute__((packed)) Elf;
+} PACKED Elf;
 enum ELF64_SECT_TYPE: uint32_t {
     SHT_NULL,
   SHT_PROGBITS,
@@ -50,27 +50,27 @@ struct ELF64SECT {
   uint64_t flags, addr, offset, size;
   uint32_t link, info;
   uint64_t addralign, entsize;
-}__attribute__((packed));
+} PACKED;
 struct ELF64SYM {
   uint32_t name;
   uint8_t info, other;
   uint16_t shndx;
   uint64_t value;
   uint64_t size;
-}__attribute__((packed));
+} PACKED;
 struct ELF64RELA {
   uint64_t addr;
   struct {
     uint32_t type, sym;
   } info;
   uint64_t add;
-}__attribute__((packed));
+} PACKED;
 struct ELF64REL {
   uint64_t addr;
   struct {
     uint32_t type, sym;
   } info;
-}__attribute__((packed));
+} PACKED;
 
 size_t readelf(Process *process, Stream *stream) {
   if ((stream->read(&Elf, sizeof(Elf)) != sizeof(Elf)) || (Elf.ident.magic

@@ -129,7 +129,7 @@ uint64_t CPU::getFeatures() {
         uint32_t type:2;
         uint32_t model_ext:4;
         uint32_t family_ext:8;
-      } __attribute__((packed)) attrs;
+      } PACKED attrs;
       uint32_t eax;
     } cpuid_info;
     cpuid_info.eax = eax;

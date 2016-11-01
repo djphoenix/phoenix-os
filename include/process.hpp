@@ -18,7 +18,7 @@
 #include "pxlib.hpp"
 #include "memory.hpp"
 
-extern void __attribute__((noreturn)) process_loop();
+extern void NORETURN process_loop();
 struct ProcessSymbol {
   uintptr_t ptr;
   char* name;

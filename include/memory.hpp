@@ -29,13 +29,13 @@ struct PTE {
       bool accessed :1;
       bool dirty :1;
       bool size :1;
-    }__attribute__((packed));
+    } PACKED;
     uint8_t flags;
-  }__attribute__((packed));
+  } PACKED;
   bool :1;
   uint8_t avl :3;
   uintptr_t _ptr :52;
-}__attribute__((packed));
+} PACKED;
 #define PTE_GET_PTR(PTE) (void*)((PTE)._ptr << 12)
 #define PTE_MAKE(ptr, flags) PTE_MAKE_AVL(ptr, 0, flags)
 #define PTE_MAKE_AVL(ptr, avl, flags) (PTE) { \
@@ -79,7 +79,7 @@ struct GRUBMEMENT {
   void *base;
   size_t length;
   uint32_t type;
-}__attribute__((packed));
+} PACKED;
 struct ALLOC {
   void* addr;
   size_t size;

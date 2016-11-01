@@ -34,6 +34,9 @@
   _a > 0 ? _a : -_a; \
 })
 
+#define PACKED __attribute__((packed))
+#define NORETURN __attribute__((noreturn))
+
 class Mutex {
  private:
   bool state;

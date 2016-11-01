@@ -22,7 +22,7 @@ class SMP {
  private:
   static void init_gdt(uint32_t ncpu);
   static void setup_gdt();
-  static void __attribute__((noreturn)) startup();
+  static void NORETURN startup();
  public:
   static void init();
 };
