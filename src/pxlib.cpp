@@ -110,8 +110,8 @@ size_t itoa(uint64_t value, char * str, uint8_t base) {
   return len;
 }
 
-static inline void printf_putc(char *str, size_t *size, size_t *len, char c) {
-  if ((*len) == (size_t)-1) return;
+static inline void printf_putc(char *str, size_t *size, int *len, char c) {
+  if ((*len) == -1) return;
   (*len)++;
   if (str == 0) return;
   if (*size == 0) {
@@ -152,7 +152,7 @@ int vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 
   char c;
   const char *fmt_start;
-  size_t out_len = 0;
+  int out_len = 0;
 
   flags_t flags;
   int width, prec;
@@ -417,7 +417,7 @@ out_str:
     goto next_format;
   }
 
-  if (str != 0 && out_len != (size_t)-1) str[out_len] = 0;
+  if (str != 0 && out_len != -1) str[out_len] = 0;
   return out_len;
 }
 
