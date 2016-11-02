@@ -8,8 +8,10 @@ deps/syslinux-$(DEP_SYSLINUX_VER).zip:
 	@ mkdir -p $(dir $@)
 	$(QECHO) echo DL $@
 	$(Q) wget -q '$(DEP_SYSLINUX_URL)' -O $@
+	@ touch $@
 
 deps/ovmf-$(DEP_OVMF_VER).zip:
 	@ mkdir -p $(dir $@)
 	$(QECHO) DL $@
 	$(Q) wget -q '$(DEP_OVMF_URL)' -O $@
+	@ touch $@
