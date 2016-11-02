@@ -5,11 +5,14 @@ EFIKERN=$(EFIROOT)/efi/boot/bootx64.efi
 .PHONY: clean check launch launch-efi
 
 clean:
-	$(QECHO) RM .output bin
-	$(Q) rm -rf .output bin
+	$(QECHO) RM $(ODIR) bin
+	$(Q) rm -rf $(ODIR) bin
 
-check: $(SOURCES) $(MODSRCS) $(HEADERS)
-	$(Q) $(LINT) $^
+$(ODIR)/check-report.txt: $(SOURCES) $(MODSRCS) $(HEADERS)
+	$(Q) $(LINT) $^ > $@ || rm $@
+
+check: $(ODIR)/check-report.txt
+	@ [ -f $< ] && cat $<
 
 all: check
 
