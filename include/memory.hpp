@@ -35,8 +35,11 @@ struct PTE {
   bool :1;
   uint8_t avl :3;
   uintptr_t _ptr :52;
+
+  uintptr_t getUintPtr() { return _ptr << 12; }
+  void *getPtr() { return reinterpret_cast<void*>(getUintPtr()); }
+  PTE *getPTE() { return static_cast<PTE*>(getPtr()); }
 } PACKED;
-#define PTE_GET_PTR(PTE) (void*)((PTE)._ptr << 12)
 #define PTE_MAKE(ptr, flags) PTE_MAKE_AVL(ptr, 0, flags)
 #define PTE_MAKE_AVL(ptr, avl, flags) (PTE) { \
     { \

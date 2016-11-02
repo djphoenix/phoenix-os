@@ -41,15 +41,15 @@ PTE *Memory::get_page(void* base_addr) {
   uintptr_t i = (uintptr_t)base_addr >> 12;
   PTE addr;
   addr = pagetable[(i >> 27) & 0x1FF];
-  PTE *pde = addr.present ? (PTE*)PTE_GET_PTR(addr) : 0;
+  PTE *pde = addr.present ? addr.getPTE() : 0;
   if (pde == 0)
     return 0;
   addr = pde[(i >> 18) & 0x1FF];
-  PTE *pdpe = addr.present ? (PTE*)PTE_GET_PTR(addr) : 0;
+  PTE *pdpe = addr.present ? addr.getPTE() : 0;
   if (pdpe == 0)
     return 0;
   addr = pdpe[(i >> 9) & 0x1FF];
-  PTE *page = addr.present ? (PTE*)PTE_GET_PTR(addr) : 0;
+  PTE *page = addr.present ? addr.getPTE() : 0;
   if (page == 0)
     return 0;
   return &page[i & 0x1FF];
@@ -158,19 +158,19 @@ void Memory::init() {
     pte = pagetable[i];
     if (!pte.present)
       continue;
-    PTE *pde = (PTE*)PTE_GET_PTR(pte);
+    PTE *pde = pte.getPTE();
     get_page(pde)->user = 0;
     for (uint32_t j = 0; j < 512; j++) {
       pte = pde[j];
       if (!pte.present)
         continue;
-      PTE *pdpe = (PTE*)PTE_GET_PTR(pte);
+      PTE *pdpe = pte.getPTE();
       get_page(pdpe)->user = 0;
       for (uint16_t k = 0; k < 512; k++) {
         pte = pdpe[k];
         if (!pte.present)
           continue;
-        PTE *pml4e = (PTE*)PTE_GET_PTR(pte);
+        PTE *pml4e = pte.getPTE();
         get_page(pml4e)->user = 0;
       }
     }
@@ -181,19 +181,19 @@ void Memory::init() {
     pte = pagetable[i];
     if (!pte.present)
       continue;
-    PTE *pde = (PTE*)PTE_GET_PTR(pte);
+    PTE *pde = pte.getPTE();
     get_page(pde)->user = 0;
     for (uint32_t j = 0; j < 512; j++) {
       pte = pde[j];
       if (!pte.present)
         continue;
-      PTE *pdpe = (PTE*)PTE_GET_PTR(pte);
+      PTE *pdpe = pte.getPTE();
       get_page(pdpe)->user = 0;
       for (uint16_t k = 0; k < 512; k++) {
         pte = pdpe[k];
         if (!pte.present)
           continue;
-        PTE *pml4e = (PTE*)PTE_GET_PTR(pte);
+        PTE *pml4e = pte.getPTE();
         for (uint16_t l = 0; l < 512; l++) {
           if (pml4e[l].user)
             pml4e[l].present = 0;
@@ -279,17 +279,17 @@ void* Memory::salloc(const void* mem) {
   if (!pte.present) {
     pagetable[(i >> 27) & 0x1FF] = pte = PTE_MAKE(_palloc(0, true), 3);
   }
-  PTE *pde = (PTE*)PTE_GET_PTR(pte);
+  PTE *pde = pte.getPTE();
   pte = pde[(i >> 18) & 0x1FF];
   if (!pte.present) {
     pde[(i >> 18) & 0x1FF] = pte = PTE_MAKE(_palloc(0, true), 3);
   }
-  PTE *pdpe = (PTE*)PTE_GET_PTR(pte);
+  PTE *pdpe = pte.getPTE();
   pte = pdpe[(i >> 9) & 0x1FF];
   if (!pte.present) {
     pdpe[(i >> 9) & 0x1FF] = pte = PTE_MAKE(_palloc(0, true), 3);
   }
-  PTE *page = (PTE*)PTE_GET_PTR(pte);
+  PTE *page = pte.getPTE();
   page[i & 0x1FF] = PTE_MAKE(addr, 3);
   page_mutex.release();
   LeaveCritical(t);
@@ -310,10 +310,10 @@ void* Memory::_palloc(uint8_t avl, bool nolow) {
   }
   if (!nolow)
     last_page = i;
-  PTE *pde = (PTE*)PTE_GET_PTR(pagetable[(i >> 27) & 0x1FF]);
-  PTE *pdpe = (PTE*)PTE_GET_PTR(pde[(i >> 18) & 0x1FF]);
-  PTE *pdpen = (PTE*)PTE_GET_PTR(pde[((i + 1) >> 18) & 0x1FF]);
-  page = (PTE*)PTE_GET_PTR(pdpe[(i >> 9) & 0x1FF]);
+  PTE *pde = pagetable[(i >> 27) & 0x1FF].getPTE();
+  PTE *pdpe = pde[(i >> 18) & 0x1FF].getPTE();
+  PTE *pdpen = pde[((i + 1) >> 18) & 0x1FF].getPTE();
+  page = pdpe[(i >> 9) & 0x1FF].getPTE();
   if (!pde[((i + 2) >> 18) & 0x1FF].present) {
     page[i & 0x1FF] = PTE_MAKE(addr, 3);
     i++;
@@ -350,7 +350,7 @@ void Memory::pfree(void* page) {
   PTE *pdata = get_page(page);
   if ((pdata != 0) && pdata->present) {
     pdata->present = 0;
-    void *addr = PTE_GET_PTR(*pdata);
+    void *addr = pdata->getPtr();
     if (((uintptr_t)addr >> 12) < last_page)
       last_page = (uintptr_t)addr >> 12;
   }
@@ -359,7 +359,7 @@ void Memory::pfree(void* page) {
 }
 void* Memory::alloc(size_t size, size_t align) {
   if (size == 0)
-    return (void*)0;
+    return 0;
   heap_mutex.lock();
   uintptr_t ns = (uintptr_t)first_free, ne;
   char f;

@@ -275,22 +275,22 @@ Process::~Process() {
       addr = pagetable[ptx];
       if (!addr.present)
         continue;
-      PTE *ppde = (PTE*)PTE_GET_PTR(addr);
+      PTE *ppde = addr.getPTE();
       for (uint16_t pdx = 0; pdx < 512; pdx++) {
         addr = ppde[pdx];
         if (!addr.present)
           continue;
-        PTE *pppde = (PTE*)PTE_GET_PTR(addr);
+        PTE *pppde = addr.getPTE();
         for (uint16_t pdpx = 0; pdpx < 512; pdpx++) {
           addr = pppde[pdpx];
           if (!addr.present)
             continue;
-          PTE *ppml4e = (PTE*)PTE_GET_PTR(addr);
+          PTE *ppml4e = addr.getPTE();
           for (uint16_t pml4x = 0; pml4x < 512; pml4x++) {
             addr = ppml4e[pml4x];
             if (!addr.present)
               continue;
-            void *page = PTE_GET_PTR(addr);
+            void *page = addr.getPtr();
             if ((uintptr_t)page == (((uintptr_t)ptx << (12 + 9 + 9 + 9))
                 | ((uintptr_t)pdx << (12 + 9 + 9))
                 | ((uintptr_t)pdpx << (12 + 9)) | ((uintptr_t)pml4x << (12))))
@@ -340,21 +340,21 @@ void Process::addPage(uintptr_t vaddr, void* paddr, uint8_t flags) {
   PTE pte = pagetable[ptx];
   if (!pte.present) {
     pagetable[ptx] = pte = PTE_MAKE(Memory::palloc(), 5);
-    addPage((uintptr_t)PTE_GET_PTR(pte), PTE_GET_PTR(pte), 5);
+    addPage(pte.getUintPtr(), pte.getPtr(), 5);
   }
-  PTE *pde = (PTE*)PTE_GET_PTR(pte);
+  PTE *pde = pte.getPTE();
   pte = pde[pdx];
   if (!pte.present) {
     pde[pdx] = pte = PTE_MAKE(Memory::palloc(), 5);
-    addPage((uintptr_t)PTE_GET_PTR(pte), PTE_GET_PTR(pte), 5);
+    addPage((uintptr_t)pte.getPtr(), pte.getPtr(), 5);
   }
-  PTE *pdpe = (PTE*)PTE_GET_PTR(pte);
+  PTE *pdpe = pte.getPTE();
   pte = pdpe[pdpx];
   if (!pte.present) {
     pdpe[pdpx] = pte = PTE_MAKE(Memory::palloc(), 5);
-    addPage((uintptr_t)PTE_GET_PTR(pte), PTE_GET_PTR(pte), 5);
+    addPage((uintptr_t)pte.getPtr(), pte.getPtr(), 5);
   }
-  PTE *pml4e = (PTE*)PTE_GET_PTR(pte);
+  PTE *pml4e = pte.getPTE();
   flags |= 1;
   pml4e[pml4x] = PTE_MAKE(paddr, flags);
 }
@@ -471,19 +471,19 @@ void *Process::getPhysicalAddress(uintptr_t ptr) {
   uintptr_t off = ptr & 0xFFF;
   PTE addr;
   addr = pagetable[ptx];
-  PTE *pde = addr.present ? (PTE*)PTE_GET_PTR(addr) : 0;
+  PTE *pde = addr.present ? addr.getPTE() : 0;
   if (pde == 0)
     return 0;
   addr = pde[pdx];
-  PTE *pdpe = addr.present ? (PTE*)PTE_GET_PTR(addr) : 0;
+  PTE *pdpe = addr.present ? addr.getPTE() : 0;
   if (pdpe == 0)
     return 0;
   addr = pdpe[pdpx];
-  PTE *page = addr.present ? (PTE*)PTE_GET_PTR(addr) : 0;
+  PTE *page = addr.present ? addr.getPTE() : 0;
   if (page == 0)
     return 0;
   addr = page[pml4x];
-  void *_ptr = addr.present ? (void*)((uintptr_t)PTE_GET_PTR(addr) + off) : 0;
+  void *_ptr = addr.present ? (void*)(addr.getUintPtr() + off) : 0;
   return _ptr;
 }
 void Process::addThread(Thread *thread, bool suspended) {
