@@ -3,18 +3,37 @@ bin/phoenixos: $(BIN)
 	$(QECHO) CP $@
 	$(Q) cp $^ $@
 
-.PHONY: isofiles
+SYSLINUX_DEP_FILELIST := \
+	bios/core/isolinux.bin \
+	bios/com32/elflink/ldlinux/ldlinux.c32 \
+	bios/com32/lib/libcom32.c32 \
+	bios/com32/mboot/mboot.c32
 
-isofiles: $(BIN) deps/syslinux-$(DEP_SYSLINUX_VER).zip
-	@ mkdir -p $(ISOROOT)
-	$(Q) unzip -q -u -j deps/syslinux-$(DEP_SYSLINUX_VER).zip -d $(ISOROOT) bios/core/isolinux.bin bios/com32/elflink/ldlinux/ldlinux.c32 bios/com32/lib/libcom32.c32 bios/com32/mboot/mboot.c32
-	$(Q) cp $(BIN) $(ISOROOT)/phoenixos
+SYSLINUX_FILELIST := $(notdir $(SYSLINUX_DEP_FILELIST))
+
+ISOFILES := $(foreach f, $(SYSLINUX_FILELIST) phoenixos isolinux.cfg, $(ISOROOT)/$(f))
+
+define SYSLINUX_EXTRACT
+$(ISOROOT)/$(1): deps/syslinux-$(DEP_SYSLINUX_VER).zip
+	@ mkdir -p $$(dir $$@)
+	$(Q) unzip -q -u -j deps/syslinux-$(DEP_SYSLINUX_VER).zip -d $(ISOROOT) $(SYSLINUX_DEP_FILELIST)
+	@ touch $(foreach f, $(SYSLINUX_FILELIST), $(ISOROOT)/$(f))
+endef
+
+$(foreach f,$(SYSLINUX_FILELIST),$(eval $(call SYSLINUX_EXTRACT,$(f))))
+
+$(ISOROOT)/phoenixos: $(BIN)
+	@ mkdir -p $(dir $@)
+	$(Q) cp $< $@
+
+$(ISOROOT)/isolinux.cfg:
+	@ mkdir -p $(dir $@)
 	$(Q) echo 'default /mboot.c32 /phoenixos' > $(ISOROOT)/isolinux.cfg
 
 ISOOPTS := -quiet -U -A $(ISONAME) -V $(ISONAME) -volset $(ISONAME) -J -joliet-long -r
 ISOOPTS += -b isolinux.bin -c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table
 
-bin/phoenixos.iso: isofiles
+bin/phoenixos.iso: $(ISOFILES)
 	@ mkdir -p $(dir $@)
 	$(QECHO) ISO $@
 	@ rm -f $@
