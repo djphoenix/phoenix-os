@@ -16,7 +16,6 @@
 
 #pragma once
 #include "pxlib.hpp"
-#include "interrupts.hpp"
 #include "multiboot_info.hpp"
 struct PTE {
   union {
@@ -126,6 +125,11 @@ class Memory {
     return static_cast<T*>(realloc(static_cast<void*>(addr), size, align));
   }
 };
+
+#define ALIGNED_NEW(align) \
+    void *operator new(size_t size) { return Memory::alloc(size, align); }
+#define ALIGNED_NEWARR(align) \
+    void *operator new[](size_t size) { return Memory::alloc(size, align); }
 
 inline static void MmioWrite32(void *p, uint32_t data) {
   Memory::salloc(p);

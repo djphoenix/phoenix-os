@@ -17,6 +17,7 @@
 #pragma once
 #include "pxlib.hpp"
 #include "memory.hpp"
+#include "interrupts.hpp"
 
 extern void NORETURN process_loop();
 struct ProcessSymbol {

@@ -15,6 +15,7 @@
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "memory.hpp"
+#include "interrupts.hpp"
 GRUB *grub_data;
 
 static const uint64_t KBTS4 = 0xFFFFFFFFFFFFF000;
@@ -484,7 +485,7 @@ void *Memory::realloc(void *addr, size_t size, size_t align) {
   heap_mutex.release();
   if (oldsize == 0)
     return 0;
-  void *newptr = Memory::alloc(size, align);
+  void *newptr = alloc(size, align);
   copy(newptr, addr, oldsize);
   free(addr);
   return newptr;

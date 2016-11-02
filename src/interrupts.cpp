@@ -266,10 +266,10 @@ void Interrupts::init() {
     return;
   }
   fault = Mutex();
-  idt = Memory::alloc<IDT>(sizeof(IDT), 0x1000);
+  idt = new IDT();
   idt->rec.limit = sizeof(idt->ints) - 1;
   idt->rec.addr = &idt->ints[0];
-  handlers = Memory::alloc<int_handler>(sizeof(int_handler) * 256, 0x1000);
+  handlers = new int_handler[256]();
   char* addr = &__interrupt_wrap;
   for (int i = 0; i < 256; i++) {
     uintptr_t jmp_from = (uintptr_t)&(handlers[i].reljmp);

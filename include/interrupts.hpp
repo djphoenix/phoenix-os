@@ -49,10 +49,14 @@ struct int_handler {
   uint32_t int_num;
   uint8_t reljmp;  // == 0xE9
   uint32_t diff;
+
+  ALIGNED_NEWARR(0x1000)
 } PACKED;
 struct IDT {
   INTERRUPT64 ints[256];
   IDTR rec;
+
+  ALIGNED_NEW(0x1000)
 };
 
 struct intcb_regs {
