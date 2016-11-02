@@ -458,7 +458,7 @@ size_t strlen(const char* c, size_t limit) {
 
 char* strdup(const char* c) {
   size_t len = strlen(c);
-  char* r = Memory::alloc<char>(len + 1);
+  char* r = new char[len + 1]();
   Memory::copy(r, c, len + 1);
   return r;
 }

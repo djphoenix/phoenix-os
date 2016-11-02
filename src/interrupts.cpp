@@ -342,7 +342,7 @@ uint16_t Interrupts::getIRQmask() {
 }
 
 void Interrupts::addCallback(uint8_t intr, intcb* cb) {
-  intcbreg *reg = Memory::alloc<intcbreg>();
+  intcbreg *reg = new intcbreg();
   reg->cb = cb;
   reg->next = 0;
 

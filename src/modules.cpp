@@ -70,16 +70,11 @@ void ModuleManager::loadStream(Stream *stream, bool start) {
     delete process;
     goto end;
   }
-  if (mod.name)
-    Memory::free(mod.name);
-  if (mod.version)
-    Memory::free(mod.version);
-  if (mod.description)
-    Memory::free(mod.description);
-  if (mod.requirements)
-    Memory::free(mod.requirements);
-  if (mod.developer)
-    Memory::free(mod.developer);
+  if (mod.name) delete[] mod.name;
+  if (mod.version) delete[] mod.version;
+  if (mod.description) delete[] mod.description;
+  if (mod.requirements) delete[] mod.requirements;
+  if (mod.developer) delete[] mod.developer;
   if (start)
     process->startup();
   sub->seek(size, -1);
@@ -90,7 +85,8 @@ void ModuleManager::loadStream(Stream *stream, bool start) {
     sub = _sub;
     goto parse;
   }
-  end: if (sub != stream)
+end:
+  if (sub != stream)
     delete sub;
 }
 void ModuleManager::parseInternal() {

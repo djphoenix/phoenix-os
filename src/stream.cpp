@@ -53,7 +53,7 @@ char* MemoryStream::readstr(int64_t offset) {
   if ((size_t)offset > limit)
     return 0;
   size_t len = strlen(memory + (size_t)offset, limit - offset);
-  char* res = Memory::alloc<char>(len + 1);
+  char* res = new char[len + 1]();
   Memory::copy(res, memory + (size_t)offset, len);
   res[len] = 0;
   return res;

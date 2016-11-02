@@ -188,13 +188,13 @@ void Memory::init() {
     }
   }
   if (cmdlinel > 0) {
-    kernel_data.cmdline = alloc<char>(cmdlinel + 1);
+    kernel_data.cmdline = new char[cmdlinel+1];
     copy(kernel_data.cmdline, cmdline, cmdlinel + 1);
   } else {
     kernel_data.cmdline = 0;
   }
   if (((kernel_data.flags & 8) == 8) && (kernel_data.mods != 0)) {
-    MODULE *mod = alloc<MODULE>();
+    MODULE *mod = new MODULE();
     kernel_data.mods = mod;
     mod->start = 0;
     mod->end = 0;
@@ -205,7 +205,7 @@ void Memory::init() {
       mod->end = reinterpret_cast<void*>(modules[i].end);
       i++;
       if (modules[i].start != 0)
-        mod = (mod->next = alloc<MODULE>());
+        mod = (mod->next = new MODULE());
     }
     mod->next = 0;
   }
@@ -522,6 +522,12 @@ void Memory::fill(void *addr, uint8_t value, size_t size) {
 void* operator new(size_t a) {
   return Memory::alloc(a);
 }
+void* operator new[](size_t a) {
+  return Memory::alloc(a);
+}
 void operator delete(void* a) {
+  return Memory::free(a);
+}
+void operator delete[](void* a) {
   return Memory::free(a);
 }

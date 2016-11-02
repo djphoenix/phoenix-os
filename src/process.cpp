@@ -52,10 +52,10 @@ ProcessManager::ProcessManager() {
   processes = 0;
   nextThread = lastThread = 0;
   uint64_t cpus = ACPI::getController()->getCPUCount();
-  cpuThreads = Memory::alloc<QueuedThread*>(sizeof(QueuedThread*) * cpus);
+  cpuThreads = new QueuedThread*[cpus]();
   for (uint64_t c = 0; c < cpus; c++)
     cpuThreads[c] = 0;
-  nullThreads = Memory::alloc<Thread>(sizeof(Thread) * cpus);
+  nullThreads = new Thread[cpus]();
 }
 bool ProcessManager::TimerHandler(uint32_t intr, intcb_regs *regs) {
   (void)intr;
@@ -170,7 +170,7 @@ bool ProcessManager::HandleFault(uint32_t intr, intcb_regs *regs) {
     printf("Exit\n");
   }
   delete thread->process;
-  Memory::free(thread);
+  delete thread;
   if (SwitchProcess(regs))
     return true;
   t = EnterCritical();
@@ -211,7 +211,7 @@ uint64_t ProcessManager::RegisterProcess(Process *process) {
 }
 
 void ProcessManager::queueThread(Process *process, Thread *thread) {
-  QueuedThread *q = Memory::alloc<QueuedThread>();
+  QueuedThread *q = new QueuedThread();
   q->process = process;
   q->thread = thread;
   q->next = 0;
@@ -241,7 +241,7 @@ void ProcessManager::dequeueThread(Thread *thread) {
       prev->next = next->next;
     if (lastThread == next)
       lastThread = prev;
-    Memory::free(next);
+    delete next;
     next = prev ? prev->next : nextThread;
   }
   processSwitchMutex.release();
@@ -307,11 +307,11 @@ Process::~Process() {
   if (symbols != 0) {
     uint64_t sid = 0;
     while (symbols[sid].ptr != 0) {
-      Memory::free(symbols[sid].name);
+      delete[] symbols[sid].name;
       sid++;
     }
   }
-  Memory::free(symbols);
+  delete[] symbols;
   if (threads != 0) {
     uint64_t tid = 0;
     while (threads[tid] != 0) {
@@ -320,7 +320,7 @@ Process::~Process() {
       tid++;
     }
   }
-  Memory::free(threads);
+  delete[] threads;
 }
 
 uint64_t Process::getId() {
@@ -452,7 +452,7 @@ char *Process::readString(uintptr_t address) {
   }
   if (length == 0)
     return 0;
-  char *buf = Memory::alloc<char>(length + 1);
+  char *buf = new char[length + 1]();
   readData(buf, address, length + 1);
   return buf;
 }

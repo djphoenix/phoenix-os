@@ -83,17 +83,17 @@ size_t readelf(Process *process, Stream *stream) {
     ) return 0;
   size_t size = MAX(Elf.phoff + Elf.phentsize * Elf.phnum,
                     Elf.shoff + Elf.shentsize * Elf.shnum);
-  ELF64SECT *sections = Memory::alloc<ELF64SECT>(sizeof(ELF64SECT) * Elf.shnum);
+  ELF64SECT *sections = new ELF64SECT[Elf.shnum]();
   stream->seek(Elf.shoff);
   stream->read(sections, sizeof(ELF64SECT) * Elf.shnum);
   char *names = 0;
   if (Elf.shstrndx != 0) {
     ELF64SECT sect = sections[Elf.shstrndx];
-    names = Memory::alloc<char>(sect.size);
+    names = new char[sect.size]();
     stream->seek(sect.offset, -1);
     stream->read(names, sect.size);
   }
-  uintptr_t *sectmap = Memory::alloc<uintptr_t>(sizeof(uintptr_t) * Elf.shnum);
+  uintptr_t *sectmap = new uintptr_t[Elf.shnum]();
   // Fill up process sections
   for (uint32_t i = 0; i < Elf.shnum; i++) {
     ELF64SECT sect = sections[i];
@@ -101,14 +101,14 @@ size_t readelf(Process *process, Stream *stream) {
     if (sect.type == SHT_NULL)
       continue;
     if (sect.type == SHT_SYMTAB) {
-      ELF64SYM *symbols = Memory::alloc<ELF64SYM>(sect.size);
+      uint32_t symcount = sect.size / sizeof(ELF64SYM);
+      ELF64SYM *symbols = new ELF64SYM[symcount];
       stream->seek(sect.offset, -1);
       stream->read(symbols, sect.size);
-      uint32_t symcount = sect.size / sizeof(ELF64SYM);
       char *symnames = 0;
       if (sect.link != 0) {
         ELF64SECT nsect = sections[sect.link];
-        symnames = Memory::alloc<char>(nsect.size);
+        symnames = new char[nsect.size]();
         stream->seek(nsect.offset, -1);
         stream->read(symnames, nsect.size);
       }
@@ -126,8 +126,8 @@ size_t readelf(Process *process, Stream *stream) {
         uintptr_t offset = ps + sym.value;
         process->addSymbol(name, offset);
       }
-      Memory::free(symbols);
-      Memory::free(symnames);
+      delete[] symbols;
+      delete[] symnames;
     }
     if ((sect.flags & SHF_ALLOC) == 0)
       continue;
@@ -140,10 +140,10 @@ size_t readelf(Process *process, Stream *stream) {
     sectmap[i] = ps;
     if (sect.type != SHT_NOBITS) {
       stream->seek(sect.offset, -1);
-      void *buf = Memory::alloc(sect.size);
+      char *buf = new char[sect.size]();
       stream->read(buf, sect.size);
       process->writeData(ps, buf, sect.size);
-      Memory::free(buf);
+      delete[] buf;
     }
   }
   // Process relocs
@@ -162,12 +162,12 @@ size_t readelf(Process *process, Stream *stream) {
     stream->seek(relsect.offset, -1);
     if (relsect.type == SHT_RELA) {
       relcnt = relsect.size / sizeof(ELF64RELA);
-      relocs = Memory::alloc<ELF64RELA>(relsect.size);
+      relocs = new ELF64RELA[relcnt]();
       stream->read(relocs, relsect.size);
     } else {
       relcnt = relsect.size / sizeof(ELF64REL);
-      relocs = Memory::alloc<ELF64RELA>(sizeof(ELF64RELA) * relcnt);
-      ELF64REL *_relocs = Memory::alloc<ELF64REL>(relsect.size);
+      relocs = new ELF64RELA[relcnt]();
+      ELF64REL *_relocs = new ELF64REL[relcnt]();
       stream->read(_relocs, relsect.size);
       for (size_t r = 0; r < relcnt; r++)
         relocs[r] = {
@@ -175,16 +175,16 @@ size_t readelf(Process *process, Stream *stream) {
           { _relocs[r].info.type, _relocs[r].info.sym},
           0
         };
-      Memory::free(_relocs);
+      delete[] _relocs;
     }
 
-    ELF64SYM *symbols = Memory::alloc<ELF64SYM>(symsect.size);
+    ELF64SYM *symbols = new ELF64SYM[relcnt]();
     stream->seek(symsect.offset, -1);
     stream->read(symbols, symsect.size);
     char *symnames = 0;
     if (symsect.link != 0) {
       ELF64SECT nsect = sections[symsect.link];
-      symnames = Memory::alloc<char>(nsect.size);
+      symnames = new char[nsect.size]();
       stream->seek(nsect.offset, -1);
       stream->read(symnames, nsect.size);
     }
@@ -237,12 +237,12 @@ size_t readelf(Process *process, Stream *stream) {
           break;
       }
     }
-    Memory::free(relocs);
-    Memory::free(symbols);
-    Memory::free(symnames);
+    delete[] relocs;
+    delete[] symbols;
+    delete[] symnames;
   }
-  Memory::free(sectmap);
-  Memory::free(sections);
-  Memory::free(names);
+  delete[] sectmap;
+  delete[] sections;
+  delete[] names;
   return size;
 }
