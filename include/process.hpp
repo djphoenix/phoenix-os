@@ -18,6 +18,7 @@
 #include "pxlib.hpp"
 #include "memory.hpp"
 #include "interrupts.hpp"
+#include "list.hpp"
 
 extern void NORETURN process_loop();
 struct ProcessSymbol {
@@ -37,7 +38,7 @@ class ProcessManager {
   QueuedThread *nextThread, *lastThread;
   QueuedThread **cpuThreads;
   Thread *nullThreads;
-  Process** processes;
+  List<Process*> processes;
   Mutex processSwitchMutex;
   static ProcessManager* manager;
   bool SwitchProcess(intcb_regs *regs);
@@ -74,8 +75,8 @@ enum SectionType: uint8_t {
 class Process {
  private:
   uint64_t id;
-  Thread **threads;
-  ProcessSymbol *symbols;
+  List<Thread*> threads;
+  List<ProcessSymbol> symbols;
   uintptr_t entry;
   void addPage(uintptr_t vaddr, void* paddr, uint8_t flags);
 
@@ -85,7 +86,7 @@ class Process {
   void startup();
   void addThread(Thread *thread, bool suspended);
 
-  uint64_t getId();
+  uint64_t getId() { return id; }
 
   PTE *pagetable;
   uintptr_t addSection(SectionType type, size_t size);

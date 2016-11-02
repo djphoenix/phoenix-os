@@ -49,7 +49,6 @@ ProcessManager::ProcessManager() {
     Interrupts::addCallback(i, &ProcessManager::FaultHandler);
   }
   processSwitchMutex = Mutex();
-  processes = 0;
   nextThread = lastThread = 0;
   uint64_t cpus = ACPI::getController()->getCPUCount();
   cpuThreads = new QueuedThread*[cpus]();
@@ -197,14 +196,11 @@ bool ProcessManager::HandleFault(uint32_t intr, intcb_regs *regs) {
 uint64_t ProcessManager::RegisterProcess(Process *process) {
   uint64_t t = EnterCritical();
   processSwitchMutex.lock();
-  uint64_t pcount = 0, pid = 1;
-  while (processes != 0 && processes[pcount] != 0) {
-    pid = MAX(pid, processes[pcount]->getId() + 1);
-    pcount++;
+  uint64_t pid = 1;
+  for (size_t i = 0; i < processes.getCount(); i++) {
+    pid = MAX(pid, processes[i]->getId());
   }
-  processes = Memory::realloc(processes, sizeof(Process*) * (pcount + 2));
-  processes[pcount + 0] = process;
-  processes[pcount + 1] = 0;
+  processes.add(process);
   processSwitchMutex.release();
   LeaveCritical(t);
   return pid;
@@ -263,8 +259,6 @@ Thread::Thread() {
 Process::Process() {
   id = -1;
   pagetable = 0;
-  symbols = 0;
-  threads = 0;
   entry = 0;
 }
 Process::~Process() {
@@ -304,27 +298,13 @@ Process::~Process() {
     }
     Memory::pfree(pagetable);
   }
-  if (symbols != 0) {
-    uint64_t sid = 0;
-    while (symbols[sid].ptr != 0) {
-      delete[] symbols[sid].name;
-      sid++;
-    }
+  for (size_t i = 0; i < symbols.getCount(); i++) {
+    delete[] symbols[i].name;
   }
-  delete[] symbols;
-  if (threads != 0) {
-    uint64_t tid = 0;
-    while (threads[tid] != 0) {
-      ProcessManager::getManager()->dequeueThread(threads[tid]);
-      delete threads[tid];
-      tid++;
-    }
+  for (size_t i = 0; i < threads.getCount(); i++) {
+    ProcessManager::getManager()->dequeueThread(threads[i]);
+    delete threads[i];
   }
-  delete[] threads;
-}
-
-uint64_t Process::getId() {
-  return id;
 }
 
 void Process::addPage(uintptr_t vaddr, void* paddr, uint8_t flags) {
@@ -389,29 +369,15 @@ uintptr_t Process::addSection(SectionType type, size_t size) {
   return addr;
 }
 void Process::addSymbol(const char *name, uintptr_t ptr) {
-  size_t symbolcount = 0;
-  ProcessSymbol *old = symbols;
-  if (old != 0) {
-    while (old[symbolcount].name != 0 && old[symbolcount].ptr != 0)
-      symbolcount++;
-  }
-  symbols = Memory::realloc(symbols, sizeof(ProcessSymbol) * (symbolcount + 2));
-  symbols[symbolcount].ptr = ptr;
-  symbols[symbolcount].name = strdup(name);
-  symbols[symbolcount + 1].ptr = 0;
-  symbols[symbolcount + 1].name = 0;
+  symbols.insert() = { ptr, strdup(name) };
 }
 void Process::setEntryAddress(uintptr_t ptr) {
   entry = ptr;
 }
 uintptr_t Process::getSymbolByName(const char* name) {
-  if (symbols == 0)
-    return 0;
-  size_t idx = 0;
-  while (symbols[idx].ptr != 0 && symbols[idx].name != 0) {
-    if (strcmp(symbols[idx].name, name) == 0)
-      return symbols[idx].ptr;
-    idx++;
+  for (size_t i = 0; i < symbols.getCount(); i++) {
+    if (strcmp(symbols[i].name, name) == 0)
+      return symbols[i].ptr;
   }
   return 0;
 }
@@ -492,12 +458,7 @@ void Process::addThread(Thread *thread, bool suspended) {
   }
   thread->suspend_ticks = suspended ? -1 : 0;
 
-  uint64_t tcount = 0;
-  while (threads != 0 && threads[tcount] != 0)
-    tcount++;
-  threads = Memory::realloc(threads, sizeof(Thread*) * (tcount + 2));
-  threads[tcount + 0] = thread;
-  threads[tcount + 1] = 0;
+  threads.add(thread);
   ProcessManager::getManager()->queueThread(this, thread);
 }
 extern "C" {
