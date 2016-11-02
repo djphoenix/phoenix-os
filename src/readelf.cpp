@@ -178,7 +178,8 @@ size_t readelf(Process *process, Stream *stream) {
       delete[] _relocs;
     }
 
-    ELF64SYM *symbols = new ELF64SYM[relcnt]();
+    size_t symcnt = symsect.size / sizeof(ELF64SYM);
+    ELF64SYM *symbols = new ELF64SYM[symcnt]();
     stream->seek(symsect.offset, -1);
     stream->read(symbols, symsect.size);
     char *symnames = 0;
