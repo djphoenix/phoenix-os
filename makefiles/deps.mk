@@ -6,7 +6,7 @@ DEP_OVMF_URL = http://netcologne.dl.sourceforge.net/project/edk2/OVMF/OVMF-X64-r
 
 deps/syslinux-$(DEP_SYSLINUX_VER).zip:
 	@ mkdir -p $(dir $@)
-	$(QECHO) echo DL $@
+	$(QECHO) DL $@
 	$(Q) wget -q '$(DEP_SYSLINUX_URL)' -O $@
 	@ touch $@
 
