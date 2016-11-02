@@ -1,16 +1,14 @@
 stages:
   - build
 
-job1:
+build:
   stage: build
   cache:
     paths:
       - deps
-  only:
-    - master
   script:
     - make images
   artifacts:
-    name: "%CI_BUILD_REF_NAME"
+    name: "$CI_BUILD_REF_NAME"
     paths:
       - bin
