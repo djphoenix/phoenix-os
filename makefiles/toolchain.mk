@@ -9,6 +9,14 @@ else
   endif
 endif
 
+ifeq ($(VERBOSE),1)
+  Q=
+  QECHO=@ true
+else
+  Q=@
+  QECHO=@ echo
+endif
+
 CC=$(PREFIX)g++
 OBJCOPY=$(PREFIX)objcopy
 STRIP=$(PREFIX)strip
@@ -22,7 +30,7 @@ QEMU=qemu-system-x86_64
 ifneq ($(shell which cpplint),)
 	LINT=$(shell which cpplint) --quiet
 else
-	LINT=sh -c "echo No lint found"
+	LINT=@ sh -c "echo No lint found"
 endif
 
 ifneq ($(shell which xorriso),)
@@ -34,7 +42,7 @@ else
 		ifneq ($(shell which genisoimage),)
 			MKISO := $(shell which genisoimage)
 		else
-			MKISO=sh -c "echo Neither xorriso nor mkisofs nor genisoimage was found"
+			MKISO=@ sh -c "echo Neither xorriso nor mkisofs nor genisoimage was found"
 		endif
 	endif
 endif

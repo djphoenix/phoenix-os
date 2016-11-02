@@ -1,45 +1,49 @@
 $(foreach mod, $(MODULES), $(eval $(call SCANMOD,$(mod))))
 $(foreach src, $(SOURCES) $(ASSEMBLY), $(eval $(call DEPSRC,$(src))))
 
+ifeq ($(filter clean,$(MAKECMDGOALS)),)
 sinclude $(DEPS)
+endif
 
 $(BIN).elf: $(OBJECTS) $(OOBJDIR)/modules-linked.o
 	@ mkdir -p $(dir $@)
-	@ echo LD $(subst $(OIMGDIR)/,,$@)
-	@ $(CC) $(CFLAGS) -Tld.script -o $@ -Wl,--start-group $^ -Wl,--end-group
+	$(QECHO) LD $(subst $(OIMGDIR)/,,$@)
+	$(Q) $(CC) $(CFLAGS) -Tld.script -o $@ -Wl,--start-group $^ -Wl,--end-group
 
 $(BIN).elf.strip: $(BIN).elf
-	@ $(STRIP) -o $@ $^
+	$(Q) $(STRIP) -o $@ $^
 
 $(BIN): $(BIN).elf.strip
 	@ mkdir -p $(dir $@)
-	@ echo OC $(subst $(OIMGDIR)/,,$@)
-	@ $(OBJCOPY) -Opei-x86-64 --subsystem efi-app --file-alignment 1 --section-alignment 1 $^ $@
+	$(QECHO) OC $(subst $(OIMGDIR)/,,$@)
+	$(Q) $(OBJCOPY) -Opei-x86-64 --subsystem efi-app --file-alignment 1 --section-alignment 1 $^ $@
 
 $(OOBJDIR)/%.d: $(SRCDIR)/%.cpp
 	@ mkdir -p $(dir $@)
-	@ $(CC) $(CFLAGS) -MM -MT $(call SRCOBJ,$^) -c $^ -o $@
+	$(Q) $(CC) $(CFLAGS) -MM -MT $(call SRCOBJ,$^) -c $^ -o $@
+	@ touch $@
 
 $(OOBJDIR)/%.d: $(SRCDIR)/%.s
 	@ mkdir -p $(dir $@)
-	@ $(CC) -c -MM -MT $(call SRCOBJ,$^) $^ -o $@
+	$(Q) $(CC) -c -MM -MT $(call SRCOBJ,$^) $^ -o $@
+	@ touch $@
 
 $(OOBJDIR)/%.o: $(SRCDIR)/%.cpp
 	@ mkdir -p $(dir $@)
-	@ echo CC $<
-	@ $(CC) $(CFLAGS) -c $< -o $@
+	$(QECHO) CC $<
+	$(Q) $(CC) $(CFLAGS) -c $< -o $@
 
 $(OOBJDIR)/%.o: $(SRCDIR)/%.s
 	@ mkdir -p $(dir $@)
-	@ echo AS $<
-	@ $(CC) -c -s $< -o $@
+	$(QECHO) AS $<
+	$(Q) $(CC) -c -s $< -o $@
 
 $(OMODDIR)/%.o: $(OOBJDIR)/mod_%.o
 	@ mkdir -p $(dir $@)
-	@ echo MODLD $(@:$(OMODDIR)/%.o=%)
-	@ $(CC) $(CFLAGS) -Tld-mod.script -r -o $@ -s $^
+	$(QECHO) MODLD $(@:$(OMODDIR)/%.o=%)
+	$(Q) $(CC) $(CFLAGS) -Tld-mod.script -r -o $@ -s $^
 
 $(OOBJDIR)/modules-linked.o: $(MODOBJS)
 	@ mkdir -p $(dir $@)
-	@ cat $^ > $(@:.o=.b)
-	@ $(OBJCOPY) -Oelf64-x86-64 -Bi386 -Ibinary --rename-section .data=.modules $(@:.o=.b) $@
+	$(Q) cat $^ > $(@:.o=.b)
+	$(Q) $(OBJCOPY) -Oelf64-x86-64 -Bi386 -Ibinary --rename-section .data=.modules $(@:.o=.b) $@
