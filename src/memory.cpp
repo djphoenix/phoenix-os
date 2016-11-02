@@ -188,13 +188,13 @@ void Memory::init() {
     }
   }
   if (cmdlinel > 0) {
-    kernel_data.cmdline = static_cast<char*>(alloc(cmdlinel + 1));
+    kernel_data.cmdline = alloc<char>(cmdlinel + 1);
     copy(kernel_data.cmdline, cmdline, cmdlinel + 1);
   } else {
     kernel_data.cmdline = 0;
   }
   if (((kernel_data.flags & 8) == 8) && (kernel_data.mods != 0)) {
-    MODULE *mod = static_cast<MODULE*>(alloc(sizeof(MODULE)));
+    MODULE *mod = alloc<MODULE>();
     kernel_data.mods = mod;
     mod->start = 0;
     mod->end = 0;
@@ -205,7 +205,7 @@ void Memory::init() {
       mod->end = reinterpret_cast<void*>(modules[i].end);
       i++;
       if (modules[i].start != 0)
-        mod = (mod->next = static_cast<MODULE*>(alloc(sizeof(MODULE))));
+        mod = (mod->next = alloc<MODULE>());
     }
     mod->next = 0;
   }

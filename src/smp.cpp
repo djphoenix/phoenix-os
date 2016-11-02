@@ -113,10 +113,9 @@ GDT_ENT *gdt = 0;
 TSS64_ENT *tss = 0;
 
 void SMP::init_gdt(uint32_t ncpu) {
-  gdt = static_cast<GDT_ENT*>(
-      Memory::alloc(5 * sizeof(GDT_ENT) + ncpu * sizeof(GDT_SYS_ENT)));
-  tss = static_cast<TSS64_ENT*>(
-      Memory::alloc(ncpu * sizeof(TSS64_ENT)));
+  gdt = Memory::alloc<GDT_ENT>(
+      5 * sizeof(GDT_ENT) + ncpu * sizeof(GDT_SYS_ENT));
+  tss = Memory::alloc<TSS64_ENT>(ncpu * sizeof(TSS64_ENT));
   gdtrec.base = (uintptr_t)gdt;
   gdtrec.size = 5 * sizeof(GDT_ENT) + ncpu * sizeof(GDT_SYS_ENT) - 1;
   gdt[0] = GDT_ENT_zero;
@@ -189,10 +188,8 @@ void SMP::init() {
   char smp_init_vector = (((uintptr_t)startupCode) >> 12) & 0xFF;
 
   info->lapicAddr = acpi->getLapicAddr();
-  info->cpuids = static_cast<uint64_t*>(
-      Memory::alloc(sizeof(uint64_t) * cpuCount));
-  info->stacks = static_cast<const char**>(
-      Memory::alloc(sizeof(const char*) * cpuCount));
+  info->cpuids = Memory::alloc<uint64_t>(sizeof(uint64_t) * cpuCount);
+  info->stacks = Memory::alloc<const char*>(sizeof(const char*) * cpuCount);
   info->startup = startup;
 
   setup_gdt();

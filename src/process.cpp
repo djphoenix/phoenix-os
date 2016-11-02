@@ -52,11 +52,10 @@ ProcessManager::ProcessManager() {
   processes = 0;
   nextThread = lastThread = 0;
   uint64_t cpus = ACPI::getController()->getCPUCount();
-  cpuThreads = static_cast<QueuedThread**>(
-      Memory::alloc(sizeof(QueuedThread*) * cpus));
+  cpuThreads = Memory::alloc<QueuedThread*>(sizeof(QueuedThread*) * cpus);
   for (uint64_t c = 0; c < cpus; c++)
     cpuThreads[c] = 0;
-  nullThreads = static_cast<Thread*>(Memory::alloc(sizeof(Thread) * cpus));
+  nullThreads = Memory::alloc<Thread>(sizeof(Thread) * cpus);
 }
 bool ProcessManager::TimerHandler(uint32_t intr, intcb_regs *regs) {
   (void)intr;
@@ -203,8 +202,7 @@ uint64_t ProcessManager::RegisterProcess(Process *process) {
     pid = MAX(pid, processes[pcount]->getId() + 1);
     pcount++;
   }
-  processes = static_cast<Process**>(
-      Memory::realloc(processes, sizeof(Process*) * (pcount + 2)));
+  processes = Memory::realloc(processes, sizeof(Process*) * (pcount + 2));
   processes[pcount + 0] = process;
   processes[pcount + 1] = 0;
   processSwitchMutex.release();
@@ -213,8 +211,7 @@ uint64_t ProcessManager::RegisterProcess(Process *process) {
 }
 
 void ProcessManager::queueThread(Process *process, Thread *thread) {
-  QueuedThread *q = static_cast<QueuedThread*>(
-      Memory::alloc(sizeof(QueuedThread)));
+  QueuedThread *q = Memory::alloc<QueuedThread>();
   q->process = process;
   q->thread = thread;
   q->next = 0;
@@ -398,8 +395,7 @@ void Process::addSymbol(const char *name, uintptr_t ptr) {
     while (old[symbolcount].name != 0 && old[symbolcount].ptr != 0)
       symbolcount++;
   }
-  symbols = static_cast<ProcessSymbol*>(
-      Memory::realloc(symbols, sizeof(ProcessSymbol) * (symbolcount + 2)));
+  symbols = Memory::realloc(symbols, sizeof(ProcessSymbol) * (symbolcount + 2));
   symbols[symbolcount].ptr = ptr;
   symbols[symbolcount].name = strdup(name);
   symbols[symbolcount + 1].ptr = 0;
@@ -456,7 +452,7 @@ char *Process::readString(uintptr_t address) {
   }
   if (length == 0)
     return 0;
-  char *buf = static_cast<char*>(Memory::alloc(length + 1));
+  char *buf = Memory::alloc<char>(length + 1);
   readData(buf, address, length + 1);
   return buf;
 }
@@ -499,8 +495,7 @@ void Process::addThread(Thread *thread, bool suspended) {
   uint64_t tcount = 0;
   while (threads != 0 && threads[tcount] != 0)
     tcount++;
-  threads = static_cast<Thread**>(
-      Memory::realloc(threads, sizeof(Thread*) * (tcount + 2)));
+  threads = Memory::realloc(threads, sizeof(Thread*) * (tcount + 2));
   threads[tcount + 0] = thread;
   threads[tcount + 1] = 0;
   ProcessManager::getManager()->queueThread(this, thread);

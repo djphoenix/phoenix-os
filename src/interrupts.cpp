@@ -266,11 +266,10 @@ void Interrupts::init() {
     return;
   }
   fault = Mutex();
-  idt = static_cast<IDT*>(Memory::alloc(sizeof(IDT), 0x1000));
+  idt = Memory::alloc<IDT>(sizeof(IDT), 0x1000);
   idt->rec.limit = sizeof(idt->ints) - 1;
   idt->rec.addr = &idt->ints[0];
-  handlers = static_cast<int_handler*>(
-      Memory::alloc(sizeof(int_handler) * 256, 0x1000));
+  handlers = Memory::alloc<int_handler>(sizeof(int_handler) * 256, 0x1000);
   char* addr = &__interrupt_wrap;
   for (int i = 0; i < 256; i++) {
     uintptr_t jmp_from = (uintptr_t)&(handlers[i].reljmp);
@@ -343,7 +342,7 @@ uint16_t Interrupts::getIRQmask() {
 }
 
 void Interrupts::addCallback(uint8_t intr, intcb* cb) {
-  intcbreg *reg = static_cast<intcbreg*>(Memory::alloc(sizeof(intcbreg)));
+  intcbreg *reg = Memory::alloc<intcbreg>();
   reg->cb = cb;
   reg->next = 0;
 
