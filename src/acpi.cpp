@@ -19,8 +19,8 @@ ACPI* ACPI::controller = 0;
 uint8_t ACPI::activeCpuCount = 0;
 uint64_t ACPI::busfreq = 0;
 
-static const char* ACPI_FIND_START = (const char*)0x000e0000;
-static const char* ACPI_FIND_TOP = (const char*)0x000fffff;
+static void *const ACPI_FIND_START = reinterpret_cast<char*>(0x000e0000);
+static void *const ACPI_FIND_TOP = reinterpret_cast<char*>(0x000fffff);
 static const uint64_t ACPI_SIG_RTP_DSR = 0x2052545020445352;
 static const uint32_t ACPI_SIG_CIPA = 0x43495041;
 
@@ -38,8 +38,8 @@ ACPI* ACPI::getController() {
 }
 
 ACPI::ACPI() {
-  char *p = (char*)ACPI_FIND_START;
-  char *end = (char*)ACPI_FIND_TOP;
+  uint64_t *p = static_cast<uint64_t*>(ACPI_FIND_START);
+  uint64_t *end = static_cast<uint64_t*>(ACPI_FIND_TOP);
   acpiCpuCount = 0;
   activeCpuCount = 1;
 
@@ -50,13 +50,13 @@ ACPI::ACPI() {
 
   while (p < end) {
     Memory::salloc(p);
-    Memory::salloc((uint64_t*)p + 1);
-    uint64_t signature = *(uint64_t *)p;
+    Memory::salloc(p + 1);
+    uint64_t signature = *p;
 
     if ((signature == ACPI_SIG_RTP_DSR) && ParseRsdp(p))
       break;
 
-    p += 16;
+    p += 2;
   }
 
   outportb(0x61, (inportb(0x61) & 0xFD) | 1);
@@ -76,65 +76,69 @@ void ACPI::ParseDT(AcpiHeader *header) {
   Memory::salloc(header);
 
   if (header->signature == ACPI_SIG_CIPA)
-    ParseApic((AcpiMadt *)header);
+    ParseApic(reinterpret_cast<AcpiMadt*>(header));
 }
 void ACPI::ParseRsdt(AcpiHeader *rsdt) {
   Memory::salloc(rsdt);
-  uint32_t *p = (uint32_t *)(rsdt + 1);
-  uint32_t *end = (uint32_t *)((char*)rsdt + rsdt->length);
+  uint32_t *p = reinterpret_cast<uint32_t*>(rsdt + 1);
+  uint32_t *end = p + (rsdt->length - sizeof(*rsdt)) / sizeof(uint32_t);
 
   while (p < end) {
     Memory::salloc(p);
-    Memory::salloc((uint64_t*)p + 1);
-    uint64_t address = (uint64_t)((uint32_t)(*p++) & 0xFFFFFFFF);
-    ParseDT((AcpiHeader *)(uintptr_t)address);
+    Memory::salloc(p + 1);
+    uintptr_t address = ((*p++) & 0xFFFFFFFF);
+    ParseDT(reinterpret_cast<AcpiHeader*>(address));
   }
 }
 void ACPI::ParseXsdt(AcpiHeader *xsdt) {
   Memory::salloc(xsdt);
-  uint64_t *p = (uint64_t *)(xsdt + 1);
-  uint64_t *end = (uint64_t *)((char*)xsdt + xsdt->length);
+  uint64_t *p = reinterpret_cast<uint64_t*>(xsdt + 1);
+  uint64_t *end = p + (xsdt->length - sizeof(*xsdt)) / sizeof(uint64_t);
 
   while (p < end) {
     Memory::salloc(p);
-    Memory::salloc((uint64_t*)p + 1);
+    Memory::salloc(p + 1);
     uint64_t address = *p++;
-    ParseDT((AcpiHeader *)(uintptr_t)address);
+    ParseDT(reinterpret_cast<AcpiHeader*>(address));
   }
 }
 void ACPI::ParseApic(AcpiMadt *a_madt) {
   Memory::salloc(a_madt);
   madt = a_madt;
 
-  localApicAddr = (uint32_t *)((uintptr_t)madt->localApicAddr & 0xFFFFFFFF);
+  localApicAddr = reinterpret_cast<char*>(madt->localApicAddr);
   Memory::salloc(localApicAddr);
 
-  char *p = (char *)(madt + 1);
-  char *end = ((char *)madt) + madt->header.length;
+  uint8_t *p = reinterpret_cast<uint8_t*>(madt + 1);
+  uint8_t *end = p + (madt->header.length - sizeof(AcpiMadt));
 
   while (p < end) {
-    ApicHeader *header = (ApicHeader *)p;
+    ApicHeader *header = reinterpret_cast<ApicHeader*>(p);
     Memory::salloc(header);
     Memory::salloc(header + 1);
     uint16_t type = header->type;
     uint16_t length = header->length;
     Memory::salloc(header);
     if (type == 0) {
-      ApicLocalApic *s = (ApicLocalApic *)p;
+      ApicLocalApic *s = reinterpret_cast<ApicLocalApic*>(p);
       acpiCpuIds[acpiCpuCount++] = s->apicId;
     } else if (type == 1) {
-      ApicIoApic *s = (ApicIoApic *)p;
-      ioApicAddr = (uint32_t *)((uintptr_t)s->ioApicAddress & 0xFFFFFFFF);
+      ApicIoApic *s = reinterpret_cast<ApicIoApic*>(p);
+      ioApicAddr = reinterpret_cast<char*>(s->ioApicAddress);
       Memory::salloc(ioApicAddr);
     } else if (type == 2) {
-      // ApicInterruptOverride *s = (ApicInterruptOverride *)p;
+      ApicInterruptOverride *s = reinterpret_cast<ApicInterruptOverride*>(p);
+      (void)s;
+      // TODO: handle interrupt overrides
     }
 
     p += length;
   }
 }
-bool ACPI::ParseRsdp(char *p) {
-  char sum = 0;
+bool ACPI::ParseRsdp(void *ptr) {
+  uint8_t *p = static_cast<uint8_t*>(ptr);
+
+  uint8_t sum = 0;
   for (int i = 0; i < 20; ++i)
     sum += p[i];
 
@@ -142,25 +146,27 @@ bool ACPI::ParseRsdp(char *p) {
     return false;
 
   char oem[7];
-  Memory::copy(oem, (char*)(p + 9), 6);
-  oem[6] = '\0';
+  Memory::copy(oem, p + 9, 6);
+  oem[6] = 0;
 
   char revision = p[15];
-  Memory::salloc((int *)(p + 16));
-  Memory::salloc((int *)(p + 16) + 1);
+  uint32_t *rsdtPtr = static_cast<uint32_t*>(ptr) + 4;
+  uint64_t *xsdtPtr = static_cast<uint64_t*>(ptr) + 3;
+
+  Memory::salloc(rsdtPtr);
+  Memory::salloc(rsdtPtr + 1);
+  uint32_t rsdtAddr = *rsdtPtr;
   if (revision == 0) {
-    int rsdtAddr = *(int *)(p + 16);
-    ParseRsdt((AcpiHeader *)(uintptr_t)((uint64_t)rsdtAddr & 0xFFFFFFFF));
+    ParseRsdt(reinterpret_cast<AcpiHeader*>(rsdtAddr));
   } else if (revision == 2) {
-    int rsdtAddr = *(int *)(p + 16);
-    Memory::salloc((uint64_t *)(p + 24));
-    Memory::salloc((uint64_t *)(p + 24) + 1);
-    uint64_t xsdtAddr = *(uint64_t *)(p + 24);
+    Memory::salloc(xsdtPtr);
+    Memory::salloc(xsdtPtr + 1);
+    uint64_t xsdtAddr = *xsdtPtr;
 
     if (xsdtAddr)
-      ParseXsdt((AcpiHeader *)(uintptr_t)xsdtAddr);
+      ParseXsdt(reinterpret_cast<AcpiHeader*>(xsdtAddr));
     else
-      ParseRsdt((AcpiHeader *)(uintptr_t)((uint64_t)rsdtAddr & 0xFFFFFFFF));
+      ParseRsdt(reinterpret_cast<AcpiHeader*>(rsdtAddr));
   }
 
   return true;
@@ -192,33 +198,33 @@ uint32_t ACPI::getCPUIDOfLapic(uint32_t id) {
 uint32_t ACPI::LapicIn(uint32_t reg) {
   if (!localApicAddr)
     return 0;
-  return MmioRead32((char*)localApicAddr + reg);
+  return MmioRead32(localApicAddr + reg);
 }
 void ACPI::LapicOut(uint32_t reg, uint32_t data) {
   if (!localApicAddr)
     return;
-  MmioWrite32((char*)localApicAddr + reg, data);
+  MmioWrite32(localApicAddr + reg, data);
 }
 uint32_t ACPI::IOapicIn(uint32_t reg) {
   if (!ioApicAddr)
     return 0;
-  MmioWrite32((char*)ioApicAddr + IOAPIC_REGSEL, reg);
-  return MmioRead32((char*)ioApicAddr + IOAPIC_REGWIN);
+  MmioWrite32(ioApicAddr + IOAPIC_REGSEL, reg);
+  return MmioRead32(ioApicAddr + IOAPIC_REGWIN);
 }
 void ACPI::IOapicOut(uint32_t reg, uint32_t data) {
   if (!ioApicAddr)
     return;
-  MmioWrite32((char*)ioApicAddr + IOAPIC_REGSEL, reg);
-  MmioWrite32((char*)ioApicAddr + IOAPIC_REGWIN, data);
+  MmioWrite32(ioApicAddr + IOAPIC_REGSEL, reg);
+  MmioWrite32(ioApicAddr + IOAPIC_REGWIN, data);
 }
 union ioapic_redir_ints {
   ioapic_redir r;
-  int i[2];
+  uint32_t i[2];
 };
 void ACPI::IOapicMap(uint32_t idx, ioapic_redir r) {
-  ioapic_redir_ints *a = (ioapic_redir_ints *)&r;
-  IOapicOut(IOAPIC_REDTBL + idx * 2 + 0, a->i[0]);
-  IOapicOut(IOAPIC_REDTBL + idx * 2 + 1, a->i[1]);
+  ioapic_redir_ints a = { .r = r };
+  IOapicOut(IOAPIC_REDTBL + idx * 2 + 0, a.i[0]);
+  IOapicOut(IOAPIC_REDTBL + idx * 2 + 1, a.i[1]);
 }
 ioapic_redir ACPI::IOapicReadMap(uint32_t idx) {
   ioapic_redir_ints a;

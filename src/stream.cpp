@@ -17,7 +17,7 @@
 #include "stream.hpp"
 
 MemoryStream::MemoryStream(void* memory, size_t limit) {
-  this->memory = memory;
+  this->memory = static_cast<char*>(memory);
   this->limit = limit;
   this->offset = 0;
 }
@@ -37,7 +37,7 @@ size_t MemoryStream::seek(int64_t offset, char base) {
 size_t MemoryStream::read(void* dest, size_t size) {
   if (offset + size >= limit)
     size = limit - offset;
-  Memory::copy(dest, (char*)memory + offset, size);
+  Memory::copy(dest, memory + offset, size);
   return size;
 }
 Stream* MemoryStream::substream(int64_t offset, size_t limit) {
@@ -45,16 +45,16 @@ Stream* MemoryStream::substream(int64_t offset, size_t limit) {
     offset = this->offset;
   if ((limit == (size_t)-1) || (limit > this->limit - offset))
     limit = this->limit - offset;
-  return new MemoryStream((char*)memory + (size_t)offset, limit);
+  return new MemoryStream(memory + (size_t)offset, limit);
 }
 char* MemoryStream::readstr(int64_t offset) {
   if (offset == -1)
     offset = this->offset;
   if ((size_t)offset > limit)
     return 0;
-  size_t len = strlen((char*)memory + (size_t)offset, limit - offset);
-  char* res = (char*)Memory::alloc(len + 1);
-  Memory::copy(res, (char*)memory + (size_t)offset, len);
+  size_t len = strlen(memory + (size_t)offset, limit - offset);
+  char* res = static_cast<char*>(Memory::alloc(len + 1));
+  Memory::copy(res, memory + (size_t)offset, len);
   res[len] = 0;
   return res;
 }

@@ -89,7 +89,7 @@ struct ALLOC {
 };
 struct ALLOCTABLE {
   ALLOC allocs[255];
-  void* next;
+  ALLOCTABLE* next;
   int64_t reserved;
 };
 extern GRUB *grub_data;
@@ -120,9 +120,9 @@ class Memory {
 
 inline static void MmioWrite32(void *p, uint32_t data) {
   Memory::salloc(p);
-  *(volatile int *)(p) = data;
+  *(volatile uint32_t *)(p) = data;
 }
-inline static uint32_t MmioRead32(void *p) {
+inline static uint32_t MmioRead32(const void *p) {
   Memory::salloc(p);
-  return *(volatile int *)(p);
+  return *(volatile uint32_t *)(p);
 }

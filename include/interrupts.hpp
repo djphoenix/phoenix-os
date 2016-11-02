@@ -74,7 +74,7 @@ typedef bool intcb(uint32_t intr, intcb_regs *regs);
 
 struct intcbreg {
   intcb *cb;
-  intcbreg *prev, *next;
+  intcbreg *next;
 };
 
 class Interrupts {

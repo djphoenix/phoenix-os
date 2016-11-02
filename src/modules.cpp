@@ -97,7 +97,7 @@ void ModuleManager::parseInternal() {
   if ((kernel_data.modules != 0) && (kernel_data.modules
       != kernel_data.modules_top)) {
     Stream *ms = new MemoryStream(
-        (void*)kernel_data.modules,
+        reinterpret_cast<void*>(kernel_data.modules),
         kernel_data.modules_top - kernel_data.modules);
     loadStream(ms, 1);
     delete ms;
@@ -108,9 +108,10 @@ void ModuleManager::parseInitRD() {
     MODULE *mod = kernel_data.mods;
     while (mod != 0) {
       Stream *ms = new MemoryStream(
-          (void*)mod->start, ((uint64_t)mod->end) - ((uint64_t)mod->start));
+          mod->start,
+          (static_cast<char*>(mod->end) - static_cast<char*>(mod->start)));
       loadStream(ms, 1);
-      mod = (MODULE*)mod->next;
+      mod = mod->next;
       delete ms;
     }
   }

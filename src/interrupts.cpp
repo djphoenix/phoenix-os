@@ -87,8 +87,8 @@ asm volatile(
 extern "C" {
   uint64_t __attribute__((sysv_abi)) interrupt_handler(uint64_t intr,
                                                        uint64_t stack);
-  extern void *__pagetable__;
-  extern void *__interrupt_wrap;
+  extern char __pagetable__;
+  extern char __interrupt_wrap;
 }
 uint64_t __attribute__((sysv_abi)) interrupt_handler(uint64_t intr,
                                                      uint64_t stack) {
@@ -156,13 +156,13 @@ struct int_info {
 uint64_t Interrupts::handle(unsigned char intr, uint64_t stack, uint64_t *cr3) {
   fault.lock();
   fault.release();
-  uint64_t *rsp = (uint64_t*)stack;
+  uint64_t *rsp = reinterpret_cast<uint64_t*>(stack);
   bool has_code = (intr < 0x20) && FAULTS[intr].has_error_code;
   uint64_t error_code = 0;
-  int_regs *regs = (int_regs*)(rsp - (12 + 3));
+  int_regs *regs = reinterpret_cast<int_regs*>(rsp - (12 + 3));
   if (has_code)
     error_code = *(rsp++);
-  int_info *info = (int_info*)rsp;
+  int_info *info = reinterpret_cast<int_info*>(rsp);
   bool handled = false;
 
   uint32_t cpuid = ACPI::getController()->getCPUID();
@@ -266,11 +266,12 @@ void Interrupts::init() {
     return;
   }
   fault = Mutex();
-  idt = (IDT*)Memory::alloc(sizeof(IDT), 0x1000);
+  idt = static_cast<IDT*>(Memory::alloc(sizeof(IDT), 0x1000));
   idt->rec.limit = sizeof(idt->ints) - 1;
   idt->rec.addr = &idt->ints[0];
-  handlers = (int_handler*)Memory::alloc(sizeof(int_handler) * 256, 0x1000);
-  void* addr = (void*)&__interrupt_wrap;
+  handlers = static_cast<int_handler*>(
+      Memory::alloc(sizeof(int_handler) * 256, 0x1000));
+  char* addr = &__interrupt_wrap;
   for (int i = 0; i < 256; i++) {
     uintptr_t jmp_from = (uintptr_t)&(handlers[i].reljmp);
     uintptr_t jmp_to = (uintptr_t)addr;
@@ -342,10 +343,9 @@ uint16_t Interrupts::getIRQmask() {
 }
 
 void Interrupts::addCallback(uint8_t intr, intcb* cb) {
-  intcbreg *reg = (intcbreg*)Memory::alloc(sizeof(intcbreg));
+  intcbreg *reg = static_cast<intcbreg*>(Memory::alloc(sizeof(intcbreg)));
   reg->cb = cb;
   reg->next = 0;
-  reg->prev = 0;
 
   uint64_t t = EnterCritical();
   callback_locks[intr].lock();
@@ -355,7 +355,6 @@ void Interrupts::addCallback(uint8_t intr, intcb* cb) {
   } else {
     while (last->next != 0)
       last = last->next;
-    reg->prev = last;
     last->next = reg;
   }
   callback_locks[intr].release();

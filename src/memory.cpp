@@ -21,7 +21,7 @@ static const uint64_t KBTS4 = 0xFFFFFFFFFFFFF000;
 
 extern "C" {
   extern char __first_page__;
-  extern char __pagetable__;
+  extern PTE __pagetable__;
   extern char __stack_start__, __stack_end__;
   extern char __text_start__, __text_end__;
   extern char __data_start__, __data_end__;
@@ -29,7 +29,7 @@ extern "C" {
   extern char __bss_start__, __bss_end__;
 }
 
-PTE *Memory::pagetable = (PTE*)&__pagetable__;
+PTE *Memory::pagetable = &__pagetable__;
 ALLOCTABLE *Memory::allocs = 0;
 void* Memory::first_free = &__first_page__;
 uintptr_t Memory::last_page = 1;
@@ -55,17 +55,11 @@ PTE *Memory::get_page(void* base_addr) {
   return &page[i & 0x1FF];
 }
 
-static inline uintptr_t ALIGN(uintptr_t base, size_t align) {
-  if (base % align == 0)
-    return base;
-  return base + align - (base % align);
-}
-
 #define FILL_PAGES(LOW, TOP) do { \
   uintptr_t low = ((uintptr_t)(LOW)) & KBTS4; \
   uintptr_t top = ALIGN(((uintptr_t)(TOP)), 0x1000); \
   for (uintptr_t addr = low; addr < top; addr += 0x1000) \
-    get_page((void*)addr)->user = 0; \
+    get_page(reinterpret_cast<void*>(addr))->user = 0; \
 } while (0)
 
 void Memory::init() {
@@ -81,9 +75,7 @@ void Memory::init() {
   kernel_data.bss_top = (uintptr_t)&__bss_end__;
 
   // Buffering BIOS interrupts
-  for (int i = 0; i < 256; i++) {
-    Interrupts::interrupts32[i] = ((INTERRUPT32*)0)[i];
-  }
+  copy(Interrupts::interrupts32, 0, sizeof(INTERRUPT32) * 256);
 
   // Buffering grub data
   kernel_data.flags = grub_data->flags;
@@ -91,43 +83,37 @@ void Memory::init() {
   kernel_data.mem_upper = grub_data->mem_upper;
   kernel_data.boot_device = grub_data->boot_device;
   kernel_data.boot_device = grub_data->boot_device;
-  kernel_data.mods = (MODULE*)((uintptr_t)grub_data->pmods_addr & 0xFFFFFFFF);
+  kernel_data.mods = reinterpret_cast<MODULE*>(grub_data->pmods_addr);
   if ((uintptr_t)kernel_data.mods < (uintptr_t)&__bss_end__)
-    kernel_data.mods = (MODULE*)((uintptr_t)kernel_data.mods
+    kernel_data.mods = reinterpret_cast<MODULE*>((uintptr_t)kernel_data.mods
         + (uintptr_t)&__bss_end__);
   kernel_data.mmap_length = grub_data->mmap_length;
-  kernel_data.mmap_addr =
-      (char*)((uintptr_t)grub_data->pmmap_addr & 0xFFFFFFFF);
+  kernel_data.mmap_addr = reinterpret_cast<char*>(grub_data->pmmap_addr);
   if ((uintptr_t)kernel_data.mmap_addr < (uintptr_t)&__bss_end__)
-    kernel_data.mmap_addr = (char*)((uintptr_t)kernel_data.mmap_addr
-        + (uintptr_t)&__bss_end__);
+    kernel_data.mmap_addr += (uintptr_t)&__bss_end__;
 
   char cmdline[256];
-  int32_t cmdlinel = 0;
+  size_t cmdlinel = 0;
   if (((kernel_data.flags & 4) == 4) && (grub_data->pcmdline != 0)) {
-    char* c = (char*)((uintptr_t)grub_data->pcmdline & 0xFFFFFFFF);
-    if ((uint64_t)c < 0x100000)
-      c = (char*)((uintptr_t)c + 0x100000);
-    int i = 0;
-    while ((c[i] != 0) && (i < 255)) {
-      cmdline[i] = c[i];
-      i++;
-    }
-    cmdline[i] = 0;
-    cmdlinel = i + 1;
+    const char* c = reinterpret_cast<const char*>(grub_data->pcmdline);
+    if ((uintptr_t)c < 0x100000) c += 0x100000;
+    int len = strlen(c, 255);
+    copy(cmdline, c, len);
+    cmdline[len] = 0;
+    cmdlinel = len;
   }
 
   if (((kernel_data.flags & 8) == 8) && (grub_data->mods_count != 0)
       && (kernel_data.mods != 0)) {
     modules[grub_data->mods_count].start = 0;
-    GRUBMODULE *c = (GRUBMODULE*)kernel_data.mods;
+    GRUBMODULE *c = reinterpret_cast<GRUBMODULE*>(kernel_data.mods);
     for (unsigned int i = 0; i < grub_data->mods_count; i++) {
       modules[i].start = c->start;
       modules[i].end = c->end;
 
       // Set module pages as system
       FILL_PAGES(modules[i].start & 0xFFFFF000, modules[i].end & 0xFFFFF000);
-      c = (GRUBMODULE*)((uintptr_t)c + 16);
+      c++;
     }
   } else {
     kernel_data.mods = 0;
@@ -202,41 +188,40 @@ void Memory::init() {
     }
   }
   if (cmdlinel > 0) {
-    kernel_data.cmdline = (char*)alloc(cmdlinel);
-    for (int i = 0; i < cmdlinel; i++) {
-      kernel_data.cmdline[i] = cmdline[i];
-    }
+    kernel_data.cmdline = static_cast<char*>(alloc(cmdlinel + 1));
+    copy(kernel_data.cmdline, cmdline, cmdlinel + 1);
   } else {
     kernel_data.cmdline = 0;
   }
   if (((kernel_data.flags & 8) == 8) && (kernel_data.mods != 0)) {
-    MODULE *mod = kernel_data.mods = (MODULE*)alloc(sizeof(MODULE));
+    MODULE *mod = static_cast<MODULE*>(alloc(sizeof(MODULE)));
+    kernel_data.mods = mod;
     mod->start = 0;
     mod->end = 0;
     mod->next = 0;
     int i = 0;
     while (modules[i].start != 0) {
-      mod->start = (void*)((uintptr_t)modules[i].start & 0xFFFFFFFF);
-      mod->end = (void*)((uintptr_t)modules[i].end & 0xFFFFFFFF);
+      mod->start = reinterpret_cast<void*>(modules[i].start);
+      mod->end = reinterpret_cast<void*>(modules[i].end);
       i++;
       if (modules[i].start != 0)
-        mod = (mod->next = (MODULE*)alloc(sizeof(MODULE)));
+        mod = (mod->next = static_cast<MODULE*>(alloc(sizeof(MODULE))));
     }
     mod->next = 0;
   }
 
   // GRUB info
-  GRUBMEMENT *mmap = (GRUBMEMENT*)kernel_data.mmap_addr;
-  GRUBMEMENT *mmap_top = (GRUBMEMENT*)((char*)kernel_data.mmap_addr
-      + kernel_data.mmap_length);
-  for (; mmap < mmap_top;) {
+  GRUBMEMENT *mmap = reinterpret_cast<GRUBMEMENT*>(kernel_data.mmap_addr);
+  GRUBMEMENT *mmap_top = mmap + kernel_data.mmap_length / sizeof(GRUBMEMENT);
+  while (mmap < mmap_top) {
     if (mmap->type != 1) {
       uintptr_t low = (uintptr_t)mmap->base & KBTS4;
       uintptr_t top = ALIGN((uintptr_t)mmap->base + mmap->length, 0x1000);
       for (uintptr_t addr = low; addr < top; addr += 0x1000)
-        salloc((void*)addr);
+        salloc(reinterpret_cast<void*>(addr));
     }
-    mmap = (GRUBMEMENT*)((char*)mmap + mmap->size + sizeof(mmap->size));
+    mmap = reinterpret_cast<GRUBMEMENT*>(
+        reinterpret_cast<char*>(mmap) + mmap->size + sizeof(mmap->size));
   }
 }
 void Memory::map() {
@@ -247,7 +232,7 @@ void Memory::map() {
   char c = 0, nc = 0;
   uint64_t start = 0;
   for (i = 0; i < 0xFFFFF000; i += 0x1000) {
-    PTE *page = get_page((void*)i);
+    PTE *page = get_page(reinterpret_cast<void*>(i));
     nc = !page ? 0 : page->flags;
     if ((nc & 1) != 0) {
       if ((nc & 4) != 0) {
@@ -274,7 +259,7 @@ void* Memory::salloc(const void* mem) {
   uint64_t t = EnterCritical();
   page_mutex.lock();
   uintptr_t i = (uintptr_t)(mem) >> 12;
-  void *addr = (void*)(i << 12);
+  void *addr = reinterpret_cast<void*>(i << 12);
   PTE pte = pagetable[(i >> 27) & 0x1FF];
   if (!pte.present) {
     pagetable[(i >> 27) & 0x1FF] = pte = PTE_MAKE(_palloc(0, true), 3);
@@ -296,16 +281,17 @@ void* Memory::salloc(const void* mem) {
   return addr;
 }
 void* Memory::_palloc(uint8_t avl, bool nolow) {
-  start: void *addr = 0;
+start:
+  void *addr = 0;
   PTE *page;
   uintptr_t i = last_page - 1;
   if (nolow && (i < 0x100))
     i = 0x100;
   while (i < KBTS4) {
     i++;
-    addr = (void*)(i << 12);
+    addr = reinterpret_cast<void*>(i << 12);
     page = get_page(addr);
-    if ((page == 0) || (*(uintptr_t*)page & 1) == 0)
+    if ((page == 0) || !page->present)
       break;
   }
   if (!nolow)
@@ -319,21 +305,18 @@ void* Memory::_palloc(uint8_t avl, bool nolow) {
     i++;
     i++;
     pde[(i >> 18) & 0x1FF] = PTE_MAKE(addr, 3);
-    for (uint16_t j = 0; j < 0x200; j++)
-      ((uintptr_t*)addr)[j] = 0;
+    fill(addr, 0, 0x1000);
     goto start;
   }
   if (!pdpen[((i + 1) >> 9) & 0x1FF].present) {
     page[i & 0x1FF] = PTE_MAKE(addr, 3);
     i++;
     pdpen[(i >> 9) & 0x1FF] = PTE_MAKE(addr, 3);
-    for (uint16_t j = 0; j < 0x200; j++)
-      ((uintptr_t*)addr)[j] = 0;
+    fill(addr, 0, 0x1000);
     goto start;
   }
   page[i & 0x1FF] = PTE_MAKE_AVL(addr, avl, 3);
-  for (i = 0; i < 0x200; i++)
-    ((uint64_t*)addr)[i] = 0;
+  fill(addr, 0, 0x1000);
   return addr;
 }
 void* Memory::palloc(uint8_t avl) {
@@ -371,7 +354,7 @@ void* Memory::alloc(size_t size, size_t align) {
     f = 0;
     uintptr_t ps = ns >> 12, pe = (ne >> 12) + (((ne & 0xFFF) != 0) ? 1 : 0);
     for (uintptr_t i = ps; i < pe; i++) {
-      PTE *pdata = get_page((void*)((uintptr_t)i << 12));
+      PTE *pdata = get_page(reinterpret_cast<void*>(i << 12));
       if ((pdata != 0) && (pdata->present) && (pdata->avl == 0)) {
         ns = (i + 1) << 12;
         if (ns % align != 0)
@@ -413,13 +396,13 @@ void* Memory::alloc(size_t size, size_t align) {
         break;
       if (t->next == 0)
         break;
-      t = (ALLOCTABLE*)t->next;
+      t = t->next;
     }
     for (uintptr_t i = ps; i < pe; i++) {
-      PTE *page = get_page((void*)(i * 0x1000));
+      PTE *page = get_page(reinterpret_cast<void*>(i << 12));
       if ((page == 0) || !page->present) {
         void *t = palloc(1);
-        if ((uintptr_t)t != (i * 0x1000)) {
+        if ((uintptr_t)t != (i << 12)) {
           f = 1;
           break;
         }
@@ -430,7 +413,7 @@ void* Memory::alloc(size_t size, size_t align) {
   }
   // Finding memory slot for alloc record
   if (allocs == 0)
-    allocs = (ALLOCTABLE*)palloc();
+    allocs = static_cast<ALLOCTABLE*>(palloc());
   t = allocs;
   int ai;
   while (1) {
@@ -442,21 +425,21 @@ void* Memory::alloc(size_t size, size_t align) {
       }
     if (ai == -1) {
       if (t->next == 0) {
-        t->next = (ALLOCTABLE*)palloc();
-        ((ALLOCTABLE*)t->next)->next = 0;
+        t->next = static_cast<ALLOCTABLE*>(palloc());
+        t->next->next = 0;
       }
-      t = (ALLOCTABLE*)t->next;
+      t = t->next;
     } else {
       break;
     }
   }
-  t->allocs[ai].addr = (void*)ns;
+  t->allocs[ai].addr = reinterpret_cast<void*>(ns);
   t->allocs[ai].size = size;
   if (((uintptr_t)first_free < ns) && (align == 4)) {
-    first_free = (void*)(ns + size);
+    first_free = reinterpret_cast<void*>(ns + size);
   }
   heap_mutex.release();
-  return (void*)ns;
+  return reinterpret_cast<void*>(ns);
 }
 void Memory::free(void* addr) {
   if (addr == 0)
@@ -475,7 +458,7 @@ void Memory::free(void* addr) {
     }
     if (t->next == 0)
       goto end;
-    t = (ALLOCTABLE*)t->next;
+    t = t->next;
   }
   end: heap_mutex.release();
 }
@@ -496,7 +479,7 @@ void *Memory::realloc(void *addr, size_t size, size_t align) {
     }
     if (oldsize != 0)
       break;
-    t = (ALLOCTABLE*)t->next;
+    t = t->next;
   }
   heap_mutex.release();
   if (oldsize == 0)

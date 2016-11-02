@@ -90,14 +90,10 @@ char* CPU::getVendor() {
     asm volatile("cpuid" :
         "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) :
         "a"(eax));
-    union u {
-      char s[12];
-      int i[3];
-    };
-    u *v = (u*)&vendor;
-    v->i[0] = ebx;
-    v->i[1] = edx;
-    v->i[2] = ecx;
+    uint32_t *v = reinterpret_cast<uint32_t*>(vendor);
+    v[0] = ebx;
+    v[1] = edx;
+    v[2] = ecx;
     vendor[12] = 0;
   }
   return vendor;
@@ -186,7 +182,7 @@ char* CPU::getFeaturesStr() {
   uint32_t count = bitcnt(f) + bitcnt(ef) + bitcnt(fe);
 
   size_t bufsize = 17 * count;
-  char *buf = (char*)alloca(bufsize);
+  char *buf = static_cast<char*>(alloca(bufsize));
   char *end = buf;
 
   for (int i = 0; i < 64; i++) {
@@ -216,26 +212,22 @@ char* CPU::getFeaturesStr() {
 
 char* CPU::getBrandString() {
   if ((brandString[0] == 0) && (getMaxCPUID() >= 0x80000004)) {
-    union u {
-      uint32_t i[12];
-      char s[48];
-    };
-    u *v = (u*)brandString;
+    uint32_t *v = reinterpret_cast<uint32_t*>(brandString);
     uint32_t eax = 0x80000002, ebx, ecx, edx;
     asm volatile("cpuid" :
         "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) :
         "a"(eax));
-    v->i[0] = eax, v->i[1] = ebx, v->i[2] = ecx, v->i[3] = edx;
+    v[0] = eax, v[1] = ebx, v[2] = ecx, v[3] = edx;
     eax = 0x80000003;
     asm volatile("cpuid" :
         "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) :
         "a"(eax));
-    v->i[4] = eax, v->i[5] = ebx, v->i[6] = ecx, v->i[7] = edx;
+    v[4] = eax, v[5] = ebx, v[6] = ecx, v[7] = edx;
     eax = 0x80000004;
     asm volatile("cpuid" :
         "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) :
         "a"(eax));
-    v->i[8] = eax, v->i[9] = ebx, v->i[10] = ecx, v->i[11] = edx;
+    v[8] = eax, v[9] = ebx, v[10] = ecx, v[11] = edx;
     brandString[48] = 0;
   }
   return brandString;

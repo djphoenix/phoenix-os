@@ -103,4 +103,10 @@ extern "C" {
   inline static void LeaveCritical(uint64_t flags) {
     asm volatile("push %q0; popfq"::"r"(flags));
   }
+
+  inline static uintptr_t ALIGN(uintptr_t base, size_t align) {
+    if (base % align == 0)
+      return base;
+    return base + align - (base % align);
+  }
 }

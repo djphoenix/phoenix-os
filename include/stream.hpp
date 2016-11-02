@@ -33,7 +33,7 @@ class MemoryStream: public Stream {
  private:
   size_t offset;
   size_t limit;
-  void* memory;
+  char* memory;
 
  public:
   MemoryStream(void* memory, size_t limit);

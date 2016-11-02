@@ -17,8 +17,8 @@
 #include "pxlib.hpp"
 #include "memory.hpp"
 
-static char *const display_start = (char*)0xB8000;
-static char *const display_top = (char*)0xB8FA0;
+static char *const display_start = reinterpret_cast<char*>(0xB8000);
+static char *const display_top = reinterpret_cast<char*>(0xB8FA0);
 static const size_t display_size = display_top - display_start;
 
 char* display = display_start;
@@ -357,23 +357,23 @@ get_num:
         void *ptrval = va_arg(ap, void*);
         if (ptrval == 0) goto next_format;
         if (flags.sz_halfhalf)
-          *((signed char*)ptrval) = out_len;
+          *static_cast<signed char*>(ptrval) = out_len;
         else if (flags.sz_half)
-          *((/* short int */ int16_t*)ptrval) = out_len;
+          *static_cast<int16_t*>(ptrval) = out_len;
         else if (flags.sz_long)
-          *((/* long int */ int32_t*)ptrval) = out_len;
+          *static_cast<int32_t*>(ptrval) = out_len;
         else if (flags.sz_longlong)
-          *((/* long long int */ int64_t*)ptrval) = out_len;
+          *static_cast<int64_t*>(ptrval) = out_len;
         else if (flags.sz_max)
-          *((intmax_t*)ptrval) = out_len;
+          *static_cast<intmax_t*>(ptrval) = out_len;
         else if (flags.sz_sizet)
-          *((size_t*)ptrval) = out_len;
+          *static_cast<size_t*>(ptrval) = out_len;
         else if (flags.sz_ptrdiff)
-          *((ptrdiff_t*)ptrval) = out_len;
+          *static_cast<ptrdiff_t*>(ptrval) = out_len;
         else if (flags.sz_longdbl)
           goto next_format;
         else
-          *((int*)ptrval) = out_len;
+          *static_cast<int*>(ptrval) = out_len;
         goto next_format;
       }
       default:
@@ -426,7 +426,7 @@ int vprintf(const char *format, va_list ap) {
   va_copy(tmp, ap);
   int len = vsnprintf(0, 0, format, tmp);
   va_end(tmp);
-  char *buf = (char*)alloca(len + 1);
+  char *buf = static_cast<char*>(alloca(len + 1));
   len = vsnprintf(buf, len, format, ap);
   buf[len] = 0;
   puts(buf);
@@ -456,8 +456,8 @@ size_t strlen(const char* c, size_t limit) {
 
 char* strdup(const char* c) {
   size_t len = strlen(c);
-  char* r = (char*)Memory::alloc(len + 1);
-  Memory::copy(r, (void*)c, len + 1);
+  char* r = static_cast<char*>(Memory::alloc(len + 1));
+  Memory::copy(r, c, len + 1);
   return r;
 }
 

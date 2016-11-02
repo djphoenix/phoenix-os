@@ -113,9 +113,10 @@ GDT_ENT *gdt = 0;
 TSS64_ENT *tss = 0;
 
 void SMP::init_gdt(uint32_t ncpu) {
-  gdt = (GDT_ENT*)Memory::alloc(
-      5 * sizeof(GDT_ENT) + ncpu * sizeof(GDT_SYS_ENT));
-  tss = (TSS64_ENT*)Memory::alloc(ncpu * sizeof(TSS64_ENT));
+  gdt = static_cast<GDT_ENT*>(
+      Memory::alloc(5 * sizeof(GDT_ENT) + ncpu * sizeof(GDT_SYS_ENT)));
+  tss = static_cast<TSS64_ENT*>(
+      Memory::alloc(ncpu * sizeof(TSS64_ENT)));
   gdtrec.base = (uintptr_t)gdt;
   gdtrec.size = 5 * sizeof(GDT_ENT) + ncpu * sizeof(GDT_SYS_ENT) - 1;
   gdt[0] = GDT_ENT_zero;
@@ -123,7 +124,7 @@ void SMP::init_gdt(uint32_t ncpu) {
   gdt[2] = gdt_encode({ 0, 0, 0x2, 0, 1, 1, 0, 1, 0, 0 });
   gdt[3] = gdt_encode({ 0, 0xFFFFFFFFFFFFFFFF, 0xA, 3, 1, 1, 0, 1, 0, 0 });
   gdt[4] = gdt_encode({ 0, 0xFFFFFFFFFFFFFFFF, 0x2, 3, 1, 1, 0, 1, 0, 0 });
-  GDT_SYS_ENT *gdtsys = (GDT_SYS_ENT*)&gdt[5];
+  GDT_SYS_ENT *gdtsys = reinterpret_cast<GDT_SYS_ENT*>(&gdt[5]);
   for (uint32_t idx = 0; idx < ncpu; idx++) {
     void *stack = Memory::palloc();
     uintptr_t stack_ptr = (uintptr_t)stack + 0x1000;
@@ -169,49 +170,61 @@ void SMP::init() {
     return;
   }
 
-  uintptr_t *smp_init_code = (uintptr_t*)Memory::palloc();
+  struct StartupInfo {
+    const void *lapicAddr;
+    uint64_t *cpuids;
+    const char **stacks;
+    void(*startup)();
+  } PACKED;
+
+  const size_t smp_init_size = &_smp_end - &_smp_init;
+
+  char *startupCode;
+  StartupInfo *info;
+
+  startupCode = static_cast<char*>(Memory::palloc());
+  info = reinterpret_cast<StartupInfo*>(startupCode + ALIGN(smp_init_size, 8));
+
+  Memory::copy(startupCode, &_smp_init, smp_init_size);
+  char smp_init_vector = (((uintptr_t)startupCode) >> 12) & 0xFF;
+
+  info->lapicAddr = acpi->getLapicAddr();
+  info->cpuids = static_cast<uint64_t*>(
+      Memory::alloc(sizeof(uint64_t) * cpuCount));
+  info->stacks = static_cast<const char**>(
+      Memory::alloc(sizeof(const char*) * cpuCount));
+  info->startup = startup;
+
   setup_gdt();
-  uintptr_t *stacks = (uintptr_t*)Memory::alloc(sizeof(uintptr_t) * cpuCount);
-  uintptr_t *cpuids = (uintptr_t*)Memory::alloc(sizeof(uintptr_t) * cpuCount);
   uint32_t nullcpus = 0;
   for (uint32_t i = 0; i < cpuCount; i++) {
-    cpuids[i] = acpi->getLapicIDOfCPU(i);
-    if (cpuids[i] != localId)
-      stacks[i] = ((uintptr_t)Memory::palloc()) + 0x1000;
+    info->cpuids[i] = acpi->getLapicIDOfCPU(i);
+    if (info->cpuids[i] != localId)
+      info->stacks[i] = static_cast<char*>(Memory::palloc()) + 0x1000;
     else
       nullcpus++;
   }
   if (nullcpus > 0)
     nullcpus--;
 
-  char smp_init_vector = (((uintptr_t)smp_init_code) >> 12) & 0xFF;
-  size_t init_size = &_smp_end - &_smp_init;
-  Memory::copy(smp_init_code, &_smp_init, init_size);
-  smp_init_code += init_size / sizeof(*smp_init_code);
-
-  *(smp_init_code++) = (uintptr_t)acpi->getLapicAddr();
-  *(smp_init_code++) = (uintptr_t)cpuids;
-  *(smp_init_code++) = (uintptr_t)stacks;
-  *(smp_init_code++) = (uintptr_t)(&SMP::startup);
-
   cpuinit.lock();
 
   for (uint32_t i = 0; i < cpuCount; i++) {
-    if (cpuids[i] != localId) {
-      acpi->sendCPUInit(cpuids[i]);
+    if (info->cpuids[i] != localId) {
+      acpi->sendCPUInit(info->cpuids[i]);
     }
   }
   while (cpuCount - nullcpus != acpi->getActiveCPUCount()) {
     for (uint32_t i = 0; i < cpuCount; i++) {
-      if (cpuids[i] != localId) {
-        acpi->sendCPUStartup(cpuids[i], smp_init_vector);
+      if (info->cpuids[i] != localId) {
+        acpi->sendCPUStartup(info->cpuids[i], smp_init_vector);
       }
     }
   }
 
   cpuinit.release();
 
-  Memory::free(cpuids);
-  Memory::free(stacks);
-  Memory::pfree(smp_init_code);
+  Memory::free(info->cpuids);
+  Memory::free(info->stacks);
+  Memory::pfree(startupCode);
 }

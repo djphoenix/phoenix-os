@@ -52,10 +52,11 @@ ProcessManager::ProcessManager() {
   processes = 0;
   nextThread = lastThread = 0;
   uint64_t cpus = ACPI::getController()->getCPUCount();
-  cpuThreads = (QueuedThread**)Memory::alloc(sizeof(QueuedThread*) * cpus);
+  cpuThreads = static_cast<QueuedThread**>(
+      Memory::alloc(sizeof(QueuedThread*) * cpus));
   for (uint64_t c = 0; c < cpus; c++)
     cpuThreads[c] = 0;
-  nullThreads = (Thread*)Memory::alloc(sizeof(Thread) * cpus);
+  nullThreads = static_cast<Thread*>(Memory::alloc(sizeof(Thread) * cpus));
 }
 bool ProcessManager::TimerHandler(uint32_t intr, intcb_regs *regs) {
   (void)intr;
@@ -202,8 +203,8 @@ uint64_t ProcessManager::RegisterProcess(Process *process) {
     pid = MAX(pid, processes[pcount]->getId() + 1);
     pcount++;
   }
-  processes = (Process**)Memory::realloc(processes,
-                                         sizeof(Process*) * (pcount + 2));
+  processes = static_cast<Process**>(
+      Memory::realloc(processes, sizeof(Process*) * (pcount + 2)));
   processes[pcount + 0] = process;
   processes[pcount + 1] = 0;
   processSwitchMutex.release();
@@ -212,7 +213,8 @@ uint64_t ProcessManager::RegisterProcess(Process *process) {
 }
 
 void ProcessManager::queueThread(Process *process, Thread *thread) {
-  QueuedThread *q = (QueuedThread*)Memory::alloc(sizeof(QueuedThread));
+  QueuedThread *q = static_cast<QueuedThread*>(
+      Memory::alloc(sizeof(QueuedThread)));
   q->process = process;
   q->thread = thread;
   q->next = 0;
@@ -334,7 +336,7 @@ void Process::addPage(uintptr_t vaddr, void* paddr, uint8_t flags) {
   uint16_t pdpx = (vaddr >> (12 + 9)) & 0x1FF;
   uint16_t pml4x = (vaddr >> (12)) & 0x1FF;
   if (pagetable == 0) {
-    pagetable = (PTE*)Memory::palloc();
+    pagetable = static_cast<PTE*>(Memory::palloc());
     addPage((uintptr_t)pagetable, pagetable, 5);
   }
   PTE pte = pagetable[ptx];
@@ -396,8 +398,8 @@ void Process::addSymbol(const char *name, uintptr_t ptr) {
     while (old[symbolcount].name != 0 && old[symbolcount].ptr != 0)
       symbolcount++;
   }
-  symbols = (ProcessSymbol*)Memory::realloc(
-      symbols, sizeof(ProcessSymbol) * (symbolcount + 2));
+  symbols = static_cast<ProcessSymbol*>(
+      Memory::realloc(symbols, sizeof(ProcessSymbol) * (symbolcount + 2)));
   symbols[symbolcount].ptr = ptr;
   symbols[symbolcount].name = strdup(name);
   symbols[symbolcount + 1].ptr = 0;
@@ -411,48 +413,50 @@ uintptr_t Process::getSymbolByName(const char* name) {
     return 0;
   size_t idx = 0;
   while (symbols[idx].ptr != 0 && symbols[idx].name != 0) {
-    if (strcmp(symbols[idx].name, (char*)name) == 0)
+    if (strcmp(symbols[idx].name, name) == 0)
       return symbols[idx].ptr;
     idx++;
   }
   return 0;
 }
 void Process::writeData(uintptr_t address, void* src, size_t size) {
+  char *ptr = static_cast<char*>(src);
   while (size > 0) {
     void *dest = getPhysicalAddress(address);
     size_t limit = 0x1000 - ((uintptr_t)dest & 0xFFF);
     size_t count = MIN(size, limit);
-    Memory::copy(dest, src, count);
+    Memory::copy(dest, ptr, count);
     size -= count;
-    src = (void*)((uintptr_t)src + count);
+    ptr += count;
     address += count;
   }
 }
 void Process::readData(void* dst, uintptr_t address, size_t size) {
+  char *ptr = static_cast<char*>(dst);
   while (size > 0) {
     void *src = getPhysicalAddress(address);
     size_t limit = 0x1000 - ((uintptr_t)src & 0xFFF);
     size_t count = MIN(size, limit);
-    Memory::copy(dst, src, count);
+    Memory::copy(ptr, src, count);
     size -= count;
-    dst = (void*)((uintptr_t)dst + count);
+    ptr += count;
     address += count;
   }
 }
 char *Process::readString(uintptr_t address) {
   size_t length = 0;
-  char *src = (char*)getPhysicalAddress(address);
+  const char *src = static_cast<const char*>(getPhysicalAddress(address));
   size_t limit = 0x1000 - ((uintptr_t)src & 0xFFF);
   while (limit-- && src[length] != 0) {
     length++;
     if (limit == 0) {
-      src = (char*)getPhysicalAddress(address + length);
+      src = static_cast<const char*>(getPhysicalAddress(address + length));
       limit += 0x1000;
     }
   }
   if (length == 0)
     return 0;
-  char *buf = (char*)Memory::alloc(length + 1);
+  char *buf = static_cast<char*>(Memory::alloc(length + 1));
   readData(buf, address, length + 1);
   return buf;
 }
@@ -483,8 +487,7 @@ void *Process::getPhysicalAddress(uintptr_t ptr) {
   if (page == 0)
     return 0;
   addr = page[pml4x];
-  void *_ptr = addr.present ? (void*)(addr.getUintPtr() + off) : 0;
-  return _ptr;
+  return addr.present ? reinterpret_cast<void*>(addr.getUintPtr() + off) : 0;
 }
 void Process::addThread(Thread *thread, bool suspended) {
   if (thread->stack_top == 0) {
@@ -496,7 +499,8 @@ void Process::addThread(Thread *thread, bool suspended) {
   uint64_t tcount = 0;
   while (threads != 0 && threads[tcount] != 0)
     tcount++;
-  threads = (Thread**)Memory::realloc(threads, sizeof(Thread*) * (tcount + 2));
+  threads = static_cast<Thread**>(
+      Memory::realloc(threads, sizeof(Thread*) * (tcount + 2)));
   threads[tcount + 0] = thread;
   threads[tcount + 1] = 0;
   ProcessManager::getManager()->queueThread(this, thread);
@@ -541,13 +545,13 @@ void Process::startup() {
   static const uintptr_t KB4 = 0xFFFFFFFFFFFFF000;
   for (uintptr_t addr = gdt.ptr & KB4; addr < (gdt.ptr + gdt.limit); addr +=
       0x1000) {
-    addPage(addr, (void*)addr, 5);
+    addPage(addr, reinterpret_cast<void*>(addr), 5);
   }
   for (uintptr_t addr = idt.ptr & KB4; addr < (idt.ptr + idt.limit); addr +=
       0x1000) {
-    addPage(addr, (void*)addr, 5);
+    addPage(addr, reinterpret_cast<void*>(addr), 5);
   }
-  INTERRUPT64 *recs = (INTERRUPT64*)idt.ptr;
+  INTERRUPT64 *recs = reinterpret_cast<INTERRUPT64*>(idt.ptr);
   uintptr_t page = 0;
   for (uint16_t i = 0; i < 0x100; i++) {
     uintptr_t handler = ((uintptr_t)recs[i].offset_low
@@ -555,15 +559,15 @@ void Process::startup() {
         | ((uintptr_t)recs[i].offset_high << 32));
     if (page != (handler & KB4)) {
       page = handler & KB4;
-      addPage(page, (void*)page, 5);
+      addPage(page, reinterpret_cast<void*>(page), 5);
     }
   }
   uintptr_t handler = (uintptr_t)&__interrupt_wrap & KB4;
-  addPage(handler, (void*)handler, 5);
+  addPage(handler, reinterpret_cast<void*>(handler), 5);
   handler = (uintptr_t)&interrupt_handler & KB4;
-  addPage(handler, (void*)handler, 5);
-  GDT_ENT *gdt_ent = (GDT_ENT*)(gdt.ptr + 8 * 3);
-  GDT_ENT *gdt_top = (GDT_ENT*)(gdt.ptr + gdt.limit);
+  addPage(handler, reinterpret_cast<void*>(handler), 5);
+  GDT_ENT *gdt_ent = reinterpret_cast<GDT_ENT*>(gdt.ptr + 8 * 3);
+  GDT_ENT *gdt_top = reinterpret_cast<GDT_ENT*>(gdt.ptr + gdt.limit);
   while (gdt_ent < gdt_top) {
     uintptr_t base = gdt_ent->base_low | (gdt_ent->base_high << 24);
     size_t limit = gdt_ent->seg_lim_low | (gdt_ent->seg_lim_high << 16);
@@ -573,12 +577,12 @@ void Process::startup() {
       continue;
     }
     uintptr_t page = base & KB4;
-    addPage(page, (void*)page, 5);
+    addPage(page, reinterpret_cast<void*>(page), 5);
 
-    TSS64_ENT *tss = (TSS64_ENT*)base;
+    TSS64_ENT *tss = reinterpret_cast<TSS64_ENT*>(base);
     uintptr_t stack = tss->ist[0];
     page = stack - 0x1000;
-    addPage(page, (void*)page, 5);
+    addPage(page, reinterpret_cast<void*>(page), 5);
     gdt_ent++;
   }
 
