@@ -17,100 +17,11 @@
 #include "smp.hpp"
 #include "process.hpp"
 
-struct GDT_ENT {
-  uint64_t seg_lim_low :16;
-  uint64_t base_low :24;
-  uint8_t type :4;
-  bool system :1;
-  uint8_t dpl :2;
-  bool present :1;
-  uint64_t seg_lim_high :4;
-  bool avl :1;
-  bool islong :1;
-  bool db :1;
-  bool granularity :1;
-  uint64_t base_high :8;
-} PACKED;
-
-struct GDT_SYS_ENT {
-  GDT_ENT ent;
-  uint64_t base_high :32;
-  uint32_t rsvd;
-} PACKED;
-
-struct {
-  uint16_t size;
-  uintptr_t base;
-} PACKED gdtrec;
-
-struct GDT_ENT_def {
-  uint64_t base, limit;
-  uint8_t type, dpl;
-  bool system, present, avl;
-  bool islong, db, granularity;
-};
-
-inline GDT_ENT gdt_encode(GDT_ENT_def def) {
-  struct GDT_ENT res;
-  res.seg_lim_low = def.limit & 0xFFFF;
-  res.base_low = def.base & 0xFFFFFF;
-  res.type = def.type;
-  res.system = def.system;
-  res.dpl = def.dpl;
-  res.present = def.present;
-  res.seg_lim_high = (def.limit >> 16) & 0xF;
-  res.avl = def.avl;
-  res.islong = def.islong;
-  res.db = def.db;
-  res.granularity = def.granularity;
-  res.base_high = (def.base >> 24) & 0xFF;
-  return res;
-}
-
-inline GDT_ENT_def gdt_decode(GDT_ENT ent) {
-  struct GDT_ENT_def res;
-  res.base = ((uint64_t)ent.base_high << 24) | ent.base_low;
-  res.limit = ((uint64_t)ent.seg_lim_high << 16) | ent.seg_lim_low;
-  res.type = ent.type;
-  res.dpl = ent.dpl;
-  res.system = ent.system;
-  res.present = ent.present;
-  res.avl = ent.avl;
-  res.islong = ent.islong;
-  res.db = ent.db;
-  res.granularity = ent.granularity;
-  return res;
-}
-
-inline GDT_SYS_ENT gdt_sys_encode(GDT_ENT_def def) {
-  struct GDT_SYS_ENT res;
-  res.ent = gdt_encode(def);
-  res.base_high = def.base >> 32;
-  res.rsvd = 0;
-  return res;
-}
-
-inline GDT_ENT_def gdt_sys_decode(GDT_SYS_ENT ent_sys) {
-  struct GDT_ENT_def res;
-  res = gdt_decode(ent_sys.ent);
-  res.base |= (ent_sys.base_high << 32);
-  return res;
-}
-
-struct TSS64_ENT {
-  uint32_t reserved1;
-  uint64_t rsp[3];
-  uint64_t reserved2;
-  uint64_t ist[7];
-  uint64_t reserved3;
-  uint16_t reserved4;
-  uint16_t iomap_base;
-} PACKED;
-
-static const GDT_ENT GDT_ENT_zero = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+static const GDT_ENT GDT_ENT_zero = GDT_ENT(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
 GDT_ENT *gdt = 0;
 TSS64_ENT *tss = 0;
+DTREG gdtrec = {0, 0};
 
 void SMP::init_gdt(uint32_t ncpu) {
   size_t size = 5 * sizeof(GDT_ENT) + ncpu * sizeof(GDT_SYS_ENT);
@@ -118,20 +29,21 @@ void SMP::init_gdt(uint32_t ncpu) {
   GDT_SYS_ENT *gdtsys = reinterpret_cast<GDT_SYS_ENT*>(&gdt[5]);
   tss = new TSS64_ENT[ncpu]();
 
-  gdtrec.base = (uintptr_t)gdt;
-  gdtrec.size = size - 1;
+  gdtrec.addr = gdt;
+  gdtrec.limit = size - 1;
   gdt[0] = GDT_ENT_zero;
-  gdt[1] = gdt_encode({ 0, 0, 0xA, 0, 1, 1, 0, 1, 0, 0 });
-  gdt[2] = gdt_encode({ 0, 0, 0x2, 0, 1, 1, 0, 1, 0, 0 });
-  gdt[3] = gdt_encode({ 0, 0xFFFFFFFFFFFFFFFF, 0xA, 3, 1, 1, 0, 1, 0, 0 });
-  gdt[4] = gdt_encode({ 0, 0xFFFFFFFFFFFFFFFF, 0x2, 3, 1, 1, 0, 1, 0, 0 });
+  gdt[1] = GDT_ENT(0, 0, 0xA, 0, 1, 1, 0, 1, 0, 0);
+  gdt[2] = GDT_ENT(0, 0, 0x2, 0, 1, 1, 0, 1, 0, 0);
+  gdt[3] = GDT_ENT(0, 0xFFFFFFFFFFFFFFFF, 0xA, 3, 1, 1, 0, 1, 0, 0);
+  gdt[4] = GDT_ENT(0, 0xFFFFFFFFFFFFFFFF, 0x2, 3, 1, 1, 0, 1, 0, 0);
   for (uint32_t idx = 0; idx < ncpu; idx++) {
     void *stack = Memory::palloc();
     uintptr_t stack_ptr = (uintptr_t)stack + 0x1000;
     Memory::zero(&tss[idx], sizeof(tss[idx]));
     tss[idx].ist[0] = stack_ptr;
-    gdtsys[idx] = gdt_sys_encode({
-        (uintptr_t)&tss[idx], sizeof(TSS64_ENT), 0x9, 0, 0, 1, 0, 1, 0, 0 });
+    gdtsys[idx] = GDT_SYS_ENT(
+        (uintptr_t)&tss[idx], sizeof(TSS64_ENT),
+        0x9, 0, 0, 1, 0, 1, 0, 0);
   }
 }
 

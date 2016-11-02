@@ -505,48 +505,20 @@ extern "C" {
   extern void* interrupt_handler;
 }
 void Process::startup() {
-  struct DT {
-    uint16_t limit;
-    uintptr_t ptr;
-  }PACKED;
-  struct GDT_ENT {
-    uint64_t seg_lim_low :16;
-    uint64_t base_low :24;
-    uint8_t type :4;
-    bool system :1;
-    uint8_t dpl :2;
-    bool present :1;
-    uint64_t seg_lim_high :4;
-    bool avl :1;
-    bool islong :1;
-    bool db :1;
-    bool granularity :1;
-    uint64_t base_high :40;
-    uint32_t rsvd;
-  }PACKED;
-  struct TSS64_ENT {
-    uint32_t reserved1;
-    uint64_t rsp[3];
-    uint64_t reserved2;
-    uint64_t ist[7];
-    uint64_t reserved3;
-    uint16_t reserved4;
-    uint16_t iomap_base;
-  }PACKED;
-  DT gdt = { 0, 0 };
-  DT idt = { 0, 0 };
+  DTREG gdt = { 0, 0 };
+  DTREG idt = { 0, 0 };
   asm volatile("sgdtq %0; sidtq %1":"=m"(gdt), "=m"(idt));
 
   static const uintptr_t KB4 = 0xFFFFFFFFFFFFF000;
-  for (uintptr_t addr = gdt.ptr & KB4; addr < (gdt.ptr + gdt.limit); addr +=
-      0x1000) {
+  for (uintptr_t addr = (uintptr_t)gdt.addr & KB4;
+      addr < ((uintptr_t)gdt.addr + gdt.limit); addr += 0x1000) {
     addPage(addr, reinterpret_cast<void*>(addr), 5);
   }
-  for (uintptr_t addr = idt.ptr & KB4; addr < (idt.ptr + idt.limit); addr +=
-      0x1000) {
+  for (uintptr_t addr = (uintptr_t)idt.addr & KB4;
+      addr < ((uintptr_t)idt.addr + idt.limit); addr += 0x1000) {
     addPage(addr, reinterpret_cast<void*>(addr), 5);
   }
-  INTERRUPT64 *recs = reinterpret_cast<INTERRUPT64*>(idt.ptr);
+  INTERRUPT64 *recs = static_cast<INTERRUPT64*>(idt.addr);
   uintptr_t page = 0;
   for (uint16_t i = 0; i < 0x100; i++) {
     uintptr_t handler = ((uintptr_t)recs[i].offset_low
@@ -561,11 +533,13 @@ void Process::startup() {
   addPage(handler, reinterpret_cast<void*>(handler), 5);
   handler = (uintptr_t)&interrupt_handler & KB4;
   addPage(handler, reinterpret_cast<void*>(handler), 5);
-  GDT_ENT *gdt_ent = reinterpret_cast<GDT_ENT*>(gdt.ptr + 8 * 3);
-  GDT_ENT *gdt_top = reinterpret_cast<GDT_ENT*>(gdt.ptr + gdt.limit);
+  GDT_ENT *gdt_ent = reinterpret_cast<GDT_ENT*>(
+      (uintptr_t)gdt.addr + 8 * 3);
+  GDT_ENT *gdt_top = reinterpret_cast<GDT_ENT*>(
+      (uintptr_t)gdt.addr + gdt.limit);
   while (gdt_ent < gdt_top) {
-    uintptr_t base = gdt_ent->base_low | (gdt_ent->base_high << 24);
-    size_t limit = gdt_ent->seg_lim_low | (gdt_ent->seg_lim_high << 16);
+    uintptr_t base = gdt_ent->getBase();
+    size_t limit = gdt_ent->getLimit();
     if (((gdt_ent->type != 0x9) && (gdt_ent->type != 0xB)) || (limit
         != sizeof(TSS64_ENT))) {
       gdt_ent++;
@@ -574,11 +548,14 @@ void Process::startup() {
     uintptr_t page = base & KB4;
     addPage(page, reinterpret_cast<void*>(page), 5);
 
+    GDT_SYS_ENT *sysent = reinterpret_cast<GDT_SYS_ENT*>(gdt_ent);
+    base = sysent->getBase();
+
     TSS64_ENT *tss = reinterpret_cast<TSS64_ENT*>(base);
     uintptr_t stack = tss->ist[0];
     page = stack - 0x1000;
     addPage(page, reinterpret_cast<void*>(page), 5);
-    gdt_ent++;
+    gdt_ent = reinterpret_cast<GDT_ENT*>(sysent + 1);
   }
 
   Thread *thread = new Thread();

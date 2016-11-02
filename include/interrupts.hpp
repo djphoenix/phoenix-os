@@ -38,7 +38,7 @@ struct INTERRUPT64 {
   uint32_t offset_high;
   uint32_t rsvd3;
 } PACKED;
-struct IDTR {
+struct DTREG {
   uint16_t limit;
   void* addr;
 } PACKED;
@@ -54,10 +54,94 @@ struct int_handler {
 } PACKED;
 struct IDT {
   INTERRUPT64 ints[256];
-  IDTR rec;
+  DTREG rec;
 
   ALIGNED_NEW(0x1000)
 };
+
+struct TSS64_ENT {
+  uint32_t reserved1;
+  uint64_t rsp[3];
+  uint64_t reserved2;
+  uint64_t ist[7];
+  uint64_t reserved3;
+  uint16_t reserved4;
+  uint16_t iomap_base;
+} PACKED;
+
+struct GDT_ENT {
+  uint64_t seg_lim_low :16;
+  uint64_t base_low :24;
+  uint8_t type :4;
+  bool system :1;
+  uint8_t dpl :2;
+  bool present :1;
+  uint64_t seg_lim_high :4;
+  bool avl :1;
+  bool islong :1;
+  bool db :1;
+  bool granularity :1;
+  uint64_t base_high :8;
+
+  uint64_t getBase() { return ((uint64_t)base_high << 24) | base_low; }
+  uint64_t getLimit() { return ((uint64_t)seg_lim_high << 16) | seg_lim_low; }
+
+  void setBase(uint64_t base) {
+    base_low = base & 0xFFFFFF;
+    base_high = (base >> 24) & 0xFF;
+  }
+  void setLimit(uint64_t limit) {
+    seg_lim_low = limit & 0xFFFF;
+    seg_lim_high = (limit >> 16) & 0xF;
+  }
+
+  GDT_ENT(
+      uint64_t base, uint64_t limit,
+      uint8_t type, uint8_t dpl,
+      bool system, bool present, bool avl, bool islong,
+      bool db, bool granularity) {
+    setLimit(limit);
+    setBase(base);
+    this->type = type;
+    this->system = system;
+    this->dpl = dpl;
+    this->present = present;
+    this->avl = avl;
+    this->islong = islong;
+    this->db = db;
+    this->granularity = granularity;
+  }
+} PACKED;
+
+struct GDT_SYS_ENT {
+  GDT_ENT ent = GDT_ENT(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+  uint64_t base_high :32;
+  uint32_t rsvd;
+
+  uint64_t getBase() { return (base_high << 32) | ent.getBase(); }
+
+  void setBase(uint64_t base) {
+    ent.setBase(base);
+    base_high = (base >> 32);
+  }
+
+  GDT_SYS_ENT(
+      uint64_t base, uint64_t limit,
+      uint8_t type, uint8_t dpl,
+      bool system, bool present, bool avl, bool islong,
+      bool db, bool granularity) {
+    ent.setLimit(limit);
+    setBase(base);
+    ent.type = type;
+    ent.system = system;
+    ent.dpl = dpl;
+    ent.present = present;
+    ent.avl = avl;
+    ent.islong = islong;
+    ent.db = db;
+    ent.granularity = granularity;
+  }
+} PACKED;
 
 struct intcb_regs {
   uint32_t cpuid;
