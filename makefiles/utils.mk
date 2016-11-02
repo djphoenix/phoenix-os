@@ -16,9 +16,9 @@ check: $(ODIR)/check-report.txt
 
 all: check
 
-$(EFIBIOS): deps/ovmf-$(DEP_OVMF_VER).zip
+$(EFIBIOS): deps/$(DEP_OVMF_FILE)
 	@ mkdir -p $(dir $@)
-	$(Q) unzip -p deps/ovmf-r15214.zip OVMF.fd > $@
+	$(Q) unzip -p deps/$(DEP_OVMF_FILE) OVMF.fd > $@
 
 $(EFIKERN): $(BIN)
 	@ mkdir -p $(dir $@)

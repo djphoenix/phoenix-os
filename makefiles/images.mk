@@ -14,9 +14,9 @@ SYSLINUX_FILELIST := $(notdir $(SYSLINUX_DEP_FILELIST))
 ISOFILES := $(foreach f, $(SYSLINUX_FILELIST) phoenixos isolinux.cfg, $(ISOROOT)/$(f))
 
 define SYSLINUX_EXTRACT
-$(ISOROOT)/$(1): deps/syslinux-$(DEP_SYSLINUX_VER).zip
+$(ISOROOT)/$(1): deps/$(DEP_SYSLINUX_FILE)
 	@ mkdir -p $$(dir $$@)
-	$(Q) unzip -q -u -j deps/syslinux-$(DEP_SYSLINUX_VER).zip -d $(ISOROOT) $(SYSLINUX_DEP_FILELIST)
+	$(Q) unzip -q -u -j deps/$(DEP_SYSLINUX_FILE) -d $(ISOROOT) $(SYSLINUX_DEP_FILELIST)
 	@ touch $(foreach f, $(SYSLINUX_FILELIST), $(ISOROOT)/$(f))
 endef
 
