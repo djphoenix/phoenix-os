@@ -267,35 +267,16 @@ void Interrupts::init() {
   }
   fault = Mutex();
   idt = new IDT();
-  idt->rec.limit = sizeof(idt->ints) - 1;
-  idt->rec.addr = &idt->ints[0];
   handlers = new int_handler[256]();
   char* addr = &__interrupt_wrap;
   for (int i = 0; i < 256; i++) {
     uintptr_t jmp_from = (uintptr_t)&(handlers[i].reljmp);
     uintptr_t jmp_to = (uintptr_t)addr;
     uintptr_t diff = jmp_to - jmp_from - 5;
-    handlers[i].push = 0x68;
-    handlers[i].int_num = i;
-    handlers[i].reljmp = 0xE9;
-    handlers[i].diff = diff;
+    handlers[i] = int_handler(i, diff);
 
     uintptr_t hptr = (uintptr_t)(&handlers[i]);
-
-    idt->ints[i].rsvd1 = 0;
-    idt->ints[i].rsvd2 = 0;
-    idt->ints[i].rsvd3 = 0;
-
-    idt->ints[i].selector = 8;
-    idt->ints[i].type = 0xE;
-    idt->ints[i].dpl = 0;
-    idt->ints[i].ist = 1;
-    idt->ints[i].present = true;
-
-    idt->ints[i].offset_low = (hptr >> 0) & 0xFFFF;
-    idt->ints[i].offset_middle = (hptr >> 16) & 0xFFFF;
-    idt->ints[i].offset_high = (hptr >> 32) & 0xFFFFFFFF;
-
+    idt->ints[i] = INTERRUPT64(hptr, 8, 1, 0xE, 0, true);
     callbacks[i] = 0;
     callback_locks[i] = Mutex();
   }

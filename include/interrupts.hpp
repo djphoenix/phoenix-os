@@ -37,6 +37,15 @@ struct INTERRUPT64 {
   uint16_t offset_middle;
   uint32_t offset_high;
   uint32_t rsvd3;
+
+  INTERRUPT64():
+    offset_low(0), selector(0), ist(0), rsvd1(0), type(0), rsvd2(0), dpl(0),
+    present(0), offset_middle(0), offset_high(0), rsvd3(0) {}
+  INTERRUPT64(uint64_t offset, uint16_t selector, uint8_t ist, uint8_t type,
+              uint8_t dpl, bool present) :
+      offset_low(offset), selector(selector), ist(ist), rsvd1(0),
+      type(type), rsvd2(0), dpl(dpl), present(present),
+      offset_middle(offset >> 16), offset_high(offset >> 32), rsvd3(0) {}
 } PACKED;
 struct DTREG {
   uint16_t limit;
@@ -50,11 +59,20 @@ struct int_handler {
   uint8_t reljmp;  // == 0xE9
   uint32_t diff;
 
+  int_handler():
+    push(0x68), int_num(0),
+    reljmp(0xE9), diff(0) {}
+  int_handler(uint32_t int_num, uint32_t diff):
+    push(0x68), int_num(int_num),
+    reljmp(0xE9), diff(diff) {}
+
   ALIGNED_NEWARR(0x1000)
 } PACKED;
 struct IDT {
   INTERRUPT64 ints[256];
   DTREG rec;
+
+  IDT() { rec.addr = &ints[0]; rec.limit = sizeof(ints) -1; }
 
   ALIGNED_NEW(0x1000)
 };
