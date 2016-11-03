@@ -8,7 +8,7 @@ endif
 $(BIN).elf: $(OBJECTS) $(OOBJDIR)/modules-linked.o
 	@ mkdir -p $(dir $@)
 	$(QECHO) LD $(subst $(OIMGDIR)/,,$@)
-	$(Q) $(CC) $(CFLAGS) -Tld.script -o $@ -Wl,--start-group $^ -Wl,--end-group
+	$(Q) $(CC) $(CFLAGS) -Lld -Tsystem.ld -o $@ -Wl,--start-group $^ -Wl,--end-group
 
 $(BIN).elf.strip: $(BIN).elf
 	$(Q) $(STRIP) -o $@ $^
@@ -41,7 +41,7 @@ $(OOBJDIR)/%.o: $(SRCDIR)/%.s
 $(OMODDIR)/%.o: $(OOBJDIR)/mod_%.o
 	@ mkdir -p $(dir $@)
 	$(QECHO) MODLD $(@:$(OMODDIR)/%.o=%)
-	$(Q) $(CC) $(CFLAGS) -Tld-mod.script -r -o $@ -s $^
+	$(Q) $(CC) $(CFLAGS) -shared -Lld -Tmodule.ld -r -o $@ -s $^
 
 $(OOBJDIR)/modules-linked.o: $(MODOBJS)
 	@ mkdir -p $(dir $@)

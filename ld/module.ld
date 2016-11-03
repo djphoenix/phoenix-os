@@ -16,6 +16,7 @@
 */
 
 OUTPUT_FORMAT(elf64-x86-64)
+ENTRY(module)
 SECTIONS
 {
     .text BLOCK(1) : ALIGN(1) {
@@ -24,9 +25,11 @@ SECTIONS
         *(.gnu.linkonce.t.*)
         *(.fini)
     }
-    .data BLOCK(1) : ALIGN(1) {
+    .rodata BLOCK(1) : ALIGN(1) {
         *(.init_array*)
         *(.rodata .rodata.* .rdata .rdata.*)
+    }
+    .data BLOCK(1) : ALIGN(1) {
         *(.data .data.*)
         *(.xdata .xdata.* .pdata .pdata.*)
     }
