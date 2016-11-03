@@ -204,15 +204,19 @@ size_t readelf(Process *process, Stream *stream) {
         offset = sectmap[sym.shndx];
       } else {
         symname = (symnames != 0 ? &symnames[sym.name] : 0);
-        offset = sym.value;
+        uintptr_t ptr = sectmap[sym.shndx];
+        offset = ptr + sym.value;
       }
 
-      if (symsect.type == SHT_NULL) {
+      if (_symsect.type == SHT_NULL) {
         printf("(link) %s\n", symname);
       }
 
       addr = sectstart + rel.addr;
       offset += rel.add;
+
+      uint64_t diff64 = offset - addr;
+      uint32_t diff32 = diff64;
 
       switch (rel.info.type) {
         case 0:   // R_X86_64_NONE
@@ -223,6 +227,8 @@ size_t readelf(Process *process, Stream *stream) {
         case 2:   // R_X86_64_PC32
         case 3:   // R_X86_64_GOT32
         case 4:   // R_X86_64_PLT32
+          process->writeData(addr, &diff32, sizeof(uint32_t));
+          break;
         case 5:   // R_X86_64_COPY
         case 6:   // R_X86_64_GLOB_DAT
         case 7:   // R_X86_64_JUMP_SLOT
@@ -236,7 +242,8 @@ size_t readelf(Process *process, Stream *stream) {
         case 15:  // R_X86_64_PC8
         case 16:  // R_X86_64_NUM
         default:
-          printf("Unhandled reloc type: %x\n", rel.info.type);
+          printf("Unhandled reloc type=%x addr=%p name=%s%+lld = %p\n",
+                 rel.info.type, addr, symname, rel.add, offset);
           break;
       }
     }
