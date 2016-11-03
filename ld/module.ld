@@ -29,6 +29,9 @@ SECTIONS
         *(.init_array*)
         *(.rodata .rodata.* .rdata .rdata.*)
     }
+    .module BLOCK(1) : ALIGN(1) {
+        *(.module*)
+    }
     .data BLOCK(1) : ALIGN(1) {
         *(.data .data.*)
         *(.xdata .xdata.* .pdata .pdata.*)

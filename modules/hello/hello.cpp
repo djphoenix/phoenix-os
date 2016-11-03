@@ -14,11 +14,17 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-const char* module_name = "Test/Hello";
-const char* module_version = "1.0";
-const char* module_description = "Prints \"Hello, world\" text";
-const char* module_requirements = "";
-const char* module_developer = "PhoeniX";
+#define MODDESC(k, v) \
+  extern const char \
+    __attribute__((section(".module"))) \
+    __attribute__((aligned(1))) \
+    module_ ## k[] = v; \
+
+MODDESC(name, "Test/Hello");
+MODDESC(version, "1.0");
+MODDESC(description, "Prints \"Hello, world\" text");
+MODDESC(requirements, "");
+MODDESC(developer, "PhoeniX");
 
 extern "C" { void module(); }
 

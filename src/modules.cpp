@@ -20,22 +20,15 @@
 bool ModuleManager::parseModuleInfo(MODULEINFO *info, Process *process) {
   struct {
     uintptr_t entry, name, version, desc, reqs, dev;
-  } symbols = { process->getSymbolByName("module"), process->getSymbolByName(
-      "module_name"),
-                process->getSymbolByName("module_version"), process
-                    ->getSymbolByName("module_description"),
-                process->getSymbolByName("module_requirements"), process
-                    ->getSymbolByName("module_developer") };
+  } symbols = {
+    process->getSymbolByName("module"),
+    process->getSymbolByName("module_name"),
+    process->getSymbolByName("module_version"),
+    process->getSymbolByName("module_description"),
+    process->getSymbolByName("module_requirements"),
+    process->getSymbolByName("module_developer")
+  };
   MODULEINFO mod = { 0, 0, 0, 0, 0 };
-  if ((symbols.entry == 0) || (symbols.name == 0) || (symbols.version == 0)
-      || (symbols.desc == 0) || (symbols.reqs == 0) || (symbols.dev == 0))
-    return false;
-
-  process->readData(&symbols.name, symbols.name, sizeof(uintptr_t));
-  process->readData(&symbols.version, symbols.version, sizeof(uintptr_t));
-  process->readData(&symbols.desc, symbols.desc, sizeof(uintptr_t));
-  process->readData(&symbols.reqs, symbols.reqs, sizeof(uintptr_t));
-  process->readData(&symbols.dev, symbols.dev, sizeof(uintptr_t));
 
   if ((symbols.entry == 0) || (symbols.name == 0) || (symbols.version == 0)
       || (symbols.desc == 0) || (symbols.reqs == 0) || (symbols.dev == 0))
