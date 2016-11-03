@@ -318,24 +318,24 @@ void Process::addPage(uintptr_t vaddr, void* paddr, uint8_t flags) {
   }
   PTE pte = pagetable[ptx];
   if (!pte.present) {
-    pagetable[ptx] = pte = PTE_MAKE(Memory::palloc(), 5);
+    pagetable[ptx] = pte = PTE(Memory::palloc(), 5);
     addPage(pte.getUintPtr(), pte.getPtr(), 5);
   }
   PTE *pde = pte.getPTE();
   pte = pde[pdx];
   if (!pte.present) {
-    pde[pdx] = pte = PTE_MAKE(Memory::palloc(), 5);
+    pde[pdx] = pte = PTE(Memory::palloc(), 5);
     addPage((uintptr_t)pte.getPtr(), pte.getPtr(), 5);
   }
   PTE *pdpe = pte.getPTE();
   pte = pdpe[pdpx];
   if (!pte.present) {
-    pdpe[pdpx] = pte = PTE_MAKE(Memory::palloc(), 5);
+    pdpe[pdpx] = pte = PTE(Memory::palloc(), 5);
     addPage((uintptr_t)pte.getPtr(), pte.getPtr(), 5);
   }
   PTE *pml4e = pte.getPTE();
   flags |= 1;
-  pml4e[pml4x] = PTE_MAKE(paddr, flags);
+  pml4e[pml4x] = PTE(paddr, flags);
 }
 
 uintptr_t Process::addSection(SectionType type, size_t size) {

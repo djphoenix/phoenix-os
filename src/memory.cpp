@@ -263,20 +263,20 @@ void* Memory::salloc(const void* mem) {
   void *addr = reinterpret_cast<void*>(i << 12);
   PTE pte = pagetable[(i >> 27) & 0x1FF];
   if (!pte.present) {
-    pagetable[(i >> 27) & 0x1FF] = pte = PTE_MAKE(_palloc(0, true), 3);
+    pagetable[(i >> 27) & 0x1FF] = pte = PTE(_palloc(0, true), 3);
   }
   PTE *pde = pte.getPTE();
   pte = pde[(i >> 18) & 0x1FF];
   if (!pte.present) {
-    pde[(i >> 18) & 0x1FF] = pte = PTE_MAKE(_palloc(0, true), 3);
+    pde[(i >> 18) & 0x1FF] = pte = PTE(_palloc(0, true), 3);
   }
   PTE *pdpe = pte.getPTE();
   pte = pdpe[(i >> 9) & 0x1FF];
   if (!pte.present) {
-    pdpe[(i >> 9) & 0x1FF] = pte = PTE_MAKE(_palloc(0, true), 3);
+    pdpe[(i >> 9) & 0x1FF] = pte = PTE(_palloc(0, true), 3);
   }
   PTE *page = pte.getPTE();
-  page[i & 0x1FF] = PTE_MAKE(addr, 3);
+  page[i & 0x1FF] = PTE(addr, 3);
   page_mutex.release();
   LeaveCritical(t);
   return addr;
@@ -302,21 +302,21 @@ start:
   PTE *pdpen = pde[((i + 1) >> 18) & 0x1FF].getPTE();
   page = pdpe[(i >> 9) & 0x1FF].getPTE();
   if (!pde[((i + 2) >> 18) & 0x1FF].present) {
-    page[i & 0x1FF] = PTE_MAKE(addr, 3);
+    page[i & 0x1FF] = PTE(addr, 3);
     i++;
     i++;
-    pde[(i >> 18) & 0x1FF] = PTE_MAKE(addr, 3);
+    pde[(i >> 18) & 0x1FF] = PTE(addr, 3);
     fill(addr, 0, 0x1000);
     goto start;
   }
   if (!pdpen[((i + 1) >> 9) & 0x1FF].present) {
-    page[i & 0x1FF] = PTE_MAKE(addr, 3);
+    page[i & 0x1FF] = PTE(addr, 3);
     i++;
-    pdpen[(i >> 9) & 0x1FF] = PTE_MAKE(addr, 3);
+    pdpen[(i >> 9) & 0x1FF] = PTE(addr, 3);
     fill(addr, 0, 0x1000);
     goto start;
   }
-  page[i & 0x1FF] = PTE_MAKE_AVL(addr, avl, 3);
+  page[i & 0x1FF] = PTE(addr, avl, 3);
   fill(addr, 0, 0x1000);
   return addr;
 }

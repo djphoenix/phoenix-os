@@ -31,28 +31,24 @@ struct PTE {
     } PACKED;
     uint8_t flags;
   } PACKED;
-  bool :1;
+  bool rsvd:1;
   uint8_t avl :3;
   uintptr_t _ptr :52;
 
   uintptr_t getUintPtr() { return _ptr << 12; }
   void *getPtr() { return reinterpret_cast<void*>(getUintPtr()); }
   PTE *getPTE() { return static_cast<PTE*>(getPtr()); }
+
+  PTE(): flags(0), rsvd(0), avl(0), _ptr(0) {}
+  PTE(uintptr_t ptr, uint8_t avl, uint8_t flags):
+    flags(flags), rsvd(0), avl(avl), _ptr(ptr >> 12) {}
+  PTE(uintptr_t ptr, uint8_t flags):
+    flags(flags), rsvd(0), avl(0), _ptr(ptr >> 12) {}
+  PTE(void *ptr, uint8_t avl, uint8_t flags):
+    flags(flags), rsvd(0), avl(avl), _ptr((uintptr_t)ptr >> 12) {}
+  PTE(void *ptr, uint8_t flags):
+    flags(flags), rsvd(0), avl(0), _ptr((uintptr_t)ptr >> 12) {}
 } PACKED;
-#define PTE_MAKE(ptr, flags) PTE_MAKE_AVL(ptr, 0, flags)
-#define PTE_MAKE_AVL(ptr, avl, flags) (PTE) { \
-    { \
-  (flags & 0x01) != 0, \
-  (flags & 0x02) != 0, \
-  (flags & 0x04) != 0, \
-  (flags & 0x08) != 0, \
-  (flags & 0x10) != 0, \
-  (flags & 0x20) != 0, \
-  (flags & 0x40) != 0, \
-  (flags & 0x80) != 0 \
-    }, \
-    avl, (uintptr_t)(ptr) >> 12 \
-}
 struct GRUBMODULE {
   uint32_t start;
   uint32_t end;
