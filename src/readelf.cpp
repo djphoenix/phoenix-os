@@ -131,6 +131,8 @@ size_t readelf(Process *process, Stream *stream) {
     }
     if ((sect.flags & SHF_ALLOC) == 0)
       continue;
+    if (sect.size == 0)
+      continue;
     SectionType type = SectionTypeData;
     if ((sect.flags & SHF_EXECINSTR) != 0)
       type = SectionTypeCode;
