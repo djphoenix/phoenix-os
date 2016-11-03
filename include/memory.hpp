@@ -139,3 +139,5 @@ inline static uint32_t MmioRead32(const void *p) {
   Memory::salloc(p);
   return *(volatile uint32_t *)(p);
 }
+
+void *operator new(size_t, size_t);

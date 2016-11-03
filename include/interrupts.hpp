@@ -95,26 +95,21 @@ struct GDT_ENT {
     seg_lim_high = (limit >> 16) & 0xF;
   }
 
+  GDT_ENT() :
+      type(0), system(0), dpl(0), present(0), avl(0), islong(0), db(0),
+      granularity(0) { setLimit(0); setBase(0); }
+
   GDT_ENT(
       uint64_t base, uint64_t limit,
       uint8_t type, uint8_t dpl,
       bool system, bool present, bool avl, bool islong,
-      bool db, bool granularity) {
-    setLimit(limit);
-    setBase(base);
-    this->type = type;
-    this->system = system;
-    this->dpl = dpl;
-    this->present = present;
-    this->avl = avl;
-    this->islong = islong;
-    this->db = db;
-    this->granularity = granularity;
-  }
+      bool db, bool granularity): type(type), system(system), dpl(dpl),
+          present(present), avl(avl), islong(islong), db(db),
+          granularity(granularity) { setLimit(limit); setBase(base); }
 } PACKED;
 
 struct GDT_SYS_ENT {
-  GDT_ENT ent = GDT_ENT(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+  GDT_ENT ent;
   uint64_t base_high :32;
   uint32_t rsvd;
 
@@ -125,22 +120,13 @@ struct GDT_SYS_ENT {
     base_high = (base >> 32);
   }
 
-  GDT_SYS_ENT(
-      uint64_t base, uint64_t limit,
-      uint8_t type, uint8_t dpl,
-      bool system, bool present, bool avl, bool islong,
-      bool db, bool granularity) {
-    ent.setLimit(limit);
-    setBase(base);
-    ent.type = type;
-    ent.system = system;
-    ent.dpl = dpl;
-    ent.present = present;
-    ent.avl = avl;
-    ent.islong = islong;
-    ent.db = db;
-    ent.granularity = granularity;
-  }
+  GDT_SYS_ENT(): base_high(0), rsvd(0) { }
+
+  GDT_SYS_ENT(uint64_t base, uint64_t limit, uint8_t type, uint8_t dpl,
+              bool system, bool present, bool avl, bool islong, bool db,
+              bool granularity) :
+      ent(base, limit, type, dpl, system, present, avl, islong, db,
+          granularity), base_high(base >> 32), rsvd(0) { }
 } PACKED;
 
 struct intcb_regs {

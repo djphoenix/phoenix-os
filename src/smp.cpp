@@ -17,31 +17,36 @@
 #include "smp.hpp"
 #include "process.hpp"
 
-static const GDT_ENT GDT_ENT_zero = GDT_ENT(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+struct GDT {
+  GDT_ENT ents[5];
+  GDT_SYS_ENT sys_ents[];
 
-GDT_ENT *gdt = 0;
+  static size_t size(size_t sys_count) {
+    return sizeof(GDT_ENT) * 5 + sizeof(GDT_SYS_ENT) * sys_count;
+  }
+} PACKED;
+
+GDT *gdt = 0;
 TSS64_ENT *tss = 0;
 DTREG gdtrec = {0, 0};
 
 void SMP::init_gdt(uint32_t ncpu) {
-  size_t size = 5 * sizeof(GDT_ENT) + ncpu * sizeof(GDT_SYS_ENT);
-  gdt = Memory::alloc<GDT_ENT>(size);
-  GDT_SYS_ENT *gdtsys = reinterpret_cast<GDT_SYS_ENT*>(&gdt[5]);
+  gdt = new(GDT::size(ncpu)) GDT();
   tss = new TSS64_ENT[ncpu]();
 
   gdtrec.addr = gdt;
-  gdtrec.limit = size - 1;
-  gdt[0] = GDT_ENT_zero;
-  gdt[1] = GDT_ENT(0, 0, 0xA, 0, 1, 1, 0, 1, 0, 0);
-  gdt[2] = GDT_ENT(0, 0, 0x2, 0, 1, 1, 0, 1, 0, 0);
-  gdt[3] = GDT_ENT(0, 0xFFFFFFFFFFFFFFFF, 0xA, 3, 1, 1, 0, 1, 0, 0);
-  gdt[4] = GDT_ENT(0, 0xFFFFFFFFFFFFFFFF, 0x2, 3, 1, 1, 0, 1, 0, 0);
+  gdtrec.limit = GDT::size(ncpu) - 1;
+  gdt->ents[0] = GDT_ENT();
+  gdt->ents[1] = GDT_ENT(0, 0, 0xA, 0, 1, 1, 0, 1, 0, 0);
+  gdt->ents[2] = GDT_ENT(0, 0, 0x2, 0, 1, 1, 0, 1, 0, 0);
+  gdt->ents[3] = GDT_ENT(0, 0xFFFFFFFFFFFFFFFF, 0xA, 3, 1, 1, 0, 1, 0, 0);
+  gdt->ents[4] = GDT_ENT(0, 0xFFFFFFFFFFFFFFFF, 0x2, 3, 1, 1, 0, 1, 0, 0);
   for (uint32_t idx = 0; idx < ncpu; idx++) {
     void *stack = Memory::palloc();
     uintptr_t stack_ptr = (uintptr_t)stack + 0x1000;
     Memory::zero(&tss[idx], sizeof(tss[idx]));
     tss[idx].ist[0] = stack_ptr;
-    gdtsys[idx] = GDT_SYS_ENT(
+    gdt->sys_ents[idx] = GDT_SYS_ENT(
         (uintptr_t)&tss[idx], sizeof(TSS64_ENT),
         0x9, 0, 0, 1, 0, 1, 0, 0);
   }

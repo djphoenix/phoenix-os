@@ -526,6 +526,9 @@ void* operator new(size_t a) {
 void* operator new[](size_t a) {
   return Memory::alloc(a);
 }
+void* operator new(size_t, size_t a) {
+  return Memory::alloc(a);
+}
 void operator delete(void* a) {
   return Memory::free(a);
 }
