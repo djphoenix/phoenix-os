@@ -324,20 +324,20 @@ void Process::addPage(uintptr_t vaddr, void* paddr, uint8_t flags) {
   }
   PTE pte = pagetable[ptx];
   if (!pte.present) {
-    pagetable[ptx] = pte = PTE(Memory::palloc(), 5);
+    pagetable[ptx] = pte = PTE(Memory::palloc(), 7);
     addPage(pte.getUintPtr(), pte.getPtr(), 5);
   }
   PTE *pde = pte.getPTE();
   pte = pde[pdx];
   if (!pte.present) {
-    pde[pdx] = pte = PTE(Memory::palloc(), 5);
-    addPage((uintptr_t)pte.getPtr(), pte.getPtr(), 5);
+    pde[pdx] = pte = PTE(Memory::palloc(), 7);
+    addPage(pte.getUintPtr(), pte.getPtr(), 5);
   }
   PTE *pdpe = pte.getPTE();
   pte = pdpe[pdpx];
   if (!pte.present) {
-    pdpe[pdpx] = pte = PTE(Memory::palloc(), 5);
-    addPage((uintptr_t)pte.getPtr(), pte.getPtr(), 5);
+    pdpe[pdpx] = pte = PTE(Memory::palloc(), 7);
+    addPage(pte.getUintPtr(), pte.getPtr(), 5);
   }
   PTE *pml4e = pte.getPTE();
   flags |= 1;
