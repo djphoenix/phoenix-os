@@ -41,7 +41,7 @@ $(OOBJDIR)/%.o: $(SRCDIR)/%.s
 $(OMODDIR)/%.o: $(OOBJDIR)/mod_%.o
 	@ mkdir -p $(dir $@)
 	$(QECHO) MODLD $(@:$(OMODDIR)/%.o=%)
-	$(Q) $(CC) $(CFLAGS) -shared -Lld -Tmodule.ld -r -o $@ -s $^
+	$(Q) $(CC) $(CFLAGS) -Lld -Tmodule.ld -r -o $@ -s $^
 
 $(OOBJDIR)/modules-linked.o: $(MODOBJS)
 	@ mkdir -p $(dir $@)
