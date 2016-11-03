@@ -464,8 +464,9 @@ char* strdup(const char* c) {
 }
 
 int strcmp(const char* a, const char* b) {
-  while ((*a != 0) && (*b != 0) && (*a++) == (*b++)) {}
-  return *a - *b;
+  size_t i = 0;
+  while (a[i] != 0 && b[i] != 0 && a[i] == b[i]) { i++; }
+  return a[i] - b[i];
 }
 
 extern "C" {
