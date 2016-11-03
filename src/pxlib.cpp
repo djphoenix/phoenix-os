@@ -95,7 +95,7 @@ static char *longlong_to_string(char *buf, size_t len, uint64_t n, uint8_t base,
       buf[ --pos] = digit - 10 + table_start;
     }
   }
-  if (buf[pos] == 0) buf[pos] = '0';
+  if (buf[pos] == 0) buf[ --pos] = '0';
   if (negative) buf[ --pos] = '-';
   else if (fl_showsign) buf[ --pos] = '+';
   return &buf[pos];
