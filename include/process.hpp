@@ -94,6 +94,7 @@ class Process {
   void setEntryAddress(uintptr_t ptr);
 
   uintptr_t getSymbolByName(const char* name);
+  uintptr_t linkLibrary(const char* funcname);
 
   void writeData(uintptr_t address, void* src, size_t size);
   void readData(void* dst, uintptr_t address, size_t size);

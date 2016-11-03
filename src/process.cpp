@@ -387,6 +387,17 @@ uintptr_t Process::getSymbolByName(const char* name) {
   }
   return 0;
 }
+uintptr_t Process::linkLibrary(const char* funcname) {
+  uintptr_t ptr = getSymbolByName(funcname);
+  if (ptr != 0) return ptr;
+  ptr = addSection(SectionTypeCode, 0x100);
+
+  uint8_t _stub[] = {0xc3};  // RET
+  writeData(ptr, _stub, sizeof(_stub));
+  addSymbol(funcname, ptr);
+
+  return ptr;
+}
 void Process::writeData(uintptr_t address, void* src, size_t size) {
   char *ptr = static_cast<char*>(src);
   while (size > 0) {

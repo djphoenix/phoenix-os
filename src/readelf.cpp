@@ -209,7 +209,7 @@ size_t readelf(Process *process, Stream *stream) {
       }
 
       if (_symsect.type == SHT_NULL) {
-        printf("(link) %s\n", symname);
+        offset = process->linkLibrary(symname);
       }
 
       addr = sectstart + rel.addr;

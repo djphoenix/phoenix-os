@@ -26,7 +26,9 @@ MODDESC(description, "Prints \"Hello, world\" text");
 MODDESC(requirements, "");
 MODDESC(developer, "PhoeniX");
 
-extern "C" { void module(); }
+extern "C" { void module(); void puts(const char *); }
 
 void module() {
+  puts("Hello, ");
+  puts("world!\n");
 }
