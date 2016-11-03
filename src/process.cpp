@@ -56,12 +56,12 @@ ProcessManager::ProcessManager() {
     cpuThreads[c] = 0;
   nullThreads = new Thread[cpus]();
 }
-bool ProcessManager::TimerHandler(uint32_t intr, intcb_regs *regs) {
-  (void)intr;
+bool ProcessManager::TimerHandler(uint32_t, uint32_t, intcb_regs *regs) {
   return getManager()->SwitchProcess(regs);
 }
-bool ProcessManager::FaultHandler(uint32_t intr, intcb_regs *regs) {
-  return getManager()->HandleFault(intr, regs);
+bool ProcessManager::FaultHandler(
+    uint32_t intr, uint32_t code, intcb_regs *regs) {
+  return getManager()->HandleFault(intr, code, regs);
 }
 void ProcessManager::createNullThread(uint32_t cpuid, Thread thread) {
   uint64_t t = EnterCritical();
@@ -118,7 +118,8 @@ bool ProcessManager::SwitchProcess(intcb_regs *regs) {
   return true;
 }
 
-bool ProcessManager::HandleFault(uint32_t intr, intcb_regs *regs) {
+bool ProcessManager::HandleFault(
+    uint32_t intr, uint32_t code, intcb_regs *regs) {
   if (regs->dpl != 3)
     return false;
   uint64_t t = EnterCritical();
@@ -153,18 +154,23 @@ bool ProcessManager::HandleFault(uint32_t intr, intcb_regs *regs) {
       rflags_buf[1] = 'D';
     if (regs->rflags & (1 << 11))
       rflags_buf[0] = 'O';
-    printf("\nUserspace fault 0x%lx (cpu=%llu)\n"
+    uint64_t cr2;
+    asm volatile("mov %%cr2, %0":"=a"(cr2));
+    printf("\nUserspace fault %s (cpu=%llu, error=0x%lx)\n"
            "RIP=%016llx RSP=%016llx CS=%04llx SS=%04llx\n"
-           "RFL=%016llx [%s]\n"
+           "RFL=%016llx [%s] CR2=%016llx\n"
            "RBP=%016llx RSI=%016llx RDI=%016llx\n"
            "RAX=%016llx RCX=%016llx RDX=%016llx\n"
            "RBX=%016llx R8 =%016llx R9 =%016llx\n"
            "R10=%016llx R11=%016llx R12=%016llx\n"
            "R13=%016llx R14=%016llx R15=%016llx\n",
-           intr, regs->cpuid, regs->rip, regs->rsp, regs->cs, regs->ss,
-           regs->rflags, rflags_buf, regs->rbp, regs->rsi, regs->rdi, regs->rax,
-           regs->rcx, regs->rdx, regs->rbx, regs->r8, regs->r9, regs->r10,
-           regs->r11, regs->r12, regs->r13, regs->r14, regs->r15);
+           FAULTS[intr].code, regs->cpuid, code,
+           regs->rip, regs->rsp, regs->cs, regs->ss,
+           regs->rflags, rflags_buf, cr2,
+           regs->rbp, regs->rsi, regs->rdi,
+           regs->rax, regs->rcx, regs->rdx, regs->rbx,
+           regs->r8, regs->r9, regs->r10, regs->r11,
+           regs->r12, regs->r13, regs->r14, regs->r15);
   } else {
     printf("Exit\n");
   }

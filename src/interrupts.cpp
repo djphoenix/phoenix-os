@@ -100,12 +100,7 @@ uint64_t __attribute__((sysv_abi)) interrupt_handler(uint64_t intr,
   return ret;
 }
 
-struct FAULT {
-  char code[5];
-  bool has_error_code;
-} PACKED;
-
-static const FAULT FAULTS[0x20] = {
+const FAULT FAULTS[0x20] = {
   /* 00 */{ "#DE", false },
   /* 01 */{ "#DB", false },
   /* 02 */{ "#NMI", false },
@@ -189,7 +184,7 @@ uint64_t Interrupts::handle(unsigned char intr, uint64_t stack, uint64_t *cr3) {
     cb = (reg != 0) ? reg->cb : 0;
     callback_locks[intr].release();
     if (cb == 0) break;
-    handled = cb(intr, &cb_regs);
+    handled = cb(intr, error_code, &cb_regs);
     if (handled) break;
   }
 

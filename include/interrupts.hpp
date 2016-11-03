@@ -162,7 +162,14 @@ struct intcb_regs {
   uint64_t r12, r13, r14, r15;
 };
 
-typedef bool intcb(uint32_t intr, intcb_regs *regs);
+struct FAULT {
+  char code[5];
+  bool has_error_code;
+} PACKED;
+
+extern const FAULT FAULTS[0x20];
+
+typedef bool intcb(uint32_t intr, uint32_t code, intcb_regs *regs);
 
 struct intcbreg {
   intcb *cb;
