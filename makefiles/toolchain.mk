@@ -1,4 +1,5 @@
 PREFIX=x86_64-linux-gnu-
+NPROC=1
 
 ifeq ($(OS),Windows_NT)
   PREFIX=x86_64-w64-mingw32-
@@ -6,7 +7,14 @@ else
   UNAME_S=$(shell uname -s)
   ifeq ($(UNAME_S),Darwin)
     PREFIX=x86_64-elf-
+	  NPROC=$(shell sysctl -n hw.ncpu)
+  else
+	  NPROC=$(shell grep -c ^processor /proc/cpuinfo)
   endif
+endif
+
+ifneq ($(PARALLEL),0)
+MAKEFLAGS += "-j $(NPROC)"
 endif
 
 ifeq ($(VERBOSE),1)
