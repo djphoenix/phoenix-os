@@ -1,16 +1,50 @@
+define SCANDIRS
+$(foreach f,$(wildcard $(1)/$(2)) $(foreach s,$(wildcard $(1)/*),$(call SCANDIRS,$(s),$(2))),$(dir $(f)))
+endef
+
+define UNIQ
+$(if $1,$(firstword $1) $(call UNIQ,$(filter-out $(firstword $1),$1)))
+endef
+
 define SRCOBJ
-$(patsubst $(SRCDIR)/%.cpp, $(OOBJDIR)/%.o, $(patsubst $(SRCDIR)/%.s, $(OOBJDIR)/%.o, $(1)))
+$(patsubst $(SRCDIR)/%,$(OOBJDIR)/%,$(patsubst %.cpp,%.o,$(patsubst %.s,%.o,$(1))))
 endef
 
 define DEPSRC
-DEPS += $$(patsubst %.o,%.d,$$(call SRCOBJ,$(1)))
+$(patsubst %.o,%.d,$(call SRCOBJ,$(1)))
 endef
 
-define SCANMOD
-MOD_$(1)_SRCS := $$(wildcard $$(MODDIR)/$(1)/*.cpp)
-MODSRCS := $$(MODSRCS) $$(MOD_$(1)_SRCS)
-$$(OOBJDIR)/mod_$(1).o: $$(MOD_$(1)_SRCS)
+define RULESCAN
+LIBNAME_$(1) := $$(subst /,_,$$(patsubst %/,%,$(1)))
+CSRCS_$(1) := $$(wildcard $(SRCDIR)/$(1)*.cpp)
+ASRCS_$(1) := $$(wildcard $(SRCDIR)/$(1)*.s)
+SRCS_$(1) := $$(CSRCS_$(1)) $$(ASRCS_$(1))
+OBJS_$(1) := $$(call SRCOBJ,$$(SRCS_$(1)))
+INCLUDES_$(1) := $$(wildcard $(SRCDIR)/$(1)include)
+INCLUDES += $$(INCLUDES_$(1))
+SOURCES += $$(SRCS_$(1))
+endef
+
+define KERNRULES
+$(call RULESCAN,$(1))
+KERNOBJS += $(OLIBDIR)/$$(LIBNAME_$(1)).a
+
+$(OLIBDIR)/$$(LIBNAME_$(1)).a: $$(OBJS_$(1))
 	@ mkdir -p $$(dir $$@)
-	$(QECHO) MODCC $(1)
-	$(Q) $$(CC) $$(CFLAGS) -c $$^ -o $$@
+	$(QECHO) AR $$(subst $(OLIBDIR)/,,$$@)
+	$(Q) $(AR) -cru $$@ $$?
+endef
+
+define LIBRULES
+LIBOBJS += $(OLIBDIR)/$$(patsubst %/,%,$(1)).a
+endef
+
+define MODRULES
+$(call RULESCAN,$(1))
+MODOBJS += $(OOBJDIR)/mod_$$(LIBNAME_$(1)).o
+
+$(OOBJDIR)/mod_$$(LIBNAME_$(1)).o: $$(OBJS_$(1))
+	@ mkdir -p $$(dir $$@)
+	$(QECHO) MODLD $$(patsubst %/,%,$(1))
+	$(Q) $(CC) $(CFLAGS) -Lld -Tmodule.ld -r -s -o $$@ $$?
 endef

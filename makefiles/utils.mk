@@ -8,7 +8,10 @@ clean:
 	$(QECHO) RM $(ODIR) bin
 	$(Q) rm -rf $(ODIR) bin
 
-$(ODIR)/check-report.txt: $(SOURCES) $(MODSRCS) $(HEADERS)
+CHECKSRCS := $(filter %.cpp,$(SOURCES))
+CHECKHDRS := $(foreach i,$(INCLUDES),$(wildcard $(i)/*.hpp))
+
+$(ODIR)/check-report.txt: $(CHECKSRCS) $(CHECKHDRS)
 	$(Q) $(LINT) $^ > $@ || rm $@
 
 check: $(ODIR)/check-report.txt

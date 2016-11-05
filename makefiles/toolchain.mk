@@ -18,6 +18,7 @@ else
 endif
 
 CC=$(PREFIX)g++
+AR=$(PREFIX)ar
 OBJCOPY=$(PREFIX)objcopy
 STRIP=$(PREFIX)strip
 
