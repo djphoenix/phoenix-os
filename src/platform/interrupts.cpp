@@ -24,7 +24,7 @@ Mutex Interrupts::fault;
 Mutex Interrupts::init_lock = Mutex();
 int_handler* Interrupts::handlers = 0;
 INTERRUPT32 Interrupts::interrupts32[256];
-asm volatile(
+asm(
     ".global __interrupt_wrap;"
     "__interrupt_wrap:;"
     "push %rax;"

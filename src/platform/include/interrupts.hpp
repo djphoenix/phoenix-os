@@ -131,7 +131,7 @@ struct GDT_SYS_ENT {
   uint64_t base_high :32;
   uint32_t rsvd;
 
-  uint64_t getBase() { return (base_high << 32) | ent.getBase(); }
+  uint64_t getBase() { return ((uintptr_t)base_high << 32) | ent.getBase(); }
 
   void setBase(uint64_t base) {
     ent.setBase(base);
