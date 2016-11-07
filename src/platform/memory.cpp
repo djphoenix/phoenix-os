@@ -16,7 +16,6 @@
 
 #include "memory.hpp"
 #include "interrupts.hpp"
-GRUB *grub_data;
 
 static const uint64_t KBTS4 = 0xFFFFFFFFFFFFF000;
 
