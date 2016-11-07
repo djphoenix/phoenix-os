@@ -99,3 +99,10 @@ extern "C" {
     return base + align - (base % align);
   }
 }
+
+class Memory {
+ public:
+  static void copy(void* dest, const void* src, size_t count);
+  static void fill(void *addr, uint8_t value, size_t size);
+  static void zero(void *addr, size_t size);
+};

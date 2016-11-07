@@ -115,13 +115,6 @@ class Heap {
   }
 };
 
-class Memory {
- public:
-  static void copy(void* dest, const void* src, size_t count);
-  static void fill(void *addr, uint8_t value, size_t size);
-  static void zero(void *addr, size_t size);
-};
-
 #define ALIGNED_NEW(align) \
     void *operator new(size_t size) { return Heap::alloc(size, align); }
 #define ALIGNED_NEWARR(align) \

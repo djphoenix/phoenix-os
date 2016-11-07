@@ -421,35 +421,6 @@ void *Heap::realloc(void *addr, size_t size, size_t align) {
   free(addr);
   return newptr;
 }
-void Memory::copy(void *dest, const void *src, size_t count) {
-  asm volatile(
-      "mov %0, %%rsi;"
-      "mov %1, %%rdi;"
-      "cld;"
-      "cmp %%rdi, %%rsi;"
-      "jae 1f;"
-      "add %%rcx, %%rsi; dec %%rsi;"
-      "add %%rcx, %%rdi; dec %%rdi;"
-      "std;"
-      "\n1:"
-      "rep movsb;"
-      "cld;"
-      ::"r"(src),"r"(dest),"c"(count):"rsi","rdi"
-  );
-}
-
-void Memory::zero(void *addr, size_t size) {
-  fill(addr, 0, size);
-}
-
-void Memory::fill(void *addr, uint8_t value, size_t size) {
-  asm volatile(
-      "mov %0, %%rdi;"
-      "cld;"
-      "rep stosb;"
-      ::"r"(addr),"a"(value),"c"(size):"rdi"
-  );
-}
 
 void* operator new(size_t a) {
   return Heap::alloc(a);
