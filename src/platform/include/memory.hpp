@@ -82,10 +82,9 @@ struct ALLOCTABLE {
 
 class Pagetable {
   static PTE *pagetable;
-  static GRUBMODULE modules[256];
   static Mutex page_mutex;
   static uint64_t last_page;
-  static void* _palloc(uint8_t avl = 0, bool nolow = false);
+  static void* _alloc(uint8_t avl = 0, bool nolow = false);
 
  public:
   static void init();

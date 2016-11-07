@@ -17,35 +17,38 @@
 #include "memory.hpp"
 #include "interrupts.hpp"
 
-static const uint64_t KBTS4 = 0xFFFFFFFFFFFFF000;
-
 extern "C" {
   extern char __first_page__;
   extern PTE __pagetable__;
-  extern char __stack_start__, __stack_end__;
-  extern char __text_start__, __text_end__;
-  extern char __data_start__, __data_end__;
-  extern char __modules_start__, __modules_end__;
-  extern char __bss_start__, __bss_end__;
 }
 
 PTE *Pagetable::pagetable = &__pagetable__;
 Mutex Pagetable::page_mutex = Mutex();
 uintptr_t Pagetable::last_page = 1;
-GRUBMODULE Pagetable::modules[256];
 
 ALLOCTABLE *Heap::allocs = 0;
 void* Heap::first_free = &__first_page__;
 Mutex Heap::heap_mutex = Mutex();
 
-#define FILL_PAGES(LOW, TOP) do { \
-  uintptr_t low = ((uintptr_t)(LOW)) & KBTS4; \
-  uintptr_t top = ALIGN(((uintptr_t)(TOP)), 0x1000); \
-  for (uintptr_t addr = low; addr < top; addr += 0x1000) \
-    PTE::find(addr, pagetable)->user = 0; \
-} while (0)
+static inline void fillPages(uintptr_t low, uintptr_t top,
+                             PTE *pagetable = &__pagetable__) {
+  low &= 0xFFFFFFFFFFFFF000;
+  top = ALIGN(top, 0x1000);
+  for (; low < top; low += 0x1000) \
+    PTE::find(low, pagetable)->user = 0; \
+}
+
+static inline void fillPages(void *low, void *top,
+                             PTE *pagetable = &__pagetable__) {
+  fillPages((uintptr_t)low, (uintptr_t)top, pagetable);
+}
 
 void Pagetable::init() {
+  extern char __stack_start__, __stack_end__;
+  extern char __text_start__, __data_end__;
+  extern char __modules_start__, __modules_end__;
+  extern char __bss_start__, __bss_end__;
+
   // Buffering BIOS interrupts
   Memory::copy(Interrupts::interrupts32, 0, sizeof(INTERRUPT32) * 256);
 
@@ -64,8 +67,10 @@ void Pagetable::init() {
   if ((uintptr_t)kernel_data.mmap_addr < (uintptr_t)&__bss_end__)
     kernel_data.mmap_addr += (uintptr_t)&__bss_end__;
 
-  char cmdline[256];
+  static GRUBMODULE modules[256];
+  static char cmdline[256];
   size_t cmdlinel = 0;
+
   if (((kernel_data.flags & 4) == 4) && (grub_data->pcmdline != 0)) {
     const char* c = reinterpret_cast<const char*>(grub_data->pcmdline);
     if ((uintptr_t)c < 0x100000) c += 0x100000;
@@ -84,7 +89,7 @@ void Pagetable::init() {
       modules[i].end = c->end;
 
       // Set module pages as system
-      FILL_PAGES(modules[i].start & 0xFFFFF000, modules[i].end & 0xFFFFF000);
+      fillPages(modules[i].start & 0xFFFFF000, modules[i].end & 0xFFFFF000);
       c++;
     }
   } else {
@@ -96,17 +101,17 @@ void Pagetable::init() {
   // BIOS Data
   PTE::find((uintptr_t)0, pagetable)->present = 0;
 
-  FILL_PAGES(0x09F000, 0x0A0000);  // Extended BIOS Data
-  FILL_PAGES(0x0A0000, 0x0C8000);  // Video data & VGA BIOS
-  FILL_PAGES(0x0C8000, 0x0F0000);  // Reserved for many systems
-  FILL_PAGES(0x0F0000, 0x100000);  // BIOS Code
+  fillPages(0x09F000, 0x0A0000);  // Extended BIOS Data
+  fillPages(0x0A0000, 0x0C8000);  // Video data & VGA BIOS
+  fillPages(0x0C8000, 0x0F0000);  // Reserved for many systems
+  fillPages(0x0F0000, 0x100000);  // BIOS Code
 
-  FILL_PAGES(&__stack_start__, &__stack_end__);  // PXOS Stack
-  FILL_PAGES(&__text_start__, &__data_end__);  // PXOS Code & Data
-  FILL_PAGES(&__modules_start__, &__modules_end__);  // PXOS Modules
-  FILL_PAGES(&__bss_start__, &__bss_end__);  // PXOS BSS
-  FILL_PAGES(kernel_data.mmap_addr,
-             kernel_data.mmap_addr + kernel_data.mmap_length);
+  fillPages(&__stack_start__, &__stack_end__);  // PXOS Stack
+  fillPages(&__text_start__, &__data_end__);  // PXOS Code & Data
+  fillPages(&__modules_start__, &__modules_end__);  // PXOS Modules
+  fillPages(&__bss_start__, &__bss_end__);  // PXOS BSS
+  fillPages(kernel_data.mmap_addr,
+            kernel_data.mmap_addr + kernel_data.mmap_length);
 
   // Page table
   PTE::find(pagetable, pagetable)->user = 0;
@@ -177,7 +182,7 @@ void Pagetable::init() {
   while (mmap < mmap_top) {
     const GRUBMEMENT *ent = reinterpret_cast<const GRUBMEMENT*>(mmap);
     if (ent->type != 1) {
-      uintptr_t low = (uintptr_t)ent->base & KBTS4;
+      uintptr_t low = (uintptr_t)ent->base & 0xFFFFFFFFFFFFF000;
       uintptr_t top = ALIGN((uintptr_t)ent->base + ent->length, 0x1000);
       for (uintptr_t addr = low; addr < top; addr += 0x1000)
         map(reinterpret_cast<void*>(addr));
@@ -192,17 +197,17 @@ void* Pagetable::map(const void* mem) {
   void *addr = reinterpret_cast<void*>(i << 12);
   PTE pte = pagetable[(i >> 27) & 0x1FF];
   if (!pte.present) {
-    pagetable[(i >> 27) & 0x1FF] = pte = PTE(_palloc(0, true), 3);
+    pagetable[(i >> 27) & 0x1FF] = pte = PTE(_alloc(0, true), 3);
   }
   PTE *pde = pte.getPTE();
   pte = pde[(i >> 18) & 0x1FF];
   if (!pte.present) {
-    pde[(i >> 18) & 0x1FF] = pte = PTE(_palloc(0, true), 3);
+    pde[(i >> 18) & 0x1FF] = pte = PTE(_alloc(0, true), 3);
   }
   PTE *pdpe = pte.getPTE();
   pte = pdpe[(i >> 9) & 0x1FF];
   if (!pte.present) {
-    pdpe[(i >> 9) & 0x1FF] = pte = PTE(_palloc(0, true), 3);
+    pdpe[(i >> 9) & 0x1FF] = pte = PTE(_alloc(0, true), 3);
   }
   PTE *page = pte.getPTE();
   page[i & 0x1FF] = PTE(addr, 3);
@@ -210,14 +215,14 @@ void* Pagetable::map(const void* mem) {
   LeaveCritical(t);
   return addr;
 }
-void* Pagetable::_palloc(uint8_t avl, bool nolow) {
+void* Pagetable::_alloc(uint8_t avl, bool nolow) {
 start:
   void *addr = 0;
   PTE *page;
   uintptr_t i = last_page - 1;
   if (nolow && (i < 0x100))
     i = 0x100;
-  while (i < KBTS4) {
+  while (i < 0xFFFFFFFFFFFFF000) {
     i++;
     addr = reinterpret_cast<void*>(i << 12);
     page = PTE::find(addr, pagetable);
@@ -252,7 +257,7 @@ start:
 void* Pagetable::alloc(uint8_t avl) {
   uint64_t t = EnterCritical();
   page_mutex.lock();
-  void* ret = _palloc(avl);
+  void* ret = _alloc(avl);
   page_mutex.release();
   LeaveCritical(t);
   return ret;
