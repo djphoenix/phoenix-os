@@ -83,11 +83,12 @@ end:
     delete sub;
 }
 void ModuleManager::parseInternal() {
-  if ((kernel_data.modules != 0) && (kernel_data.modules
-      != kernel_data.modules_top)) {
-    Stream *ms = new MemoryStream(
-        reinterpret_cast<void*>(kernel_data.modules),
-        kernel_data.modules_top - kernel_data.modules);
+  extern char __modules_start__, __modules_end__;
+
+  size_t modules_size = &__modules_end__ - &__modules_start__;
+
+  if (modules_size > 1) {
+    Stream *ms = new MemoryStream(&__modules_start__, modules_size);
     loadStream(ms, 1);
     delete ms;
   }

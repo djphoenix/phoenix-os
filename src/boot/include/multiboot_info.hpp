@@ -63,8 +63,6 @@ struct GRUBDATA {
   size_t mmap_length;
   char* mmap_addr;
   char* boot_loader_name;
-  uintptr_t kernel, stack, stack_top, data, data_top, bss, bss_top, modules,
-      modules_top;
 };
 
 extern GRUB *grub_data;

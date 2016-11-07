@@ -63,17 +63,6 @@ PTE *Memory::get_page(void* base_addr) {
 } while (0)
 
 void Memory::init() {
-  // Filling kernel addresses
-  kernel_data.kernel = (uintptr_t)&__text_start__;
-  kernel_data.stack = (uintptr_t)&__stack_start__;
-  kernel_data.stack_top = (uintptr_t)&__stack_end__;
-  kernel_data.data = (uintptr_t)&__data_start__;
-  kernel_data.data_top = (uintptr_t)&__data_end__;
-  kernel_data.modules = (uintptr_t)&__modules_start__;
-  kernel_data.modules_top = (uintptr_t)&__modules_end__;
-  kernel_data.bss = (uintptr_t)&__bss_start__;
-  kernel_data.bss_top = (uintptr_t)&__bss_end__;
-
   // Buffering BIOS interrupts
   copy(Interrupts::interrupts32, 0, sizeof(INTERRUPT32) * 256);
 
@@ -129,10 +118,10 @@ void Memory::init() {
   FILL_PAGES(0x0C8000, 0x0F0000);  // Reserved for many systems
   FILL_PAGES(0x0F0000, 0x100000);  // BIOS Code
 
-  FILL_PAGES(kernel_data.stack, kernel_data.stack_top);  // PXOS Stack
-  FILL_PAGES(kernel_data.kernel, kernel_data.data_top);  // PXOS Code & Data
-  FILL_PAGES(kernel_data.modules, kernel_data.modules_top);  // PXOS Modules
-  FILL_PAGES(kernel_data.bss, kernel_data.bss_top);  // PXOS BSS
+  FILL_PAGES(&__stack_start__, &__stack_end__);  // PXOS Stack
+  FILL_PAGES(&__text_start__, &__data_end__);  // PXOS Code & Data
+  FILL_PAGES(&__modules_start__, &__modules_end__);  // PXOS Modules
+  FILL_PAGES(&__bss_start__, &__bss_end__);  // PXOS BSS
   FILL_PAGES(kernel_data.mmap_addr,
              kernel_data.mmap_addr + kernel_data.mmap_length);
 
