@@ -128,24 +128,17 @@ void Memory::init() {
   // Page table
   get_page(pagetable)->user = 0;
 
-  PTE pte;
   for (uint16_t i = 0; i < 512; i++) {
-    pte = pagetable[i];
-    if (!pte.present)
-      continue;
-    PTE *pde = pte.getPTE();
+    if (!pagetable[i].present) continue;
+    PTE *pde = pagetable[i].getPTE();
     get_page(pde)->user = 0;
     for (uint32_t j = 0; j < 512; j++) {
-      pte = pde[j];
-      if (!pte.present)
-        continue;
-      PTE *pdpe = pte.getPTE();
+      if (!pde[j].present) continue;
+      PTE *pdpe = pde[j].getPTE();
       get_page(pdpe)->user = 0;
       for (uint16_t k = 0; k < 512; k++) {
-        pte = pdpe[k];
-        if (!pte.present)
-          continue;
-        PTE *pml4e = pte.getPTE();
+        if (!pdpe[k].present) continue;
+        PTE *pml4e = pdpe[k].getPTE();
         get_page(pml4e)->user = 0;
       }
     }
@@ -153,22 +146,16 @@ void Memory::init() {
 
   // Clearing unused pages
   for (uint16_t i = 0; i < 512; i++) {
-    pte = pagetable[i];
-    if (!pte.present)
-      continue;
-    PTE *pde = pte.getPTE();
+    if (!pagetable[i].present) continue;
+    PTE *pde = pagetable[i].getPTE();
     get_page(pde)->user = 0;
     for (uint32_t j = 0; j < 512; j++) {
-      pte = pde[j];
-      if (!pte.present)
-        continue;
-      PTE *pdpe = pte.getPTE();
+      if (!pde[j].present) continue;
+      PTE *pdpe = pde[j].getPTE();
       get_page(pdpe)->user = 0;
       for (uint16_t k = 0; k < 512; k++) {
-        pte = pdpe[k];
-        if (!pte.present)
-          continue;
-        PTE *pml4e = pte.getPTE();
+        if (!pdpe[k].present) continue;
+        PTE *pml4e = pdpe[k].getPTE();
         for (uint16_t l = 0; l < 512; l++) {
           if (pml4e[l].user)
             pml4e[l].present = 0;
@@ -176,12 +163,14 @@ void Memory::init() {
       }
     }
   }
+
   if (cmdlinel > 0) {
     kernel_data.cmdline = new char[cmdlinel+1];
     copy(kernel_data.cmdline, cmdline, cmdlinel + 1);
   } else {
     kernel_data.cmdline = 0;
   }
+
   if (((kernel_data.flags & 8) == 8) && (kernel_data.mods != 0)) {
     MODULE *mod = new MODULE();
     kernel_data.mods = mod;
@@ -200,17 +189,17 @@ void Memory::init() {
   }
 
   // GRUB info
-  GRUBMEMENT *mmap = reinterpret_cast<GRUBMEMENT*>(kernel_data.mmap_addr);
-  GRUBMEMENT *mmap_top = mmap + kernel_data.mmap_length / sizeof(GRUBMEMENT);
+  const char *mmap = reinterpret_cast<const char*>(kernel_data.mmap_addr);
+  const char *mmap_top = mmap + kernel_data.mmap_length;
   while (mmap < mmap_top) {
-    if (mmap->type != 1) {
-      uintptr_t low = (uintptr_t)mmap->base & KBTS4;
-      uintptr_t top = ALIGN((uintptr_t)mmap->base + mmap->length, 0x1000);
+    const GRUBMEMENT *ent = reinterpret_cast<const GRUBMEMENT*>(mmap);
+    if (ent->type != 1) {
+      uintptr_t low = (uintptr_t)ent->base & KBTS4;
+      uintptr_t top = ALIGN((uintptr_t)ent->base + ent->length, 0x1000);
       for (uintptr_t addr = low; addr < top; addr += 0x1000)
         salloc(reinterpret_cast<void*>(addr));
     }
-    mmap = reinterpret_cast<GRUBMEMENT*>(
-        reinterpret_cast<char*>(mmap) + mmap->size + sizeof(mmap->size));
+    mmap += ent->size + sizeof(ent->size);
   }
 }
 void* Memory::salloc(const void* mem) {
