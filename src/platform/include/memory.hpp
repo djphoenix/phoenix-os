@@ -72,7 +72,6 @@ class Memory {
   static void* _palloc(uint8_t avl = 0, bool nolow = false);
 
  public:
-  static void map();
   static void init();
   static void* salloc(const void* mem);
   static void* palloc(uint8_t avl = 0);

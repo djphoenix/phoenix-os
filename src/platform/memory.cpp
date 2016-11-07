@@ -224,37 +224,6 @@ void Memory::init() {
         reinterpret_cast<char*>(mmap) + mmap->size + sizeof(mmap->size));
   }
 }
-void Memory::map() {
-  uint64_t t = EnterCritical();
-  page_mutex.lock();
-  clrscr();
-  uint64_t i;
-  char c = 0, nc = 0;
-  uint64_t start = 0;
-  for (i = 0; i < 0xFFFFF000; i += 0x1000) {
-    PTE *page = get_page(reinterpret_cast<void*>(i));
-    nc = !page ? 0 : page->flags;
-    if ((nc & 1) != 0) {
-      if ((nc & 4) != 0) {
-        nc = 'U';
-      } else {
-        nc = 'S';
-      }
-    } else {
-      nc = 'E';
-    }
-    if (nc != c) {
-      if (c != 0 && c != 'E')
-        printf("%c: %016x - %016x\n", c, start, i);
-      c = nc;
-      start = i;
-    }
-  }
-  if (c != 0 && c != 'E')
-    printf("%c: %016x - %016x\n", c, start, i);
-  page_mutex.release();
-  LeaveCritical(t);
-}
 void* Memory::salloc(const void* mem) {
   uint64_t t = EnterCritical();
   page_mutex.lock();
