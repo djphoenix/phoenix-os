@@ -24,7 +24,7 @@
 void NORETURN main() {
   static_init();
   clrscr();
-  Memory::init();
+  Pagetable::init();
   SMP::init();
   Interrupts::init();
   ModuleManager::init();

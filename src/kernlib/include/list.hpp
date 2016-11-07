@@ -23,12 +23,12 @@ class List {
   size_t count = 0;
   size_t capacity = 0;
  public:
-  ~List() { Memory::free(items); }
+  ~List() { Heap::free(items); }
 
   Item& insert() {
     if (count == capacity) {
       capacity += MAX(256 / sizeof(Item), (size_t)1);
-      items = Memory::realloc(items, sizeof(Item) * capacity);
+      items = Heap::realloc(items, sizeof(Item) * capacity);
     }
     return items[count++];
   }

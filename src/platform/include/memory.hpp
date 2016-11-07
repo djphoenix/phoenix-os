@@ -48,6 +48,25 @@ struct PTE {
     flags(flags), rsvd(0), avl(avl), _ptr((uintptr_t)ptr >> 12) {}
   PTE(void *ptr, uint8_t flags):
     flags(flags), rsvd(0), avl(0), _ptr((uintptr_t)ptr >> 12) {}
+
+  static PTE* find(uintptr_t ptr, PTE *pagetable) {
+    uint16_t ptx = (ptr >> (12 + 9 + 9 + 9)) & 0x1FF;
+    uint16_t pdx = (ptr >> (12 + 9 + 9)) & 0x1FF;
+    uint16_t pdpx = (ptr >> (12 + 9)) & 0x1FF;
+    uint16_t pml4x = (ptr >> (12)) & 0x1FF;
+
+    PTE *pde = pagetable[ptx].present ? pagetable[ptx].getPTE() : 0;
+    if (pde == 0) return 0;
+    PTE *pdpe = pde[pdx].present ? pde[pdx].getPTE() : 0;
+    if (pdpe == 0) return 0;
+    PTE *page = pdpe[pdpx].present ? pdpe[pdpx].getPTE() : 0;
+    if (page == 0) return 0;
+
+    return &page[pml4x];
+  }
+  static PTE* find(void *addr, PTE *pagetable) {
+    return find((uintptr_t)addr, pagetable);
+  }
 } PACKED;
 
 struct ALLOC {
@@ -61,27 +80,30 @@ struct ALLOCTABLE {
   int64_t reserved;
 };
 
-class Memory {
+class Pagetable {
   static PTE *pagetable;
-  static ALLOCTABLE *allocs;
-  static void* first_free;
-  static uint64_t last_page;
   static GRUBMODULE modules[256];
-  static PTE *get_page(void* base_addr);
-  static Mutex page_mutex, heap_mutex;
+  static Mutex page_mutex;
+  static uint64_t last_page;
   static void* _palloc(uint8_t avl = 0, bool nolow = false);
 
  public:
   static void init();
-  static void* salloc(const void* mem);
-  static void* palloc(uint8_t avl = 0);
+  static void* map(const void* mem);
+  static void* alloc(uint8_t avl = 0);
+  static void free(void* page);
+};
+
+class Heap {
+  static ALLOCTABLE *allocs;
+  static void* first_free;
+  static Mutex heap_mutex;
+
+ public:
   static void* alloc(size_t size, size_t align = 4);
   static void* realloc(void *addr, size_t size, size_t align = 4);
-  static void pfree(void* page);
+
   static void free(void* addr);
-  static void copy(void* dest, const void* src, size_t count);
-  static void zero(void *addr, size_t size);
-  static void fill(void *addr, uint8_t value, size_t size);
 
   template<typename T> static inline T* alloc(
       size_t size = sizeof(T), size_t align = 4) {
@@ -93,17 +115,24 @@ class Memory {
   }
 };
 
+class Memory {
+ public:
+  static void copy(void* dest, const void* src, size_t count);
+  static void fill(void *addr, uint8_t value, size_t size);
+  static void zero(void *addr, size_t size);
+};
+
 #define ALIGNED_NEW(align) \
-    void *operator new(size_t size) { return Memory::alloc(size, align); }
+    void *operator new(size_t size) { return Heap::alloc(size, align); }
 #define ALIGNED_NEWARR(align) \
-    void *operator new[](size_t size) { return Memory::alloc(size, align); }
+    void *operator new[](size_t size) { return Heap::alloc(size, align); }
 
 inline static void MmioWrite32(void *p, uint32_t data) {
-  Memory::salloc(p);
+  Pagetable::map(p);
   *(volatile uint32_t *)(p) = data;
 }
 inline static uint32_t MmioRead32(const void *p) {
-  Memory::salloc(p);
+  Pagetable::map(p);
   return *(volatile uint32_t *)(p);
 }
 

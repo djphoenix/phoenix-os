@@ -42,7 +42,7 @@ void SMP::init_gdt(uint32_t ncpu) {
   gdt->ents[3] = GDT_ENT(0, 0xFFFFFFFFFFFFFFFF, 0xA, 3, 1, 1, 0, 1, 0, 0);
   gdt->ents[4] = GDT_ENT(0, 0xFFFFFFFFFFFFFFFF, 0x2, 3, 1, 1, 0, 1, 0, 0);
   for (uint32_t idx = 0; idx < ncpu; idx++) {
-    void *stack = Memory::palloc();
+    void *stack = Pagetable::alloc();
     uintptr_t stack_ptr = (uintptr_t)stack + 0x1000;
     Memory::zero(&tss[idx], sizeof(tss[idx]));
     tss[idx].ist[0] = stack_ptr;
@@ -99,7 +99,7 @@ void SMP::init() {
   char *startupCode;
   StartupInfo *info;
 
-  startupCode = static_cast<char*>(Memory::palloc());
+  startupCode = static_cast<char*>(Pagetable::alloc());
   info = reinterpret_cast<StartupInfo*>(startupCode + ALIGN(smp_init_size, 8));
 
   Memory::copy(startupCode, &_smp_init, smp_init_size);
@@ -115,7 +115,7 @@ void SMP::init() {
   for (uint32_t i = 0; i < cpuCount; i++) {
     info->cpuids[i] = acpi->getLapicIDOfCPU(i);
     if (info->cpuids[i] != localId)
-      info->stacks[i] = static_cast<char*>(Memory::palloc()) + 0x1000;
+      info->stacks[i] = static_cast<char*>(Pagetable::alloc()) + 0x1000;
     else
       nullcpus++;
   }
@@ -141,5 +141,5 @@ void SMP::init() {
 
   delete[] info->cpuids;
   delete[] info->stacks;
-  Memory::pfree(startupCode);
+  Pagetable::free(startupCode);
 }

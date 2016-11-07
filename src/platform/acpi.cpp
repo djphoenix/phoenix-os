@@ -49,8 +49,8 @@ ACPI::ACPI() {
   }
 
   while (p < end) {
-    Memory::salloc(p);
-    Memory::salloc(p + 1);
+    Pagetable::map(p);
+    Pagetable::map(p + 1);
     uint64_t signature = *p;
 
     if ((signature == ACPI_SIG_RTP_DSR) && ParseRsdp(p))
@@ -73,59 +73,59 @@ ACPI::ACPI() {
   busfreq = ((-1 - LapicIn(LAPIC_TMRCURRCNT)) << 4) * 100;
 }
 void ACPI::ParseDT(AcpiHeader *header) {
-  Memory::salloc(header);
+  Pagetable::map(header);
 
   if (header->signature == ACPI_SIG_CIPA)
     ParseApic(reinterpret_cast<AcpiMadt*>(header));
 }
 void ACPI::ParseRsdt(AcpiHeader *rsdt) {
-  Memory::salloc(rsdt);
+  Pagetable::map(rsdt);
   uint32_t *p = reinterpret_cast<uint32_t*>(rsdt + 1);
   uint32_t *end = p + (rsdt->length - sizeof(*rsdt)) / sizeof(uint32_t);
 
   while (p < end) {
-    Memory::salloc(p);
-    Memory::salloc(p + 1);
+    Pagetable::map(p);
+    Pagetable::map(p + 1);
     uintptr_t address = ((*p++) & 0xFFFFFFFF);
     ParseDT(reinterpret_cast<AcpiHeader*>(address));
   }
 }
 void ACPI::ParseXsdt(AcpiHeader *xsdt) {
-  Memory::salloc(xsdt);
+  Pagetable::map(xsdt);
   uint64_t *p = reinterpret_cast<uint64_t*>(xsdt + 1);
   uint64_t *end = p + (xsdt->length - sizeof(*xsdt)) / sizeof(uint64_t);
 
   while (p < end) {
-    Memory::salloc(p);
-    Memory::salloc(p + 1);
+    Pagetable::map(p);
+    Pagetable::map(p + 1);
     uint64_t address = *p++;
     ParseDT(reinterpret_cast<AcpiHeader*>(address));
   }
 }
 void ACPI::ParseApic(AcpiMadt *a_madt) {
-  Memory::salloc(a_madt);
+  Pagetable::map(a_madt);
   madt = a_madt;
 
   localApicAddr = reinterpret_cast<char*>(madt->localApicAddr);
-  Memory::salloc(localApicAddr);
+  Pagetable::map(localApicAddr);
 
   uint8_t *p = reinterpret_cast<uint8_t*>(madt + 1);
   uint8_t *end = p + (madt->header.length - sizeof(AcpiMadt));
 
   while (p < end) {
     ApicHeader *header = reinterpret_cast<ApicHeader*>(p);
-    Memory::salloc(header);
-    Memory::salloc(header + 1);
+    Pagetable::map(header);
+    Pagetable::map(header + 1);
     uint16_t type = header->type;
     uint16_t length = header->length;
-    Memory::salloc(header);
+    Pagetable::map(header);
     if (type == 0) {
       ApicLocalApic *s = reinterpret_cast<ApicLocalApic*>(p);
       acpiCpuIds[acpiCpuCount++] = s->apicId;
     } else if (type == 1) {
       ApicIoApic *s = reinterpret_cast<ApicIoApic*>(p);
       ioApicAddr = reinterpret_cast<char*>(s->ioApicAddress);
-      Memory::salloc(ioApicAddr);
+      Pagetable::map(ioApicAddr);
     } else if (type == 2) {
       ApicInterruptOverride *s = reinterpret_cast<ApicInterruptOverride*>(p);
       (void)s;
@@ -153,14 +153,14 @@ bool ACPI::ParseRsdp(void *ptr) {
   uint32_t *rsdtPtr = static_cast<uint32_t*>(ptr) + 4;
   uint64_t *xsdtPtr = static_cast<uint64_t*>(ptr) + 3;
 
-  Memory::salloc(rsdtPtr);
-  Memory::salloc(rsdtPtr + 1);
+  Pagetable::map(rsdtPtr);
+  Pagetable::map(rsdtPtr + 1);
   uint32_t rsdtAddr = *rsdtPtr;
   if (revision == 0) {
     ParseRsdt(reinterpret_cast<AcpiHeader*>(rsdtAddr));
   } else if (revision == 2) {
-    Memory::salloc(xsdtPtr);
-    Memory::salloc(xsdtPtr + 1);
+    Pagetable::map(xsdtPtr);
+    Pagetable::map(xsdtPtr + 1);
     uint64_t xsdtAddr = *xsdtPtr;
 
     if (xsdtAddr)

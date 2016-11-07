@@ -294,15 +294,15 @@ Process::~Process() {
                 | ((uintptr_t)pdx << (12 + 9 + 9))
                 | ((uintptr_t)pdpx << (12 + 9)) | ((uintptr_t)pml4x << (12))))
               continue;
-            Memory::pfree(page);
+            Pagetable::free(page);
           }
-          Memory::pfree(ppml4e);
+          Pagetable::free(ppml4e);
         }
-        Memory::pfree(pppde);
+        Pagetable::free(pppde);
       }
-      Memory::pfree(ppde);
+      Pagetable::free(ppde);
     }
-    Memory::pfree(pagetable);
+    Pagetable::free(pagetable);
   }
   for (size_t i = 0; i < symbols.getCount(); i++) {
     delete[] symbols[i].name;
@@ -319,24 +319,24 @@ void Process::addPage(uintptr_t vaddr, void* paddr, uint8_t flags) {
   uint16_t pdpx = (vaddr >> (12 + 9)) & 0x1FF;
   uint16_t pml4x = (vaddr >> (12)) & 0x1FF;
   if (pagetable == 0) {
-    pagetable = static_cast<PTE*>(Memory::palloc());
+    pagetable = static_cast<PTE*>(Pagetable::alloc());
     addPage((uintptr_t)pagetable, pagetable, 5);
   }
   PTE pte = pagetable[ptx];
   if (!pte.present) {
-    pagetable[ptx] = pte = PTE(Memory::palloc(), 7);
+    pagetable[ptx] = pte = PTE(Pagetable::alloc(), 7);
     addPage(pte.getUintPtr(), pte.getPtr(), 5);
   }
   PTE *pde = pte.getPTE();
   pte = pde[pdx];
   if (!pte.present) {
-    pde[pdx] = pte = PTE(Memory::palloc(), 7);
+    pde[pdx] = pte = PTE(Pagetable::alloc(), 7);
     addPage(pte.getUintPtr(), pte.getPtr(), 5);
   }
   PTE *pdpe = pte.getPTE();
   pte = pdpe[pdpx];
   if (!pte.present) {
-    pdpe[pdpx] = pte = PTE(Memory::palloc(), 7);
+    pdpe[pdpx] = pte = PTE(Pagetable::alloc(), 7);
     addPage(pte.getUintPtr(), pte.getPtr(), 5);
   }
   PTE *pml4e = pte.getPTE();
@@ -369,7 +369,7 @@ uintptr_t Process::addSection(SectionType type, size_t size) {
         flags |= 2;
         break;
     }
-    addPage(vaddr, Memory::palloc(), flags);
+    addPage(vaddr, Pagetable::alloc(), flags);
     vaddr += 0x1000;
   }
   return addr;
@@ -447,26 +447,10 @@ uintptr_t Process::getVirtualAddress(void* addr) {
 void *Process::getPhysicalAddress(uintptr_t ptr) {
   if (pagetable == 0)
     return 0;
-  uint16_t ptx = (ptr >> (12 + 9 + 9 + 9)) & 0x1FF;
-  uint16_t pdx = (ptr >> (12 + 9 + 9)) & 0x1FF;
-  uint16_t pdpx = (ptr >> (12 + 9)) & 0x1FF;
-  uint16_t pml4x = (ptr >> (12)) & 0x1FF;
   uintptr_t off = ptr & 0xFFF;
-  PTE addr;
-  addr = pagetable[ptx];
-  PTE *pde = addr.present ? addr.getPTE() : 0;
-  if (pde == 0)
-    return 0;
-  addr = pde[pdx];
-  PTE *pdpe = addr.present ? addr.getPTE() : 0;
-  if (pdpe == 0)
-    return 0;
-  addr = pdpe[pdpx];
-  PTE *page = addr.present ? addr.getPTE() : 0;
-  if (page == 0)
-    return 0;
-  addr = page[pml4x];
-  return addr.present ? reinterpret_cast<void*>(addr.getUintPtr() + off) : 0;
+  PTE *addr = PTE::find(ptr, pagetable);
+  if (!addr || !addr->present) return 0;
+  return reinterpret_cast<void*>(addr->getUintPtr() + off);
 }
 void Process::addThread(Thread *thread, bool suspended) {
   if (thread->stack_top == 0) {
