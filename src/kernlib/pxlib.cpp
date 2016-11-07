@@ -15,7 +15,7 @@
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "pxlib.hpp"
-#include "memory.hpp"
+#include "heap.hpp"
 
 static char *const display_start = reinterpret_cast<char*>(0xB8000);
 static char *const display_top = reinterpret_cast<char*>(0xB8FA0);

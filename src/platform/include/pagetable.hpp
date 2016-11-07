@@ -1,4 +1,4 @@
-//    PhoeniX OS Memory subsystem
+//    PhoeniX OS Pagetable subsystem
 //    Copyright (C) 2013  PhoeniX
 //
 //    This program is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
 
 #pragma once
 #include "pxlib.hpp"
-#include "multiboot_info.hpp"
+
 struct PTE {
   union {
     struct {
@@ -69,17 +69,6 @@ struct PTE {
   }
 } PACKED;
 
-struct ALLOC {
-  void* addr;
-  size_t size;
-};
-
-struct ALLOCTABLE {
-  ALLOC allocs[255];
-  ALLOCTABLE* next;
-  int64_t reserved;
-};
-
 class Pagetable {
   static PTE *pagetable;
   static Mutex page_mutex;
@@ -93,32 +82,6 @@ class Pagetable {
   static void free(void* page);
 };
 
-class Heap {
-  static ALLOCTABLE *allocs;
-  static void* first_free;
-  static Mutex heap_mutex;
-
- public:
-  static void* alloc(size_t size, size_t align = 4);
-  static void* realloc(void *addr, size_t size, size_t align = 4);
-
-  static void free(void* addr);
-
-  template<typename T> static inline T* alloc(
-      size_t size = sizeof(T), size_t align = 4) {
-    return static_cast<T*>(alloc(size, align));
-  }
-  template<typename T> static inline T* realloc(
-      T *addr, size_t size, size_t align = 4) {
-    return static_cast<T*>(realloc(static_cast<void*>(addr), size, align));
-  }
-};
-
-#define ALIGNED_NEW(align) \
-    void *operator new(size_t size) { return Heap::alloc(size, align); }
-#define ALIGNED_NEWARR(align) \
-    void *operator new[](size_t size) { return Heap::alloc(size, align); }
-
 inline static void MmioWrite32(void *p, uint32_t data) {
   Pagetable::map(p);
   *(volatile uint32_t *)(p) = data;
@@ -127,5 +90,3 @@ inline static uint32_t MmioRead32(const void *p) {
   Pagetable::map(p);
   return *(volatile uint32_t *)(p);
 }
-
-void *operator new(size_t, size_t);

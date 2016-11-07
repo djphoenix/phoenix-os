@@ -15,7 +15,7 @@
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "pxlib.hpp"
-#include "memory.hpp"
+#include "heap.hpp"
 #include "smp.hpp"
 #include "interrupts.hpp"
 #include "modules.hpp"

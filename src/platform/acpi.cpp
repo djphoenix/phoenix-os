@@ -15,6 +15,10 @@
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "acpi.hpp"
+#include "cpu.hpp"
+#include "heap.hpp"
+#include "pagetable.hpp"
+
 ACPI* ACPI::controller = 0;
 uint8_t ACPI::activeCpuCount = 0;
 uint64_t ACPI::busfreq = 0;

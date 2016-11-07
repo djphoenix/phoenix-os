@@ -15,7 +15,8 @@
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
-#include "memory.hpp"
+#include "pxlib.hpp"
+#include "heap.hpp"
 #include "acpi.hpp"
 
 class SMP {

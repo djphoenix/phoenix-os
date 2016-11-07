@@ -16,6 +16,7 @@
 
 #include "modules.hpp"
 #include "readelf.hpp"
+#include "multiboot_info.hpp"
 
 bool ModuleManager::parseModuleInfo(MODULEINFO *info, Process *process) {
   struct {

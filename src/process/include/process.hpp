@@ -16,7 +16,8 @@
 
 #pragma once
 #include "pxlib.hpp"
-#include "memory.hpp"
+#include "heap.hpp"
+#include "pagetable.hpp"
 #include "interrupts.hpp"
 #include "list.hpp"
 

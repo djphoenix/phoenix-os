@@ -16,8 +16,6 @@
 
 #pragma once
 #include "pxlib.hpp"
-#include "memory.hpp"
-#include "cpu.hpp"
 
 enum LAPIC_FIELDS {
   LAPIC_APICID = 0x20,

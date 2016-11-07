@@ -16,8 +16,9 @@
 
 #pragma once
 #include "pxlib.hpp"
-#include "memory.hpp"
+#include "heap.hpp"
 #include "acpi.hpp"
+
 struct INTERRUPT32 {
   uint16_t offset_low;
   uint16_t selector;

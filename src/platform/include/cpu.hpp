@@ -16,7 +16,7 @@
 
 #pragma once
 #include "pxlib.hpp"
-#include "memory.hpp"
+#include "heap.hpp"
 
 enum CPUID_FEAT: uint64_t {
   CPUID_FEAT_FPU /*    */ = 0x0000000000000001ULL,
