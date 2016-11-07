@@ -1,4 +1,4 @@
-//    PhoeniX OS Processes subsystem
+//    PhoeniX OS Process subsystem
 //    Copyright (C) 2013  PhoeniX
 //
 //    This program is free software: you can redistribute it and/or modify
@@ -16,56 +16,14 @@
 
 #pragma once
 #include "pxlib.hpp"
+#include "thread.hpp"
 #include "pagetable.hpp"
-#include "interrupts.hpp"
 #include "list.hpp"
 
-extern void NORETURN process_loop();
+
 struct ProcessSymbol {
   uintptr_t ptr;
   char* name;
-};
-class Process;
-class Thread;
-struct QueuedThread {
-  Process *process;
-  Thread *thread;
-  QueuedThread* next;
-};
-class ProcessManager {
- private:
-  ProcessManager();
-  QueuedThread *nextThread, *lastThread;
-  QueuedThread **cpuThreads;
-  Thread *nullThreads;
-  List<Process*> processes;
-  Mutex processSwitchMutex;
-  static ProcessManager* manager;
-  bool SwitchProcess(intcb_regs *regs);
-  bool HandleFault(uint32_t intr, uint32_t code, intcb_regs *regs);
-  static bool TimerHandler(uint32_t intr, uint32_t code, intcb_regs *regs);
-  static bool FaultHandler(uint32_t intr, uint32_t code, intcb_regs *regs);
-
- public:
-  uint64_t RegisterProcess(Process *process);
-  void createNullThread(uint32_t cpuid, Thread thread);
-  void queueThread(Process *process, Thread *thread);
-  void dequeueThread(Thread *thread);
-  static ProcessManager* getManager();
-};
-
-class Thread {
- public:
-  Thread();
-  struct {
-    uint64_t rip, rflags;
-    uint64_t rsi, rdi, rbp, rsp;
-    uint64_t rax, rcx, rdx, rbx;
-    uint64_t r8, r9, r10, r11;
-    uint64_t r12, r13, r14, r15;
-  } regs;
-  uint64_t suspend_ticks;
-  uint64_t stack_top;
 };
 
 enum SectionType: uint8_t {

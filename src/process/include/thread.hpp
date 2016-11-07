@@ -1,4 +1,4 @@
-//    PhoeniX OS Startup file
+//    PhoeniX OS Thread subsystem
 //    Copyright (C) 2013  PhoeniX
 //
 //    This program is free software: you can redistribute it and/or modify
@@ -14,20 +14,19 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+#pragma once
 #include "pxlib.hpp"
 
-#include "pagetable.hpp"
-#include "smp.hpp"
-#include "interrupts.hpp"
-#include "modules.hpp"
-#include "processmanager.hpp"
-
-void NORETURN main() {
-  static_init();
-  clrscr();
-  Pagetable::init();
-  SMP::init();
-  Interrupts::init();
-  ModuleManager::init();
-  process_loop();
-}
+class Thread {
+ public:
+  Thread();
+  struct {
+    uint64_t rip, rflags;
+    uint64_t rsi, rdi, rbp, rsp;
+    uint64_t rax, rcx, rdx, rbx;
+    uint64_t r8, r9, r10, r11;
+    uint64_t r12, r13, r14, r15;
+  } regs;
+  uint64_t suspend_ticks;
+  uint64_t stack_top;
+};

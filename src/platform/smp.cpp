@@ -16,7 +16,7 @@
 
 #include "smp.hpp"
 #include "acpi.hpp"
-#include "process.hpp"
+#include "processmanager.hpp"
 
 struct GDT {
   GDT_ENT ents[5];
