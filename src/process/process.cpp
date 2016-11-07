@@ -16,6 +16,8 @@
 
 #include "process.hpp"
 
+#include "acpi.hpp"
+
 void _loop();
 void process_loop() {
   uint32_t cpuid = ACPI::getController()->getCPUID();

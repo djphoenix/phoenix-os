@@ -16,7 +16,6 @@
 
 #pragma once
 #include "pxlib.hpp"
-#include "heap.hpp"
 
 class Stream {
  public:

@@ -16,8 +16,6 @@
 
 #pragma once
 #include "pxlib.hpp"
-#include "heap.hpp"
-#include "acpi.hpp"
 
 class SMP {
  private:

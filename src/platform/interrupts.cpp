@@ -15,6 +15,8 @@
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "interrupts.hpp"
+#include "acpi.hpp"
+
 IDT *Interrupts::idt = 0;
 intcbreg *Interrupts::callbacks[256];
 Mutex Interrupts::callback_locks[256];
