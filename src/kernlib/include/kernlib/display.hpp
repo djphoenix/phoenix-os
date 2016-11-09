@@ -30,8 +30,9 @@ class Display {
 
 class ConsoleDisplay: public Display {
  private:
-  static constexpr char * const base = reinterpret_cast<char*>(0xB8000);
-  static constexpr char * const top = reinterpret_cast<char*>(0xB8FA0);
+  static char *const base;
+  static char *const top;
+  static const size_t size;
   char *display;
   void putc(const char c);
   Mutex mutex;

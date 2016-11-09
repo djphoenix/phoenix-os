@@ -16,6 +16,10 @@
 
 #include "kernlib.hpp"
 
+char *const ConsoleDisplay::base = reinterpret_cast<char*>(0xB8000);
+char *const ConsoleDisplay::top = reinterpret_cast<char*>(0xB8FA0);
+const size_t ConsoleDisplay::size = ConsoleDisplay::top - ConsoleDisplay::base;
+
 ConsoleDisplay::ConsoleDisplay() {
   display = base;
 }
@@ -35,7 +39,6 @@ void ConsoleDisplay::putc(const char c) {
     *(display++) = 0x0F;
   }
   if (display >= top) {
-    size_t size = top - base;
     Memory::copy(base, base + 160, size - 160);
     display = top - 160;
     Memory::fill(display, 0, 160);
@@ -52,7 +55,6 @@ void ConsoleDisplay::write(const char *str) {
 
 void ConsoleDisplay::clean() {
   mutex.lock();
-  size_t size = top - base;
   Memory::fill(base, 0, size);
   mutex.release();
 }
