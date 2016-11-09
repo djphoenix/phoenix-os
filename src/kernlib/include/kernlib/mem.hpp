@@ -1,4 +1,4 @@
-//    PhoeniX OS SMP Subsystem
+//    PhoeniX OS Kernel library memory functions
 //    Copyright (C) 2013  PhoeniX
 //
 //    This program is free software: you can redistribute it and/or modify
@@ -15,13 +15,11 @@
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
-#include "kernlib.hpp"
+#include "std.hpp"
 
-class SMP {
- private:
-  static void init_gdt(uint32_t ncpu);
-  static void setup_gdt();
-  static void NORETURN startup();
+class Memory {
  public:
-  static void init();
+  static void copy(void* dest, const void* src, size_t count);
+  static void fill(void *addr, uint8_t value, size_t size);
+  static void zero(void *addr, size_t size);
 };

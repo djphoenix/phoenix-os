@@ -1,4 +1,4 @@
-//    PhoeniX OS SMP Subsystem
+//    PhoeniX OS Kernel library functions
 //    Copyright (C) 2013  PhoeniX
 //
 //    This program is free software: you can redistribute it and/or modify
@@ -15,13 +15,11 @@
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
-#include "kernlib.hpp"
 
-class SMP {
- private:
-  static void init_gdt(uint32_t ncpu);
-  static void setup_gdt();
-  static void NORETURN startup();
- public:
-  static void init();
-};
+#include "kernlib/cpu.hpp"
+#include "kernlib/display.hpp"
+#include "kernlib/mem.hpp"
+#include "kernlib/mutex.hpp"
+#include "kernlib/ports.hpp"
+#include "kernlib/printf.hpp"
+#include "kernlib/std.hpp"

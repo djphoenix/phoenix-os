@@ -14,7 +14,7 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#include "pxlib.hpp"
+#include "kernlib.hpp"
 
 #include "pagetable.hpp"
 #include "smp.hpp"
@@ -24,7 +24,7 @@
 
 void NORETURN main() {
   static_init();
-  clrscr();
+  Display::getInstance()->clean();
   Pagetable::init();
   SMP::init();
   Interrupts::init();

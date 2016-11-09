@@ -15,7 +15,7 @@
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
-#include "pxlib.hpp"
+#include "kernlib.hpp"
 
 enum LAPIC_FIELDS {
   LAPIC_APICID = 0x20,

@@ -33,19 +33,8 @@ SECTIONS
         
         . = ALIGN(64);
         
-        __init_start__ = . ;
-        *(.init_array*)
-        __init_end__ = . ;
-        
         *(.text .text.*)
         *(.gnu.linkonce.t.*)
-        
-        . = ALIGN(8);
-        
-        ___CTOR_LIST__ = .; __CTOR_LIST__ = . ;
-        LONG (-1); LONG (-1); *(.ctors); *(.ctor); *(SORT(.ctors.*));  LONG (0); LONG (0);
-        ___DTOR_LIST__ = .; __DTOR_LIST__ = . ;
-        LONG (-1); LONG (-1); *(.dtors); *(.dtor); *(SORT(.dtors.*));  LONG (0); LONG (0);
         PROVIDE (etext = .);
         *(.fini)
         . = ALIGN(64);
@@ -54,6 +43,14 @@ SECTIONS
     .data BLOCK(1) : ALIGN(1) {
         __data_start__ = . ;
         *(.rodata .rodata.*)
+         . = ALIGN(8);
+        
+        ___INIT_LIST__ = .; __INIT_LIST__ = . ;
+        LONG (-1); LONG (-1); *(.init_array*) LONG (0); LONG (0);
+        ___CTOR_LIST__ = .; __CTOR_LIST__ = . ;
+        LONG (-1); LONG (-1); *(.ctors); *(.ctor); *(SORT(.ctors.*));  LONG (0); LONG (0);
+        ___DTOR_LIST__ = .; __DTOR_LIST__ = . ;
+        LONG (-1); LONG (-1); *(.dtors); *(.dtor); *(SORT(.dtors.*));  LONG (0); LONG (0);
         *(.data .data.*)
         *(.got .got.*)
         __data_end__ = . ;

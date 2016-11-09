@@ -231,15 +231,15 @@ uint64_t Interrupts::handle(unsigned char intr, uint64_t stack, uint64_t *cr3) {
       rflags_buf[1] = 'D';
     if (info->rflags & (1 << 11))
       rflags_buf[0] = 'O';
-    printf("\nKernel fault %s (cpu=%llu, error=0x%llx)\n"
-           "RIP=%016llx CS=%04llx SS=%04llx DPL=%llu\n"
-           "RFL=%016llx [%s]\n"
-           "RSP=%016llx RBP=%016llx CR2=%08llx\n"
-           "RSI=%016llx RDI=%016llx\n"
-           "RAX=%016llx RCX=%016llx RDX=%016llx\n"
-           "RBX=%016llx R8 =%016llx R9 =%016llx\n"
-           "R10=%016llx R11=%016llx R12=%016llx\n"
-           "R13=%016llx R14=%016llx R15=%016llx\n",
+    printf("\nKernel fault %s (cpu=%u, error=0x%lx)\n"
+           "RIP=%016lx CS=%04lx SS=%04lx DPL=%lu\n"
+           "RFL=%016lx [%s]\n"
+           "RSP=%016lx RBP=%016lx CR2=%08lx\n"
+           "RSI=%016lx RDI=%016lx\n"
+           "RAX=%016lx RCX=%016lx RDX=%016lx\n"
+           "RBX=%016lx R8 =%016lx R9 =%016lx\n"
+           "R10=%016lx R11=%016lx R12=%016lx\n"
+           "R13=%016lx R14=%016lx R15=%016lx\n",
            f.code, cpuid, error_code, info->rip, info->cs & 0xFFF8,
            info->ss & 0xFFF8, info->cs & 0x7, info->rflags, rflags_buf,
            info->rsp, regs->rbp, cr2, regs->rsi, regs->rdi, regs->rax,

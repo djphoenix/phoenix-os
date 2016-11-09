@@ -1,4 +1,4 @@
-//    PhoeniX OS SMP Subsystem
+//    PhoeniX OS Kernel library mutex functions
 //    Copyright (C) 2013  PhoeniX
 //
 //    This program is free software: you can redistribute it and/or modify
@@ -14,14 +14,22 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#pragma once
 #include "kernlib.hpp"
 
-class SMP {
- private:
-  static void init_gdt(uint32_t ncpu);
-  static void setup_gdt();
-  static void NORETURN startup();
- public:
-  static void init();
-};
+void Mutex::lock() {
+  bool ret_val = 0, old_val = 0, new_val = 1;
+  do {
+    asm volatile("lock cmpxchgb %1,%2":
+        "=a"(ret_val):
+        "r"(new_val),"m"(state),"0"(old_val):
+        "memory");
+  } while (ret_val);
+}
+
+void Mutex::release() {
+  bool ret_val = 0, new_val = 0;
+  asm volatile("lock xchgb %1,%2":
+      "=a"(ret_val):
+      "r"(new_val),"m"(state):
+      "memory");
+}

@@ -1,4 +1,4 @@
-//    PhoeniX OS Core library functions
+//    PhoeniX OS Kernel library printf functions
 //    Copyright (C) 2013  PhoeniX
 //
 //    This program is free software: you can redistribute it and/or modify
@@ -14,66 +14,7 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#include "pxlib.hpp"
-#include "heap.hpp"
-
-static char *const display_start = reinterpret_cast<char*>(0xB8000);
-static char *const display_top = reinterpret_cast<char*>(0xB8FA0);
-static const size_t display_size = display_top - display_start;
-
-char* display = display_start;
-Mutex display_lock = Mutex();
-
-static inline void display_fill(char *base, size_t len) {
-  asm volatile(
-      "mov %0, %%rdi;"
-      "cld;"
-      "rep stosq;"
-      ::
-      "r"(base),
-      "a"(0x0F000F000F000F00),
-      "c"(len / sizeof(uint64_t))
-      :"rdi"
-  );
-}
-
-void clrscr() {
-  display_lock.lock();
-  display_fill(display_start, display_size);
-  display = display_start;
-  display_lock.release();
-}
-
-void putc(const char c) {
-  if (c == 0)
-    return;
-  size_t pos = display - display_start;
-  if (c == '\n') {
-    display += 160 - (pos % 160);
-  } else if (c == '\t') {
-    do {
-      display[0] = ' ';
-      display += 2;
-    } while (pos % 8 != 0);
-  } else {
-    display[0] = c;
-    display += 2;
-  }
-  if (display >= display_top) {
-    Memory::copy(display_start, display_start + 160, display_size - 160);
-    display = display_top - 160;
-    display_fill(display, 160);
-  }
-}
-
-void puts(const char *str) {
-  uint64_t t = EnterCritical();
-  display_lock.lock();
-  while (*str != 0)
-    putc(*(str++));
-  display_lock.release();
-  LeaveCritical(t);
-}
+#include "kernlib.hpp"
 
 static char *longlong_to_string(char *buf, size_t len, uint64_t n, uint8_t base,
                                 bool fl_signed, bool fl_showsign,
@@ -99,16 +40,6 @@ static char *longlong_to_string(char *buf, size_t len, uint64_t n, uint8_t base,
   if (negative) buf[ --pos] = '-';
   else if (fl_showsign) buf[ --pos] = '+';
   return &buf[pos];
-}
-
-size_t itoa(uint64_t value, char * str, uint8_t base) {
-  char buf[64];
-  char *ret = longlong_to_string(buf, sizeof(buf), value, base, 1, 0, 0);
-  int len = strlen(ret);
-  if (str) {
-    Memory::copy(str, ret, len + 1);
-  }
-  return len;
 }
 
 static inline void printf_putc(char *str, size_t *size, int *len, char c) {
@@ -341,7 +272,7 @@ get_num:
         else if (flags.sz_half)
           numval = va_arg(ap, /* unsigned short int, uint16_t */ uint32_t);
         else if (flags.sz_long)
-          numval = va_arg(ap, /* unsigned long int */ uint32_t);
+          numval = va_arg(ap, /* unsigned long int */ uint64_t);
         else if (flags.sz_longlong)
           numval = va_arg(ap, /* unsigned long long int*/ uint64_t);
         else if (flags.sz_max)
@@ -353,17 +284,17 @@ get_num:
         else if (flags.sz_longdbl)
           goto invalid_fmt;
         else
-          numval = va_arg(ap, unsigned int);
+          numval = va_arg(ap, uint32_t);
         goto out_num;
       case 'n': {
         void *ptrval = va_arg(ap, void*);
         if (ptrval == 0) goto next_format;
         if (flags.sz_halfhalf)
-          *static_cast<signed char*>(ptrval) = out_len;
+          *static_cast<int8_t*>(ptrval) = out_len;
         else if (flags.sz_half)
           *static_cast<int16_t*>(ptrval) = out_len;
         else if (flags.sz_long)
-          *static_cast<int32_t*>(ptrval) = out_len;
+          *static_cast<int64_t*>(ptrval) = out_len;
         else if (flags.sz_longlong)
           *static_cast<int64_t*>(ptrval) = out_len;
         else if (flags.sz_max)
@@ -375,7 +306,7 @@ get_num:
         else if (flags.sz_longdbl)
           goto next_format;
         else
-          *static_cast<int*>(ptrval) = out_len;
+          *static_cast<int32_t*>(ptrval) = out_len;
         goto next_format;
       }
       default:
@@ -431,7 +362,7 @@ int vprintf(const char *format, va_list ap) {
   char *buf = static_cast<char*>(alloca(len + 1));
   len = vsnprintf(buf, len, format, ap);
   buf[len] = 0;
-  puts(buf);
+  Display::getInstance()->write(buf);
   return len;
 }
 
@@ -442,6 +373,7 @@ int printf(const char *format, ...) {
   va_end(args);
   return len;
 }
+
 int snprintf(char *str, size_t size, const char *format, ...) {
   va_list args;
   va_start(args, format);
@@ -450,80 +382,3 @@ int snprintf(char *str, size_t size, const char *format, ...) {
   return len;
 }
 
-size_t strlen(const char* c, size_t limit) {
-  const char *e = c;
-  while (((size_t)(e - c) < limit) && (*e++) != 0) {}
-  return e - c - 1;
-}
-
-char* strdup(const char* c) {
-  size_t len = strlen(c);
-  char* r = new char[len + 1]();
-  Memory::copy(r, c, len + 1);
-  return r;
-}
-
-int strcmp(const char* a, const char* b) {
-  size_t i = 0;
-  while (a[i] != 0 && b[i] != 0 && a[i] == b[i]) { i++; }
-  return a[i] - b[i];
-}
-
-extern "C" {
-  void __cxa_pure_virtual() {
-    while (1) {}
-  }
-  extern void (*__init_start__)(), (*__init_end__)();
-}
-
-void static_init() {
-  for (void (**p)() = &__init_start__; p < &__init_end__; ++p)
-    (*p)();
-}
-
-void Mutex::lock() {
-  bool ret_val = 0, old_val = 0, new_val = 1;
-  do {
-    asm volatile("lock cmpxchgb %1,%2":
-        "=a"(ret_val):
-        "r"(new_val),"m"(state),"0"(old_val):
-        "memory");
-  } while (ret_val);
-}
-void Mutex::release() {
-  bool ret_val = 0, new_val = 0;
-  asm volatile("lock xchgb %1,%2":
-      "=a"(ret_val):
-      "r"(new_val),"m"(state):
-      "memory");
-}
-
-void Memory::copy(void *dest, const void *src, size_t count) {
-  asm volatile(
-      "mov %0, %%rsi;"
-      "mov %1, %%rdi;"
-      "cld;"
-      "cmp %%rdi, %%rsi;"
-      "jae 1f;"
-      "add %%rcx, %%rsi; dec %%rsi;"
-      "add %%rcx, %%rdi; dec %%rdi;"
-      "std;"
-      "\n1:"
-      "rep movsb;"
-      "cld;"
-      ::"r"(src),"r"(dest),"c"(count):"rsi","rdi"
-  );
-}
-
-void Memory::zero(void *addr, size_t size) {
-  fill(addr, 0, size);
-}
-
-void Memory::fill(void *addr, uint8_t value, size_t size) {
-  asm volatile(
-      "mov %0, %%rdi;"
-      "cld;"
-      "rep stosb;"
-      ::"r"(addr),"a"(value),"c"(size):"rdi"
-  );
-}

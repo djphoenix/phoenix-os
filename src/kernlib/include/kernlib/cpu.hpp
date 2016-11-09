@@ -1,4 +1,4 @@
-//    PhoeniX OS SMP Subsystem
+//    PhoeniX OS Kernel library cpu functions
 //    Copyright (C) 2013  PhoeniX
 //
 //    This program is free software: you can redistribute it and/or modify
@@ -15,13 +15,20 @@
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
-#include "kernlib.hpp"
+#include "std.hpp"
 
-class SMP {
- private:
-  static void init_gdt(uint32_t ncpu);
-  static void setup_gdt();
-  static void NORETURN startup();
- public:
-  static void init();
-};
+inline static uint64_t rdtsc() {
+  uint32_t eax, edx;
+  asm volatile("rdtsc":"=a"(eax), "=d"(edx));
+  return (((uint64_t)edx << 32) | eax);
+}
+
+inline static uint64_t EnterCritical() {
+  uint64_t flags;
+  asm volatile("pushfq; cli; pop %q0":"=r"(flags));
+  return flags;
+}
+
+inline static void LeaveCritical(uint64_t flags) {
+  asm volatile("push %q0; popfq"::"r"(flags));
+}

@@ -1,4 +1,4 @@
-//    PhoeniX OS SMP Subsystem
+//    PhoeniX OS Kernel library mutex functions
 //    Copyright (C) 2013  PhoeniX
 //
 //    This program is free software: you can redistribute it and/or modify
@@ -15,13 +15,15 @@
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
-#include "kernlib.hpp"
+#include "std.hpp"
 
-class SMP {
+class Mutex {
  private:
-  static void init_gdt(uint32_t ncpu);
-  static void setup_gdt();
-  static void NORETURN startup();
+  bool state;
  public:
-  static void init();
+  Mutex() {
+    state = 0;
+  }
+  void lock();
+  void release();
 };

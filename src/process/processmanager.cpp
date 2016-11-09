@@ -157,14 +157,14 @@ bool ProcessManager::HandleFault(
       rflags_buf[0] = 'O';
     uint64_t cr2;
     asm volatile("mov %%cr2, %0":"=a"(cr2));
-    printf("\nUserspace fault %s (cpu=%llu, error=0x%lx)\n"
-           "RIP=%016llx RSP=%016llx CS=%04llx SS=%04llx\n"
-           "RFL=%016llx [%s] CR2=%016llx\n"
-           "RBP=%016llx RSI=%016llx RDI=%016llx\n"
-           "RAX=%016llx RCX=%016llx RDX=%016llx\n"
-           "RBX=%016llx R8 =%016llx R9 =%016llx\n"
-           "R10=%016llx R11=%016llx R12=%016llx\n"
-           "R13=%016llx R14=%016llx R15=%016llx\n",
+    printf("\nUserspace fault %s (cpu=%u, error=0x%x)\n"
+           "RIP=%016lx RSP=%016lx CS=%04x SS=%04x\n"
+           "RFL=%016lx [%s] CR2=%016lx\n"
+           "RBP=%016lx RSI=%016lx RDI=%016lx\n"
+           "RAX=%016lx RCX=%016lx RDX=%016lx\n"
+           "RBX=%016lx R8 =%016lx R9 =%016lx\n"
+           "R10=%016lx R11=%016lx R12=%016lx\n"
+           "R13=%016lx R14=%016lx R15=%016lx\n",
            FAULTS[intr].code, regs->cpuid, code,
            regs->rip, regs->rsp, regs->cs, regs->ss,
            regs->rflags, rflags_buf, cr2,

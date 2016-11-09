@@ -1,4 +1,4 @@
-//    PhoeniX OS SMP Subsystem
+//    PhoeniX OS Kernel library printf functions
 //    Copyright (C) 2013  PhoeniX
 //
 //    This program is free software: you can redistribute it and/or modify
@@ -15,13 +15,17 @@
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
-#include "kernlib.hpp"
+#include "std.hpp"
 
-class SMP {
- private:
-  static void init_gdt(uint32_t ncpu);
-  static void setup_gdt();
-  static void NORETURN startup();
- public:
-  static void init();
-};
+extern "C" {
+
+  int printf(const char *format, ...)
+  __attribute__ ((format (printf, 1, 2)));
+
+  int snprintf(char *str, size_t size, const char *format, ...)
+  __attribute__ ((format (printf, 3, 4)));
+
+  int vprintf(const char *format, va_list ap);
+  int vsnprintf(char *str, size_t size, const char *format, va_list ap);
+
+}

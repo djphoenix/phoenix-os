@@ -242,7 +242,7 @@ size_t readelf(Process *process, Stream *stream) {
         case 15:  // R_X86_64_PC8
         case 16:  // R_X86_64_NUM
         default:
-          printf("Unhandled reloc type=%x addr=%p name=%s%+lld = %p\n",
+          printf("Unhandled reloc type=%x addr=%#zx name=%s%+ld = %#zx\n",
                  rel.info.type, addr, symname, rel.add, offset);
           break;
       }

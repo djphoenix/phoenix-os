@@ -1,4 +1,4 @@
-//    PhoeniX OS SMP Subsystem
+//    PhoeniX OS Kernel library display functions
 //    Copyright (C) 2013  PhoeniX
 //
 //    This program is free software: you can redistribute it and/or modify
@@ -15,13 +15,28 @@
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
-#include "kernlib.hpp"
+#include "std.hpp"
+#include "mutex.hpp"
 
-class SMP {
+class Display {
  private:
-  static void init_gdt(uint32_t ncpu);
-  static void setup_gdt();
-  static void NORETURN startup();
+  static Display *instance;
  public:
-  static void init();
+  static Display *getInstance();
+  virtual void clean() = 0;
+  virtual void write(const char*) = 0;
+  virtual ~Display() = 0;
+};
+
+class ConsoleDisplay: public Display {
+ private:
+  static constexpr char * const base = reinterpret_cast<char*>(0xB8000);
+  static constexpr char * const top = reinterpret_cast<char*>(0xB8FA0);
+  char *display;
+  void putc(const char c);
+  Mutex mutex;
+ public:
+  ConsoleDisplay();
+  void write(const char *str);
+  void clean();
 };
