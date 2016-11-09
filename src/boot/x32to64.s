@@ -50,7 +50,7 @@ multiboot_entry:
   cli
   
   cmp $0x2BADB002, %eax
-  jne .NoMultiboot
+  jne 2f
 
   cld
 
@@ -98,17 +98,17 @@ multiboot_entry:
   push %ecx                 # Store the C-register.
   popfl                     # Restore the FLAGS-register.
   xor %ecx, %eax            # Do a XOR-operation on the A-register and the C-register.
-  jz .NoCPUID               # The zero flag is set, no CPUID.
+  jz 3f                     # The zero flag is set, no CPUID.
 
   mov $0x80000000, %eax     # Set the A-register to 0x80000000.
   cpuid                     # CPU identification.
   cmp $0x80000001, %eax     # Compare the A-register with 0x80000001.
-  jb .NoLongMode            # It is less, there is no long mode.
+  jb 4f                     # It is less, there is no long mode.
 
   mov $0x80000001, %eax     # Set the A-register to 0x80000001.
   cpuid                     # CPU identification.
   test $0x20000000, %edx    # Test if the LM-bit, which is bit 29, is set in the D-register.
-  jz .NoLongMode            # They aren't, there is no long mode.
+  jz 4f                     # They aren't, there is no long mode.
 
   mov %cr0, %eax            # Set the A-register to control register 0.
   and $0x7FFFFFFF, %eax     # Clear the PG-bit, which is bit 31.
@@ -134,11 +134,11 @@ multiboot_entry:
   mov $0x00000007, %ebx   # Set the B-register to 0x00000007.
   mov $0x800, %ecx        # Set the C-register to 2048.
 
-.SetEntry:
+1:
   mov %ebx, (%edi)        # Set the double word at the destination index to the B-register.
   add $0x1000, %ebx       # Add 0x1000 to the B-register.
   add $8, %edi            # Add eight to the destination index.
-  loop .SetEntry          # Set the next entry.
+  loop 1b          # Set the next entry.
 
   mov %cr4, %eax          # Set the A-register to control register 4.
   or $0x20, %eax          # Set the PAE-bit, which is the 6th bit (bit 5).
@@ -158,31 +158,31 @@ multiboot_entry:
   mov %ax, %ss
   ljmp $8, $x64_entry
 
-.NoMultiboot:
+2:
   mov $aNoMultiboot, %eax
-  jmp error
+  jmp 5f
 
-.NoCPUID:
+3:
   mov $aNoCPUID, %eax
-  jmp error
+  jmp 5f
 
-.NoLongMode:
+4:
   mov $aNoLongMode, %eax
-#  jmp error
+#  jmp 5f
 
-error:
+5:
   mov $0xB8000, %edi
-.loop:
+6:
   mov (%eax), %cl
   mov %cl, (%edi)
   movb $0x0C, 1(%edi)
   inc %eax
   add $2, %edi
   test %cl, %cl
-  jnz .loop
-.hltlp:
+  jnz 6b
+7:
   hlt
-  jmp .hltlp
+  jmp 7b
   
 .code64
 
@@ -195,10 +195,8 @@ x64_entry:
 
 __main: # Fix for Windows builds
   ret
-
+  
   .data
-dummy:
-  .long 0
 
 aNoMultiboot: .ascii "This kernel can boot only from multiboot-compatible bootloader\0"
 aNoLongMode: .ascii "Your CPU are not support x86_64 mode\0"
