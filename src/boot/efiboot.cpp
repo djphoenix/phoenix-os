@@ -1,4 +1,4 @@
-//    PhoeniX OS Startup file
+//    PhoeniX OS EFI Startup file
 //    Copyright (C) 2013  PhoeniX
 //
 //    This program is free software: you can redistribute it and/or modify
@@ -23,6 +23,13 @@ extern "C" {
 
 uint64_t EFIAPI efi_main(void*, EFI_SYSTEM_TABLE *ST) {
   const wchar_t hello[] = L"PhoeniX OS: EFI mode boot\r\n";
+  ST->ConOut->Reset(ST->ConOut, 1);
+  ST->ConOut->SetAttribute(
+      ST->ConOut,
+      { {
+         .foreground = EFI_COLOR_WHITE,
+         .background = EFI_COLOR_BLACK
+      } });
   ST->ConOut->OutputString(ST->ConOut, hello);
   for (;;) {}
   return EFI_SUCCESS;
