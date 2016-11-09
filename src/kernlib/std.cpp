@@ -21,16 +21,6 @@ extern "C" {
 
   void __cxa_pure_virtual() {}
   int __cxa_atexit(void (*)(void*), void*, void*) { return 0; }
-
-  extern void (*__INIT_LIST__)();
-  extern void (*__CTOR_LIST__)();
-}
-
-void static_init() {
-  for (void (**p)() = &__INIT_LIST__ + 1; *p != 0; ++p)
-    (*p)();
-  for (void (**p)() = &__CTOR_LIST__ + 1; *p != 0; ++p)
-    (*p)();
 }
 
 size_t strlen(const char* c, size_t limit) {

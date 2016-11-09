@@ -32,8 +32,6 @@ template<typename T> T ABS(T a) { return a > 0 ? a : -a; }
 
 extern "C" {
 
-  void static_init();
-
   size_t strlen(const char*, size_t limit = -1);
   char* strdup(const char*);
   int strcmp(const char*, const char*);

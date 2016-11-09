@@ -190,6 +190,24 @@ _efi_start: # EFI
   jmp .
 
 x64_entry:
+  mov $__INIT_LIST__, %rbp
+1:
+  add $8, %rbp
+  mov (%rbp), %rax
+  test %rax, %rax
+  je 2f
+  callq *%rax
+  jmp 1b
+2:
+  mov $__CTOR_LIST__, %rbp
+3:
+  add $8, %rbp
+  mov (%rbp), %rax
+  test %rax, %rax
+  je 4f
+  callq *%rax
+  jmp 3b
+4:
   mov %rsp, %rbp
   jmp main
 
