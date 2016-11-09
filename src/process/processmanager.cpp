@@ -33,7 +33,7 @@ void process_loop() {
 }
 
 ProcessManager* ProcessManager::manager = 0;
-Mutex managerMutex = Mutex();
+static Mutex managerMutex;
 ProcessManager* ProcessManager::getManager() {
   if (manager) return manager;
   uint64_t t = EnterCritical();
@@ -49,7 +49,6 @@ ProcessManager::ProcessManager() {
   for (int i = 0; i < 0x20; i++) {
     Interrupts::addCallback(i, &ProcessManager::FaultHandler);
   }
-  processSwitchMutex = Mutex();
   nextThread = lastThread = 0;
   uint64_t cpus = ACPI::getController()->getCPUCount();
   cpuThreads = new QueuedThread*[cpus]();

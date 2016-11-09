@@ -21,7 +21,7 @@ IDT *Interrupts::idt = 0;
 intcbreg *Interrupts::callbacks[256];
 Mutex Interrupts::callback_locks[256];
 Mutex Interrupts::fault;
-Mutex Interrupts::init_lock = Mutex();
+Mutex Interrupts::init_lock;
 int_handler* Interrupts::handlers = 0;
 INTERRUPT32 Interrupts::interrupts32[256];
 asm(
@@ -262,7 +262,6 @@ void Interrupts::init() {
     loadVector();
     return;
   }
-  fault = Mutex();
   idt = new IDT();
   handlers = new int_handler[256]();
   char* addr = &__interrupt_wrap;
@@ -275,7 +274,6 @@ void Interrupts::init() {
     uintptr_t hptr = (uintptr_t)(&handlers[i]);
     idt->ints[i] = INTERRUPT64(hptr, 8, 1, 0xE, 0, true);
     callbacks[i] = 0;
-    callback_locks[i] = Mutex();
   }
 
   outportb(0x20, 0x11);

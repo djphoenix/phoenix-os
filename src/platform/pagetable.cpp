@@ -24,7 +24,7 @@ extern "C" {
 }
 
 PTE *Pagetable::pagetable = &__pagetable__;
-Mutex Pagetable::page_mutex = Mutex();
+Mutex Pagetable::page_mutex;
 uintptr_t Pagetable::last_page = 1;
 
 static inline void fillPages(uintptr_t low, uintptr_t top,

@@ -36,7 +36,7 @@ struct ALLOCTABLE {
 
 ALLOCTABLE *Heap::allocs = 0;
 void* Heap::first_free = &__first_page__;
-Mutex Heap::heap_mutex = Mutex();
+Mutex Heap::heap_mutex;
 
 void* Heap::alloc(size_t size, size_t align) {
   if (size == 0)

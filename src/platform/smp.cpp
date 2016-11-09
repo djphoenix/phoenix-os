@@ -64,7 +64,7 @@ void SMP::setup_gdt() {
   LeaveCritical(t);
 }
 
-Mutex cpuinit = Mutex();
+static Mutex cpuinit;
 
 void SMP::startup() {
   setup_gdt();

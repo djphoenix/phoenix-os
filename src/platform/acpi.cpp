@@ -28,8 +28,7 @@ static void *const ACPI_FIND_TOP = reinterpret_cast<char*>(0x000fffff);
 static const uint64_t ACPI_SIG_RTP_DSR = 0x2052545020445352;
 static const uint32_t ACPI_SIG_CIPA = 0x43495041;
 
-Mutex controllerMutex = Mutex();
-
+static Mutex controllerMutex;
 ACPI* ACPI::getController() {
   if (controller) return controller;
   uint64_t t = EnterCritical();
