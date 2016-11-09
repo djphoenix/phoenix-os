@@ -1,7 +1,7 @@
 CFLAGS := -g -m64 -mno-sse
 CFLAGS += -nostdlib -std=c++11
 CFLAGS += -O2 -Os -Wall -Wextra -Werror -Wno-multichar
-CFLAGS += -ffreestanding -fno-exceptions -fno-rtti
+CFLAGS += -ffreestanding -fno-exceptions -fno-rtti -fshort-wchar
 CFLAGS += -ffunction-sections -fdata-sections -fPIC
 
 ODIR=.output

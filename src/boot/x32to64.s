@@ -187,7 +187,7 @@ multiboot_entry:
 .code64
 
 _efi_start: # EFI
-  jmp .
+  jmp efi_main
 
 x64_entry:
   mov $__INIT_LIST__, %rbp
