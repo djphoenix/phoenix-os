@@ -18,11 +18,6 @@
 #include "multiboot_info.hpp"
 #include "pagetable.hpp"
 
-extern "C" {
-  extern char __first_page__;
-  extern PTE __pagetable__;
-}
-
 struct ALLOC {
   void* addr;
   size_t size;
@@ -35,13 +30,18 @@ struct ALLOCTABLE {
 };
 
 ALLOCTABLE *Heap::allocs = 0;
-void* Heap::first_free = &__first_page__;
+void* Heap::first_free = 0;
 Mutex Heap::heap_mutex;
 
 void* Heap::alloc(size_t size, size_t align) {
   if (size == 0)
     return 0;
   heap_mutex.lock();
+
+  PTE *pagetable;
+  asm("mov %%cr3, %q0":"=r"(pagetable));
+  if (!first_free) asm("lea __first_page__, %q0":"=r"(first_free));
+
   uintptr_t ns = (uintptr_t)first_free, ne;
   char f;
   ALLOCTABLE *t;
@@ -53,7 +53,7 @@ void* Heap::alloc(size_t size, size_t align) {
     uintptr_t ps = ns >> 12, pe = (ne >> 12) + (((ne & 0xFFF) != 0) ? 1 : 0);
     for (uintptr_t i = ps; i < pe; i++) {
       // TODO: leave Heap away from pagetable
-      PTE *pdata = PTE::find(i << 12, &__pagetable__);
+      PTE *pdata = PTE::find(i << 12, pagetable);
       if ((pdata != 0) && (pdata->present) && (pdata->avl == 0)) {
         ns = (i + 1) << 12;
         if (ns % align != 0)
@@ -99,7 +99,7 @@ void* Heap::alloc(size_t size, size_t align) {
     }
     for (uintptr_t i = ps; i < pe; i++) {
       // TODO: leave Heap away from pagetable
-      PTE *page = PTE::find(i << 12, &__pagetable__);
+      PTE *page = PTE::find(i << 12, pagetable);
       if ((page == 0) || !page->present) {
         void *t = Pagetable::alloc(1);
         if ((uintptr_t)t != (i << 12)) {

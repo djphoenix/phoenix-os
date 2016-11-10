@@ -219,10 +219,6 @@ void Process::addThread(Thread *thread, bool suspended) {
   threads.add(thread);
   ProcessManager::getManager()->queueThread(this, thread);
 }
-extern "C" {
-  extern void* __interrupt_wrap;
-  extern void* interrupt_handler;
-}
 void Process::startup() {
   DTREG gdt = { 0, 0 };
   DTREG idt = { 0, 0 };
@@ -248,9 +244,10 @@ void Process::startup() {
       addPage(page, reinterpret_cast<void*>(page), 5);
     }
   }
-  uintptr_t handler = (uintptr_t)&__interrupt_wrap & KB4;
+  uintptr_t handler;
+  asm("lea __interrupt_wrap(%%rip), %q0":"=r"(handler)); handler &= KB4;
   addPage(handler, reinterpret_cast<void*>(handler), 5);
-  handler = (uintptr_t)&interrupt_handler & KB4;
+  asm("lea interrupt_handler(%%rip), %q0":"=r"(handler)); handler &= KB4;
   addPage(handler, reinterpret_cast<void*>(handler), 5);
   GDT_ENT *gdt_ent = reinterpret_cast<GDT_ENT*>(
       (uintptr_t)gdt.addr + 8 * 3);

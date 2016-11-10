@@ -99,9 +99,9 @@ EFI_STATUS EFIAPI efi_main(void*, EFI_SYSTEM_TABLE *SystemTable) {
   void *pt;
   asm("mov %%cr3, %q0":"=r"(pt));
   PrintFormat("Pagetable: %p\r\n", pt);
-  extern char __text_start__; void *base;
+  void *base;
   asm("lea __text_start__(%%rip), %q0":"=r"(base));
-  PrintFormat("Base: %p -> %p\r\n", &__text_start__, base);
+  PrintFormat("Base: %p\r\n", base);
   for (;;) {}
   return EFI_SUCCESS;
 }

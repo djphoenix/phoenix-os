@@ -23,7 +23,6 @@ Mutex Interrupts::callback_locks[256];
 Mutex Interrupts::fault;
 Mutex Interrupts::init_lock;
 int_handler* Interrupts::handlers = 0;
-INTERRUPT32 Interrupts::interrupts32[256];
 asm(
     ".global __interrupt_wrap;"
     "__interrupt_wrap:;"
@@ -89,20 +88,23 @@ asm(
 extern "C" {
   uint64_t __attribute__((sysv_abi)) interrupt_handler(uint64_t intr,
                                                        uint64_t stack);
-  extern char __pagetable__;
-  extern char __interrupt_wrap;
 }
 uint64_t __attribute__((sysv_abi)) interrupt_handler(uint64_t intr,
                                                      uint64_t stack) {
   uint64_t cr3 = 0;
-  asm volatile("mov %%cr3, %0":"=a"(cr3));
-  asm volatile("mov %0, %%cr3"::"a"(&__pagetable__));
+  asm volatile("mov %%cr3, %q0":"=r"(cr3));
+  asm volatile(
+      "__interrupt_pagetable_mov:"
+      "mov $0, %%rax;"
+      "mov %%rax, %%cr3"
+      :::"%rax"
+  );
   uint64_t ret = Interrupts::handle(intr, stack, &cr3);
-  asm volatile("mov %0, %%cr3"::"a"(cr3));
+  asm volatile("mov %q0, %%cr3"::"r"(cr3));
   return ret;
 }
 
-const FAULT FAULTS[0x20] = {
+const FAULT FAULTS[] = {
   /* 00 */{ "#DE", false },
   /* 01 */{ "#DB", false },
   /* 02 */{ "#NMI", false },
@@ -264,7 +266,13 @@ void Interrupts::init() {
   }
   idt = new IDT();
   handlers = new int_handler[256]();
-  char* addr = &__interrupt_wrap;
+  const char* addr;
+  asm volatile("lea __interrupt_wrap(%%rip), %q0":"=r"(addr));
+  asm volatile(
+      "mov %%cr3, %%rax;"
+      "mov %%eax, 3+__interrupt_pagetable_mov(%%rip)"
+      :::"%rax"
+      );
   for (int i = 0; i < 256; i++) {
     uintptr_t jmp_from = (uintptr_t)&(handlers[i].reljmp);
     uintptr_t jmp_to = (uintptr_t)addr;

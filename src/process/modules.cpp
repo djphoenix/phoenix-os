@@ -85,19 +85,23 @@ end:
     delete sub;
 }
 void ModuleManager::parseInternal() {
-  extern char __modules_start__, __modules_end__;
+  const char *mods_start, *mods_end;
+  asm("lea __modules_start__(%%rip), %q0":"=r"(mods_start));
+  asm("lea __modules_end__(%%rip), %q0":"=r"(mods_end));
 
-  size_t modules_size = &__modules_end__ - &__modules_start__;
+  size_t modules_size = mods_end - mods_start;
 
   if (modules_size > 1) {
-    Stream *ms = new MemoryStream(&__modules_start__, modules_size);
+    Stream *ms = new MemoryStream(mods_start, modules_size);
     loadStream(ms, 1);
     delete ms;
   }
 }
 void ModuleManager::parseInitRD() {
-  if (kernel_data.mods != 0) {
-    MODULE *mod = kernel_data.mods;
+  GRUBDATA *kernel_data;
+  asm("lea kernel_data(%%rip), %q0":"=r"(kernel_data));
+  if (kernel_data->mods != 0) {
+    MODULE *mod = kernel_data->mods;
     while (mod != 0) {
       Stream *ms = new MemoryStream(
           mod->start,

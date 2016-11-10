@@ -190,7 +190,7 @@ _efi_start: # EFI
   jmp efi_main
 
 x64_entry:
-  mov $__INIT_LIST__, %rbp
+  lea __INIT_LIST__(%rip), %rbp
 1:
   add $8, %rbp
   mov (%rbp), %rax
@@ -199,7 +199,7 @@ x64_entry:
   callq *%rax
   jmp 1b
 2:
-  mov $__CTOR_LIST__, %rbp
+  lea __CTOR_LIST__(%rip), %rbp
 3:
   add $8, %rbp
   mov (%rbp), %rax

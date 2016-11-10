@@ -156,6 +156,9 @@ bool ProcessManager::HandleFault(
       rflags_buf[0] = 'O';
     uint64_t cr2;
     asm volatile("mov %%cr2, %0":"=a"(cr2));
+    const FAULT *f;
+    asm volatile("lea FAULTS(%%rip), %q0":"=r"(f));
+    f += intr;
     printf("\nUserspace fault %s (cpu=%u, error=0x%x)\n"
            "RIP=%016lx RSP=%016lx CS=%04x SS=%04x\n"
            "RFL=%016lx [%s] CR2=%016lx\n"
@@ -164,7 +167,7 @@ bool ProcessManager::HandleFault(
            "RBX=%016lx R8 =%016lx R9 =%016lx\n"
            "R10=%016lx R11=%016lx R12=%016lx\n"
            "R13=%016lx R14=%016lx R15=%016lx\n",
-           FAULTS[intr].code, regs->cpuid, code,
+           f->code, regs->cpuid, code,
            regs->rip, regs->rsp, regs->cs, regs->ss,
            regs->rflags, rflags_buf, cr2,
            regs->rbp, regs->rsi, regs->rdi,

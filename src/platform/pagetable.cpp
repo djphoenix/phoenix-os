@@ -18,79 +18,87 @@
 #include "multiboot_info.hpp"
 #include "interrupts.hpp"
 
-extern "C" {
-  extern char __first_page__;
-  extern PTE __pagetable__;
-}
-
-PTE *Pagetable::pagetable = &__pagetable__;
+PTE *Pagetable::pagetable;
 Mutex Pagetable::page_mutex;
 uintptr_t Pagetable::last_page = 1;
 
-static inline void fillPages(uintptr_t low, uintptr_t top,
-                             PTE *pagetable = &__pagetable__) {
+static inline void fillPages(uintptr_t low, uintptr_t top, PTE *pagetable) {
   low &= 0xFFFFFFFFFFFFF000;
   top = ALIGN(top, 0x1000);
   for (; low < top; low += 0x1000) \
     PTE::find(low, pagetable)->user = 0; \
 }
 
-static inline void fillPages(void *low, void *top,
-                             PTE *pagetable = &__pagetable__) {
+static inline void fillPages(void *low, void *top, PTE *pagetable) {
   fillPages((uintptr_t)low, (uintptr_t)top, pagetable);
 }
 
 void Pagetable::init() {
-  extern char __stack_start__, __stack_end__;
-  extern char __text_start__, __data_end__;
-  extern char __modules_start__, __modules_end__;
-  extern char __bss_start__, __bss_end__;
+  char *stack_start, *stack_top;
+  char *text_start, *data_top;
+  char *modules_start, *modules_top;
+  char *bss_start, *bss_top;
 
-  // Buffering BIOS interrupts
-  Memory::copy(Interrupts::interrupts32, 0, sizeof(INTERRUPT32) * 256);
+  GRUBDATA *kernel_data;
+  GRUB *grub_data;
+  asm("lea kernel_data(%%rip), %q0":"=r"(kernel_data));
+  asm("mov grub_data(%%rip), %q0":"=r"(grub_data));
+
+  asm("mov %%cr3, %q0":"=r"(pagetable));
+  asm("lea __stack_start__(%%rip), %q0":"=r"(stack_start));
+  asm("lea __stack_end__(%%rip), %q0":"=r"(stack_top));
+  asm("lea __text_start__(%%rip), %q0":"=r"(text_start));
+  asm("lea __data_end__(%%rip), %q0":"=r"(data_top));
+  asm("lea __modules_start__(%%rip), %q0":"=r"(modules_start));
+  asm("lea __modules_end__(%%rip), %q0":"=r"(modules_top));
+  asm("lea __bss_start__(%%rip), %q0":"=r"(bss_start));
+  asm("lea __bss_end__(%%rip), %q0":"=r"(bss_top));
 
   // Buffering grub data
-  kernel_data.flags = grub_data->flags;
-  kernel_data.mem_lower = grub_data->mem_lower;
-  kernel_data.mem_upper = grub_data->mem_upper;
-  kernel_data.boot_device = grub_data->boot_device;
-  kernel_data.boot_device = grub_data->boot_device;
-  kernel_data.mods = reinterpret_cast<MODULE*>(grub_data->pmods_addr);
-  if ((uintptr_t)kernel_data.mods < (uintptr_t)&__bss_end__)
-    kernel_data.mods = reinterpret_cast<MODULE*>((uintptr_t)kernel_data.mods
-        + (uintptr_t)&__bss_end__);
-  kernel_data.mmap_length = grub_data->mmap_length;
-  kernel_data.mmap_addr = reinterpret_cast<char*>(grub_data->pmmap_addr);
-  if ((uintptr_t)kernel_data.mmap_addr < (uintptr_t)&__bss_end__)
-    kernel_data.mmap_addr += (uintptr_t)&__bss_end__;
+  kernel_data->flags = grub_data->flags;
+  kernel_data->mem_lower = grub_data->mem_lower;
+  kernel_data->mem_upper = grub_data->mem_upper;
+  kernel_data->boot_device = grub_data->boot_device;
+  kernel_data->boot_device = grub_data->boot_device;
+  kernel_data->mods = reinterpret_cast<MODULE*>(grub_data->pmods_addr);
+  if ((uintptr_t)kernel_data->mods < (uintptr_t)bss_top)
+    kernel_data->mods = reinterpret_cast<MODULE*>((uintptr_t)kernel_data->mods
+        + (uintptr_t)bss_top);
+  kernel_data->mmap_length = grub_data->mmap_length;
+  kernel_data->mmap_addr = reinterpret_cast<char*>(grub_data->pmmap_addr);
+  if ((uintptr_t)kernel_data->mmap_addr < (uintptr_t)bss_top)
+    kernel_data->mmap_addr += (uintptr_t)bss_top;
 
-  static GRUBMODULE modules[256];
-  static char cmdline[256];
+  GRUBMODULE *modules = reinterpret_cast<GRUBMODULE*>(
+      alloca(sizeof(GRUBMODULE) * grub_data->mods_count));
+  char *cmdline = 0;
   size_t cmdlinel = 0;
 
-  if (((kernel_data.flags & 4) == 4) && (grub_data->pcmdline != 0)) {
+  if (((kernel_data->flags & 4) == 4) && (grub_data->pcmdline != 0)) {
     const char* c = reinterpret_cast<const char*>(grub_data->pcmdline);
     if ((uintptr_t)c < 0x100000) c += 0x100000;
     int len = strlen(c, 255);
+    cmdline = reinterpret_cast<char*>(alloca(len));
     Memory::copy(cmdline, c, len);
     cmdline[len] = 0;
     cmdlinel = len;
   }
 
-  if (((kernel_data.flags & 8) == 8) && (grub_data->mods_count != 0)
-      && (kernel_data.mods != 0)) {
+  if (((kernel_data->flags & 8) == 8) && (grub_data->mods_count != 0)
+      && (kernel_data->mods != 0)) {
     modules[grub_data->mods_count].start = 0;
-    GRUBMODULE *c = reinterpret_cast<GRUBMODULE*>(kernel_data.mods);
+    GRUBMODULE *c = reinterpret_cast<GRUBMODULE*>(kernel_data->mods);
     for (unsigned int i = 0; i < grub_data->mods_count; i++) {
       modules[i].start = c->start;
       modules[i].end = c->end;
 
       // Set module pages as system
-      fillPages(modules[i].start & 0xFFFFF000, modules[i].end & 0xFFFFF000);
+      fillPages(modules[i].start & 0xFFFFF000, modules[i].end & 0xFFFFF000,
+                pagetable);
       c++;
     }
   } else {
-    kernel_data.mods = 0;
+    kernel_data->mods = 0;
   }
 
   // Initialization of pagetables
@@ -98,17 +106,18 @@ void Pagetable::init() {
   // BIOS Data
   PTE::find((uintptr_t)0, pagetable)->present = 0;
 
-  fillPages(0x09F000, 0x0A0000);  // Extended BIOS Data
-  fillPages(0x0A0000, 0x0C8000);  // Video data & VGA BIOS
-  fillPages(0x0C8000, 0x0F0000);  // Reserved for many systems
-  fillPages(0x0F0000, 0x100000);  // BIOS Code
+  fillPages(0x09F000, 0x0A0000, pagetable);  // Extended BIOS Data
+  fillPages(0x0A0000, 0x0C8000, pagetable);  // Video data & VGA BIOS
+  fillPages(0x0C8000, 0x0F0000, pagetable);  // Reserved for many systems
+  fillPages(0x0F0000, 0x100000, pagetable);  // BIOS Code
 
-  fillPages(&__stack_start__, &__stack_end__);  // PXOS Stack
-  fillPages(&__text_start__, &__data_end__);  // PXOS Code & Data
-  fillPages(&__modules_start__, &__modules_end__);  // PXOS Modules
-  fillPages(&__bss_start__, &__bss_end__);  // PXOS BSS
-  fillPages(kernel_data.mmap_addr,
-            kernel_data.mmap_addr + kernel_data.mmap_length);
+  fillPages(stack_start, stack_top, pagetable);  // PXOS Stack
+  fillPages(text_start, data_top, pagetable);  // PXOS Code & Data
+  fillPages(modules_start, modules_top, pagetable);  // PXOS Modules
+  fillPages(bss_start, bss_top, pagetable);  // PXOS BSS
+  fillPages(kernel_data->mmap_addr,
+            kernel_data->mmap_addr + kernel_data->mmap_length,
+            pagetable);
 
   // Page table
   PTE::find(pagetable, pagetable)->user = 0;
@@ -150,15 +159,15 @@ void Pagetable::init() {
   }
 
   if (cmdlinel > 0) {
-    kernel_data.cmdline = new char[cmdlinel+1];
-    Memory::copy(kernel_data.cmdline, cmdline, cmdlinel + 1);
+    kernel_data->cmdline = new char[cmdlinel+1];
+    Memory::copy(kernel_data->cmdline, cmdline, cmdlinel + 1);
   } else {
-    kernel_data.cmdline = 0;
+    kernel_data->cmdline = 0;
   }
 
-  if (((kernel_data.flags & 8) == 8) && (kernel_data.mods != 0)) {
+  if (((kernel_data->flags & 8) == 8) && (kernel_data->mods != 0)) {
     MODULE *mod = new MODULE();
-    kernel_data.mods = mod;
+    kernel_data->mods = mod;
     mod->start = 0;
     mod->end = 0;
     mod->next = 0;
@@ -174,8 +183,8 @@ void Pagetable::init() {
   }
 
   // GRUB info
-  const char *mmap = reinterpret_cast<const char*>(kernel_data.mmap_addr);
-  const char *mmap_top = mmap + kernel_data.mmap_length;
+  const char *mmap = reinterpret_cast<const char*>(kernel_data->mmap_addr);
+  const char *mmap_top = mmap + kernel_data->mmap_length;
   while (mmap < mmap_top) {
     const GRUBMEMENT *ent = reinterpret_cast<const GRUBMEMENT*>(mmap);
     if (ent->type != 1) {

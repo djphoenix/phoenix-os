@@ -20,7 +20,7 @@
 #include "process.hpp"
 #include "interrupts.hpp"
 
-extern void NORETURN process_loop();
+void NORETURN process_loop();
 
 struct QueuedThread {
   Process *process;

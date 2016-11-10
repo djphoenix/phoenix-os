@@ -31,7 +31,7 @@ _smp_init:
   mov %eax, (gd_reg-_smp_init + 2)
   
   add $(_protected-gd_table), %eax
-  mov %ax, (.jmp-_smp_init+1)
+  mov %ax, (1f-_smp_init+1)
   
   lgdt gd_reg-_smp_init
 
@@ -39,7 +39,7 @@ _smp_init:
   or $1, %al
   mov %eax, %cr0
   
-.jmp:
+1:
   ljmp $8, $(_protected-_smp_init)
 
 .align 16
@@ -63,18 +63,17 @@ _protected:
   mov %ebp, %eax
 
   add $(x64_entry - _smp_init), %eax
-  mov %eax, 1+.jmp64-_smp_init(%ebp)
+  mov %eax, 1+1f-_smp_init(%ebp)
 
-  .extern GDT64_PTR
-  lgdt GDT64_PTR
+  mov 0+_smp_end-_smp_init(%ebp), %esi  // GDT PTR
+  lgdt (%esi)
 
   mov %cr0, %eax
   and $0x7FFFFFFF, %eax
   mov %eax, %cr0
 
-  .extern __pagetable__
-  mov $__pagetable__, %edi
-  mov %edi, %cr3
+  mov 8+_smp_end-_smp_init(%ebp), %esi  // Pagetable ptr
+  mov %esi, %cr3
 
   mov %cr4, %eax
   or $0x20, %eax
@@ -89,33 +88,33 @@ _protected:
   or $0x80000000, %eax
   mov %eax, %cr0
 
-.jmp64:
+1:
   ljmpl $8, $(x64_entry-_smp_init)
   
 .align 16
 .code64
 x64_entry:
-  mov _smp_end-_smp_init(%rbp), %rbx
+  mov 16+_smp_end-_smp_init(%rbp), %rbx  // Local APIC address
   add $0x20, %rbx
   xor %rcx, %rcx
   mov (%rbx), %ecx
   shr $24, %rcx
 
-  mov 8+_smp_end-_smp_init(%rbp), %rax
+  mov 24+_smp_end-_smp_init(%rbp), %rax  // CPU IDs
   xor %rdx, %rdx
-.getid:
+1:
   cmp (%rax), %rcx
-  je .foundid
+  je 2f
   add $8, %rax
   inc %rdx
-  jmp .getid
-.foundid:
+  jmp 1b
+2:
 
   shl $3, %rdx
-  add 16+_smp_end-_smp_init(%rbp), %rdx
+  add 32+_smp_end-_smp_init(%rbp), %rdx  // Stacks
   mov (%rdx), %rsp
 
-  mov 24+_smp_end-_smp_init(%rbp), %rax
+  mov 40+_smp_end-_smp_init(%rbp), %rax  // Startup
   mov %rsp, %rbp
   jmpq *%rax
 

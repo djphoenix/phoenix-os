@@ -167,7 +167,7 @@ struct FAULT {
   bool has_error_code;
 } PACKED;
 
-extern const FAULT FAULTS[0x20];
+extern const FAULT FAULTS[];
 
 typedef bool intcb(uint32_t intr, uint32_t code, intcb_regs *regs);
 

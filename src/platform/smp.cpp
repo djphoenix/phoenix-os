@@ -75,10 +75,6 @@ void SMP::startup() {
   process_loop();
 }
 
-extern "C" {
-  extern char _smp_init, _smp_end;
-}
-
 void SMP::init() {
   ACPI* acpi = ACPI::getController();
   uint32_t localId = acpi->getLapicID();
@@ -89,13 +85,19 @@ void SMP::init() {
   }
 
   struct StartupInfo {
+    const void *gdtptr;
+    const void *pagetableptr;
     const void *lapicAddr;
     uint64_t *cpuids;
     const char **stacks;
     void(*startup)();
   } PACKED;
 
-  const size_t smp_init_size = &_smp_end - &_smp_init;
+  const char *smp_init, *smp_end;
+  asm("lea _smp_init(%%rip), %q0":"=r"(smp_init));
+  asm("lea _smp_end(%%rip), %q0":"=r"(smp_end));
+
+  const size_t smp_init_size = smp_end - smp_init;
 
   char *startupCode;
   StartupInfo *info;
@@ -103,9 +105,11 @@ void SMP::init() {
   startupCode = static_cast<char*>(Pagetable::alloc());
   info = reinterpret_cast<StartupInfo*>(startupCode + ALIGN(smp_init_size, 8));
 
-  Memory::copy(startupCode, &_smp_init, smp_init_size);
+  Memory::copy(startupCode, smp_init, smp_init_size);
   char smp_init_vector = (((uintptr_t)startupCode) >> 12) & 0xFF;
 
+  asm("mov %%cr3, %q0":"=r"(info->pagetableptr));
+  asm("lea GDT64_PTR(%%rip), %q0":"=r"(info->gdtptr));
   info->lapicAddr = acpi->getLapicAddr();
   info->cpuids = new uint64_t[cpuCount]();
   info->stacks = new const char*[cpuCount]();
