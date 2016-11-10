@@ -16,8 +16,8 @@
 
 #include "stream.hpp"
 
-MemoryStream::MemoryStream(void* memory, size_t limit) {
-  this->memory = static_cast<char*>(memory);
+MemoryStream::MemoryStream(const void* memory, size_t limit) {
+  this->memory = static_cast<const char*>(memory);
   this->limit = limit;
   this->offset = 0;
 }

@@ -32,10 +32,10 @@ class MemoryStream: public Stream {
  private:
   size_t offset;
   size_t limit;
-  char* memory;
+  const char* memory;
 
  public:
-  MemoryStream(void* memory, size_t limit);
+  MemoryStream(const void* memory, size_t limit);
   size_t read(void* dest, size_t size);
   size_t size();
   size_t seek(int64_t offset, char base = 0);
