@@ -18,11 +18,33 @@
 #include "efi.hpp"
 
 extern "C" {
-  uint64_t EFIAPI efi_main(void*, EFI_SYSTEM_TABLE*);
+  EFI_STATUS EFIAPI efi_main(void*, EFI_SYSTEM_TABLE*);
 }
 
-uint64_t EFIAPI efi_main(void*, EFI_SYSTEM_TABLE *ST) {
-  const wchar_t hello[] = L"PhoeniX OS: EFI mode boot\r\n";
+EFI_SYSTEM_TABLE *ST;
+
+static inline void Print(const char *string) {
+  size_t len = strlen(string) + 1;
+  wchar_t *buf = reinterpret_cast<wchar_t*>(alloca(len * sizeof(wchar_t)));
+  for (size_t i = 0; i < len; i++) {
+    buf[i] = string[i];
+  }
+  ST->ConOut->OutputString(ST->ConOut, buf);
+}
+
+static inline void PrintFormat(const char *string, ...) {
+  va_list va, tva;
+  va_start(va, string);
+  va_copy(tva, va);
+  size_t len = vsnprintf(0, 0, string, tva);
+  va_end(tva);
+  char *buf = reinterpret_cast<char*>(alloca(len));
+  vsnprintf(buf, len, string, va);
+  va_end(va);
+  Print(buf);
+}
+
+static inline void SetupConsole() {
   ST->ConOut->Reset(ST->ConOut, 1);
   ST->ConOut->SetAttribute(
       ST->ConOut,
@@ -30,7 +52,56 @@ uint64_t EFIAPI efi_main(void*, EFI_SYSTEM_TABLE *ST) {
          .foreground = EFI_COLOR_WHITE,
          .background = EFI_COLOR_BLACK
       } });
-  ST->ConOut->OutputString(ST->ConOut, hello);
+
+  const uint32_t maxmode = ST->ConOut->Mode->MaxMode;
+  uint32_t bestmode = 0, bestrows = 0, bestcols = 0;
+  uint64_t rows = 0, cols = 0;
+  for (uint32_t mode = 0; mode <= maxmode; mode++) {
+    ST->ConOut->QueryMode(ST->ConOut, mode, &cols, &rows);
+    if (cols > bestcols || rows > bestrows) {
+      bestcols = cols;
+      bestrows = rows;
+      bestmode = mode;
+    }
+  }
+  ST->ConOut->SetMode(ST->ConOut, bestmode);
+}
+
+static inline void MemoryMap() {
+  uint64_t size = 0;
+  EFI_MEMORY_DESCRIPTOR *map = 0;
+  uint64_t key = 0;
+  uint64_t desc_size = 0;
+  uint32_t ver = 0;
+  ST->BootServices->GetMemoryMap(&size, map, &key, &desc_size, &ver);
+  map = reinterpret_cast<EFI_MEMORY_DESCRIPTOR*>(alloca(size));
+  ST->BootServices->GetMemoryMap(&size, map, &key, &desc_size, &ver);
+  for (EFI_MEMORY_DESCRIPTOR *ent = map;
+      ent < reinterpret_cast<EFI_MEMORY_DESCRIPTOR*>((uintptr_t)map + size);
+      ent = reinterpret_cast<EFI_MEMORY_DESCRIPTOR*>((uintptr_t)ent + desc_size)
+          ) {
+    if (ent->Type == EFI_MEMORY_TYPE_CONVENTIONAL) continue;
+    if ((ent->Attribute & EFI_MEMORY_RUNTIME) != 0) continue;
+    PrintFormat("% 16s %#010lx-%#010lx -> %#010lx [%lX]\r\n",
+                EFI_MEMORY_TYPE_STR[ent->Type],
+                ent->PhysicalStart,
+                ent->PhysicalStart + (ent->NumberOfPages*4096),
+                ent->VirtualStart, ent->Attribute);
+  }
+}
+
+EFI_STATUS EFIAPI efi_main(void*, EFI_SYSTEM_TABLE *SystemTable) {
+  ST = SystemTable;
+  SetupConsole();
+  Print("PhoeniX OS: EFI mode boot\r\n");
+  MemoryMap();
+
+  void *pt;
+  asm("mov %%cr3, %q0":"=r"(pt));
+  PrintFormat("Pagetable: %p\r\n", pt);
+  extern char __text_start__; void *base;
+  asm("lea __text_start__(%%rip), %q0":"=r"(base));
+  PrintFormat("Base: %p -> %p\r\n", &__text_start__, base);
   for (;;) {}
   return EFI_SUCCESS;
 }

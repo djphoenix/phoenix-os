@@ -99,13 +99,61 @@ struct EFI_GUID {
   uint8_t Data4[8];
 };
 
+enum EFI_MEMORY_TYPE: uint32_t {
+  EFI_MEMORY_TYPE_RESERVED,
+  EFI_MEMORY_TYPE_LOADER,
+  EFI_MEMORY_TYPE_DATA,
+  EFI_MEMORY_TYPE_BS_CODE,
+  EFI_MEMORY_TYPE_BS_DATA,
+  EFI_MEMORY_TYPE_RS_CODE,
+  EFI_MEMORY_TYPE_RS_DATA,
+  EFI_MEMORY_TYPE_CONVENTIONAL,
+  EFI_MEMORY_TYPE_UNUSABLE,
+  EFI_MEMORY_TYPE_ACPI_RECLAIM,
+  EFI_MEMORY_TYPE_ACPI_NVS,
+  EFI_MEMORY_TYPE_MAPPED_IO,
+  EFI_MEMORY_TYPE_MAPPED_IO_PORTSPACE,
+  EFI_MEMORY_TYPE_PAL_CODE,
+  EFI_MEMORY_TYPE_MAX
+};
+
+static const char EFI_MEMORY_TYPE_STR[][16] = {
+  "RESERVED",
+  "LOADER",
+  "DATA",
+  "BS_CODE",
+  "BS_DATA",
+  "RS_CODE",
+  "RS_DATA",
+  "CONVENTIONAL",
+  "UNUSABLE",
+  "ACPI_RECLAIM",
+  "ACPI_NVS",
+  "MAPPED_IO",
+  "MAPPED_IO_PORT",
+  "PAL_CODE",
+  "MAX"
+};
+
+enum EFI_MEMORY_ATTR: uint64_t {
+  EFI_MEMORY_UC = 0x01,
+  EFI_MEMORY_WC = 0x02,
+  EFI_MEMORY_WT = 0x04,
+  EFI_MEMORY_WB = 0x08,
+  EFI_MEMORY_UCE = 0x10,
+  EFI_MEMORY_WP = 0x1000,
+  EFI_MEMORY_RP = 0x2000,
+  EFI_MEMORY_XP = 0x4000,
+  EFI_MEMORY_RUNTIME = 0x8000000000000000L
+};
+
 struct EFI_MEMORY_DESCRIPTOR {
-  uint32_t Type;
+  EFI_MEMORY_TYPE Type;
   uint32_t Pad;
   uint64_t PhysicalStart;
   uint64_t VirtualStart;
   uint64_t NumberOfPages;
-  uint64_t Attribute;
+  EFI_MEMORY_ATTR Attribute;
 };
 
 union EFI_TEXT_ATTR {
@@ -188,7 +236,9 @@ struct EFI_BOOT_SERVICES_TABLE {
   EFI_STATUS EFIAPI(*const RestorePriority)(EFI_TPL OldTpl);
   const void *AllocatePages;
   const void *FreePages;
-  const void *GetMemoryMap;
+  EFI_STATUS EFIAPI(*const GetMemoryMap)(
+      uint64_t *MemoryMapSize, EFI_MEMORY_DESCRIPTOR *MemoryMap,
+      uint64_t *MapKey, uint64_t *DescriptorSize, uint32_t *DescriptorVersion);
   const void *AllocatePool;
   const void *FreePool;
   const void *CreateEvent;
