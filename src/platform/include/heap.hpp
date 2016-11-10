@@ -18,10 +18,11 @@
 #include "kernlib.hpp"
 
 struct ALLOCTABLE;
+struct HEAPPAGES;
 
 class Heap {
   static ALLOCTABLE *allocs;
-  static void* first_free;
+  static HEAPPAGES *heap_pages;
   static Mutex heap_mutex;
 
  public:

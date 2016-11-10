@@ -29,8 +29,13 @@ struct ALLOCTABLE {
   int64_t reserved;
 };
 
+struct HEAPPAGES {
+  void *pages[511];
+  HEAPPAGES *next;
+};
+
 ALLOCTABLE *Heap::allocs = 0;
-void* Heap::first_free = 0;
+HEAPPAGES* Heap::heap_pages = 0;
 Mutex Heap::heap_mutex;
 
 void* Heap::alloc(size_t size, size_t align) {
@@ -38,108 +43,101 @@ void* Heap::alloc(size_t size, size_t align) {
     return 0;
   heap_mutex.lock();
 
-  PTE *pagetable;
-  asm("mov %%cr3, %q0":"=r"(pagetable));
-  if (!first_free) asm("lea __first_page__, %q0":"=r"(first_free));
+  if (!heap_pages)
+    heap_pages = reinterpret_cast<HEAPPAGES*>(Pagetable::alloc());
+  if (!allocs)
+    allocs = reinterpret_cast<ALLOCTABLE*>(Pagetable::alloc());
 
-  uintptr_t ns = (uintptr_t)first_free, ne;
-  char f;
-  ALLOCTABLE *t;
-  while (1) {
-    if (ns % align != 0)
-      ns = ns + align - (ns % align);
-    ne = ns + size;
-    f = 0;
-    uintptr_t ps = ns >> 12, pe = (ne >> 12) + (((ne & 0xFFF) != 0) ? 1 : 0);
-    for (uintptr_t i = ps; i < pe; i++) {
-      // TODO: leave Heap away from pagetable
-      PTE *pdata = PTE::find(i << 12, pagetable);
-      if ((pdata != 0) && (pdata->present) && (pdata->avl == 0)) {
-        ns = (i + 1) << 12;
-        if (ns % align != 0)
-          ns = ns + align - (ns % align);
-        ne = ns + size;
-        f = 1;
+  uintptr_t ptr = 0, ptr_top;
+
+  HEAPPAGES *pages;
+  ALLOCTABLE *table;
+
+find_page:
+  // Find page
+  pages = heap_pages;
+  uintptr_t page = 0xFFFFFFFFFFFFFFFF;
+  while (pages) {
+    for (size_t i = 0; i < 511; i++) {
+      uintptr_t paddr = (uintptr_t)pages->pages[i];
+      if (paddr == 0) continue;
+      if (page > paddr && paddr >= ptr) {
+        page = paddr;
+        goto check_ptr;
       }
     }
-    if (f != 0)
-      continue;
-    t = allocs;
-    if (t == 0)
-      break;
-    while (1) {
-      for (int i = 0; i < 255; i++) {
-        if (t->allocs[i].addr == 0)
-          continue;
-        uintptr_t as = (uintptr_t)t->allocs[i].addr;
-        uintptr_t ae = as + (uintptr_t)t->allocs[i].size;
-        if (ne < as)
-          continue;
-        if (ae < ns)
-          continue;
-        if (((ns >= as) && (ns < ae)) ||  // NA starts in alloc
-        ((ne >= as) && (ne < ae))
-            ||  // NA ends in alloc
-            ((ns >= as) && (ne < ae))
-            ||  // NA inside alloc
-            ((ns <= as) && (ne > ae))     // alloc inside NA
-            ) {
-          ns = ae;
-          if (ns % align != 0)
-            ns = ns + align - (ns % align);
-          ne = ns + size;
-          f = 1;
+    pages = pages->next;
+  }
+  if (page == 0xFFFFFFFFFFFFFFFF) {
+new_page:
+    // Alloc new page
+    pages = heap_pages;
+    while (pages) {
+      for (size_t i = 0; i < 511; i++) {
+        if (pages->pages[i] != 0) continue;
+        pages->pages[i] = Pagetable::alloc();
+        ptr = 0;
+        goto find_page;
+      }
+      if (!pages->next)
+        pages->next = reinterpret_cast<HEAPPAGES*>(Pagetable::alloc());
+      pages = pages->next;
+    }
+  }
+check_ptr:
+  if (ptr < page) ptr = page;
+  ptr = ALIGN(ptr, align);
+  ptr_top = ptr + size;
+  for (uintptr_t pg = ptr & 0xFFFFFFFFFFFF000; pg < ptr_top; pg += 0x1000) {
+    pages = heap_pages;
+    while (pages) {
+      for (size_t i = 0; i < 511; i++) {
+        if ((uintptr_t)pages->pages[i] == pg) goto next_page;
+      }
+      pages = pages->next;
+    }
+    pages = heap_pages;
+    while (pages) {
+      for (size_t i = 0; i < 511; i++) {
+        if ((uintptr_t)pages->pages[i] > ptr) {
+          ptr = (uintptr_t)pages->pages[i];
+          goto check_ptr;
         }
       }
-      if (f != 0)
-        break;
-      if (t->next == 0)
-        break;
-      t = t->next;
+      pages = pages->next;
     }
-    for (uintptr_t i = ps; i < pe; i++) {
-      // TODO: leave Heap away from pagetable
-      PTE *page = PTE::find(i << 12, pagetable);
-      if ((page == 0) || !page->present) {
-        void *t = Pagetable::alloc(1);
-        if ((uintptr_t)t != (i << 12)) {
-          f = 1;
-          break;
-        }
-      }
+    goto new_page;
+next_page:
+    continue;
+  }
+  table = allocs;
+  while (table) {
+    for (size_t i = 0; i < 255; i++) {
+      uintptr_t alloc_base = (uintptr_t)table->allocs[i].addr;
+      uintptr_t alloc_top = alloc_base + table->allocs[i].size;
+      if (ptr >= alloc_top || ptr_top < alloc_base) continue;
+      ptr = alloc_top;
+      goto check_ptr;
     }
-    if (f == 0)
-      break;
+    table = table->next;
   }
-  // Finding memory slot for alloc record
-  if (allocs == 0)
-    allocs = static_cast<ALLOCTABLE*>(Pagetable::alloc());
-  t = allocs;
-  int ai;
-  while (1) {
-    ai = -1;
-    for (int i = 0; i < 255; i++)
-      if (t->allocs[i].addr == 0) {
-        ai = i;
-        break;
-      }
-    if (ai == -1) {
-      if (t->next == 0) {
-        t->next = static_cast<ALLOCTABLE*>(Pagetable::alloc());
-        t->next->next = 0;
-      }
-      t = t->next;
-    } else {
-      break;
+
+  // Save
+  table = allocs;
+  while (table) {
+    for (size_t i = 0; i < 255; i++) {
+      if (table->allocs[i].addr != 0) continue;
+      table->allocs[i].addr = reinterpret_cast<void*>(ptr);
+      table->allocs[i].size = size;
+      goto done;
     }
+    if (!table->next)
+      table->next = reinterpret_cast<ALLOCTABLE*>(Pagetable::alloc());
+    table = table->next;
   }
-  t->allocs[ai].addr = reinterpret_cast<void*>(ns);
-  t->allocs[ai].size = size;
-  if (((uintptr_t)first_free < ns) && (align == 4)) {
-    first_free = reinterpret_cast<void*>(ns + size);
-  }
+done:
   heap_mutex.release();
-  return reinterpret_cast<void*>(ns);
+  return reinterpret_cast<void*>(ptr);
 }
 void Heap::free(void* addr) {
   if (addr == 0)
@@ -151,8 +149,6 @@ void Heap::free(void* addr) {
       if (t->allocs[i].addr == addr) {
         t->allocs[i].addr = 0;
         t->allocs[i].size = 0;
-        if ((uintptr_t)addr < (uintptr_t)first_free)
-          first_free = addr;
         goto end;
       }
     }
