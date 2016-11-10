@@ -16,20 +16,12 @@
 
 .code32
 .section .text32
-.extern
 .extern main
 .global _start
 .global __main
 .global _efi_start
 .global GDT64
 .global GDT64_PTR
-.extern multiboot
-.extern __text_start__
-.extern __modules_end__
-.extern __stack_end__
-.extern __pagetable__
-.extern __bss_start__
-.extern __bss_end__
 _start:
   jmp multiboot_entry
 
@@ -52,27 +44,33 @@ multiboot_entry:
   cmp $0x2BADB002, %eax
   jne 2f
 
+  call 1f
+1:
+  pop %ebp
+  sub $1b - _start, %ebp
+  
   cld
 
   # Clear BSS
-  mov $__bss_start__, %edi
+  lea __bss_start__-_start(%ebp), %edi
   xor %ecx, %ecx
-  mov $__bss_end__, %ecx
-  sub $__bss_start__, %ecx
+  lea __bss_end__-_start(%ebp), %ecx
+  sub %edi, %ecx
   xor %eax, %eax
   shr $2, %ecx
   rep stosl
 
   # Advance pointer to multiboot table if needed
+  lea __bss_end__-_start(%ebp), %edi
   cmp $0x80000, %ebx
   jge 1f
-  add $__bss_end__, %ebx
+  add %edi, %ebx
 1:
-  mov %ebx, multiboot
+  mov %ebx, multiboot-_start(%ebp)
 
   # Moving first 512K to BSS
   xor %esi, %esi
-  mov $__bss_end__, %edi
+  lea __bss_end__-_start(%ebp), %edi
   mov $0x20000, %ecx
   rep movsl
 
@@ -90,89 +88,105 @@ multiboot_entry:
   or $0x20, %al
   out %al, %dx
 
-  mov $__stack_end__, %esp
+  lea __stack_end__, %esp
 
-  pushfl                    # Store the FLAGS-register.
-  pop %eax                  # Restore the A-register.
-  mov %eax, %ecx            # Set the C-register to the A-register.
-  xor $0x200000, %eax       # Flip the ID-bit, which is bit 21.
-  push %eax                 # Store the A-register.
-  popfl                     # Restore the FLAGS-register.
-  pushfl                    # Store the FLAGS-register.
-  pop %eax                  # Restore the A-register.
-  push %ecx                 # Store the C-register.
-  popfl                     # Restore the FLAGS-register.
-  xor %ecx, %eax            # Do a XOR-operation on the A-register and the C-register.
-  jz 3f                     # The zero flag is set, no CPUID.
+  # Check CPUID
+  pushfl
+  pop %eax
+  mov %eax, %ecx
+  xor $0x200000, %eax
+  push %eax
+  popfl
+  pushfl
+  pop %eax
+  push %ecx
+  popfl
+  xor %ecx, %eax
+  jz 3f
 
-  mov $0x80000000, %eax     # Set the A-register to 0x80000000.
-  cpuid                     # CPU identification.
-  cmp $0x80000001, %eax     # Compare the A-register with 0x80000001.
-  jb 4f                     # It is less, there is no long mode.
+  # Check extended CPUID is supported
+  mov $0x80000000, %eax
+  cpuid
+  cmp $0x80000001, %eax
+  jb 4f
 
-  mov $0x80000001, %eax     # Set the A-register to 0x80000001.
-  cpuid                     # CPU identification.
-  test $0x20000000, %edx    # Test if the LM-bit, which is bit 29, is set in the D-register.
-  jz 4f                     # They aren't, there is no long mode.
+  # Check longmode in CPUID
+  mov $0x80000001, %eax
+  cpuid
+  test $0x20000000, %edx
+  jz 4f
 
-  mov %cr0, %eax            # Set the A-register to control register 0.
-  and $0x7FFFFFFF, %eax     # Clear the PG-bit, which is bit 31.
-  mov %eax, %cr0            # Set control register 0 to the A-register.
+  # Disable paging
+  mov %cr0, %eax
+  and $0x7FFFFFFF, %eax
+  mov %eax, %cr0
 
-  mov $__pagetable__, %edi  # Set the destination index to 0x10000.
-  mov %edi, %cr3            # Set control register 3 to the destination index.
-  xor %eax, %eax            # Nullify the A-register.
-  mov $0x1C00, %ecx         # Set the C-register to 7168.
-  rep stosl                 # Clear the memory.
-  mov %cr3, %edi            # Set the destination index to control register 3.
+  # Fill pagetable
+  lea __pagetable__-_start(%ebp), %edi
+  mov %edi, %cr3
+  xor %eax, %eax
+  mov $0x1C00, %ecx
+  rep stosl
+  mov %cr3, %edi
 
-  movl $__pagetable__ + 0x1003, (%edi)      # Set the double word at the destination index to 0x2003.
-  add $0x1000, %edi                         # Add 0x1000 to the destination index.
-  movl $__pagetable__ + 0x2003, (%edi)      # Set the double word at the destination index to 0x3003.
-  add $0x1000, %edi                         # Add 0x1000 to the destination index.
-  movl $__pagetable__ + 0x3003, 0x00(%edi)  # Set the double word at the destination index to 0x4003.
-  movl $__pagetable__ + 0x4003, 0x08(%edi)  # Set the double word at the destination index to 0x5003.
-  movl $__pagetable__ + 0x5003, 0x10(%edi)  # Set the double word at the destination index to 0x6003.
-  movl $__pagetable__ + 0x6003, 0x18(%edi)  # Set the double word at the destination index to 0x7003.
-  add $0x1000, %edi       # Add 0x1000 to the destination index.
+  lea __pagetable__-_start+0x1007(%ebp), %esi
+                     mov %esi, 0x0000(%edi)
+  add $0x1000, %esi; mov %esi, 0x1000(%edi)
+  add $0x1000, %esi; mov %esi, 0x2000(%edi)
+  add $0x1000, %esi; mov %esi, 0x2008(%edi)
+  add $0x1000, %esi; mov %esi, 0x2010(%edi)
+  add $0x1000, %esi; mov %esi, 0x2018(%edi)
+  
+  add $0x3000, %edi
 
-  mov $0x00000007, %ebx   # Set the B-register to 0x00000007.
-  mov $0x800, %ecx        # Set the C-register to 2048.
-
+  mov $0x00000007, %ebx
+  mov $0x800, %ecx
 1:
-  mov %ebx, (%edi)        # Set the double word at the destination index to the B-register.
-  add $0x1000, %ebx       # Add 0x1000 to the B-register.
-  add $8, %edi            # Add eight to the destination index.
-  loop 1b          # Set the next entry.
+  mov %ebx, (%edi)
+  add $0x1000, %ebx
+  add $8, %edi
+  loop 1b
 
-  mov %cr4, %eax          # Set the A-register to control register 4.
-  or $0x20, %eax          # Set the PAE-bit, which is the 6th bit (bit 5).
-  mov %eax, %cr4          # Set control register 4 to the A-register.
+  # Enable PAE
+  mov %cr4, %eax
+  or $0x20, %eax
+  mov %eax, %cr4
 
-  mov $0xC0000080, %ecx   # Set the C-register to 0xC0000080, which is the EFER MSR.
-  rdmsr                   # Read from the model-specific register.
-  or $0x100, %eax         # Set the LM-bit which is the 9th bit (bit 8).
-  wrmsr                   # Write to the model-specific register.
+  # Enable longmode
+  mov $0xC0000080, %ecx
+  rdmsr
+  or $0x100, %eax
+  wrmsr
 
-  mov %cr0, %eax          # Set the A-register to control register 0.
-  or $0x80000000, %eax    # Set the PG-bit, which is the 32nd bit (bit 31).
-  mov %eax, %cr0          # Set control register 0 to the A-register.
+  # Enable pading
+  mov %cr0, %eax
+  or $0x80000000, %eax
+  mov %eax, %cr0
 
-  lgdt GDT64.Pointer
+  # Load GDT
+  lea GDT64.Pointer-_start(%ebp), %eax
+  lgdt (%eax)
+
+  # Load stack segment
   mov $16, %ax
   mov %ax, %ss
+
+  # Fix 64-bit entry point
+  lea x64_entry-_start(%ebp), %eax
+  mov %eax, 1f+1
+1:
   ljmp $8, $x64_entry
 
 2:
-  mov $aNoMultiboot, %eax
+  lea aNoMultiboot-_start(%ebp), %eax
   jmp 5f
 
 3:
-  mov $aNoCPUID, %eax
+  lea aNoCPUID-_start(%ebp), %eax
   jmp 5f
 
 4:
-  mov $aNoLongMode, %eax
+  lea aNoLongMode-_start(%ebp), %eax
 #  jmp 5f
 
 5:
