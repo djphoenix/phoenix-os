@@ -92,24 +92,22 @@ void ModuleManager::parseInternal() {
   size_t modules_size = mods_end - mods_start;
 
   if (modules_size > 1) {
-    Stream *ms = new MemoryStream(mods_start, modules_size);
-    loadStream(ms, 1);
-    delete ms;
+    MemoryStream ms(mods_start, modules_size);
+    loadStream(&ms, 1);
   }
 }
 void ModuleManager::parseInitRD() {
-  GRUBDATA *kernel_data;
-  asm("lea kernel_data(%%rip), %q0":"=r"(kernel_data));
-  if (kernel_data->mods != 0) {
-    MODULE *mod = kernel_data->mods;
-    while (mod != 0) {
-      Stream *ms = new MemoryStream(
-          mod->start,
-          (static_cast<char*>(mod->end) - static_cast<char*>(mod->start)));
-      loadStream(ms, 1);
-      mod = mod->next;
-      delete ms;
-    }
+  MULTIBOOT_PAYLOAD *multiboot;
+  asm("mov multiboot(%%rip), %q0":"=r"(multiboot));
+  if ((multiboot->flags & MB_FLAG_MODS) == 0) return;
+  const MULTIBOOT_MODULE *mods =
+      reinterpret_cast<const MULTIBOOT_MODULE*>(multiboot->pmods_addr);
+  for (uint32_t i = 0; i < multiboot->mods_count; i++) {
+    const char *base = reinterpret_cast<const char*>(mods[i].start);
+    const char *top = reinterpret_cast<const char*>(mods[i].end);
+    size_t length = top - base;
+    MemoryStream ms(base, length);
+    loadStream(&ms, 1);
   }
 }
 void ModuleManager::init() {

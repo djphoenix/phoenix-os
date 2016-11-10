@@ -16,5 +16,4 @@
 
 #include "multiboot_info.hpp"
 
-GRUBDATA kernel_data;
-GRUB *grub_data;
+MULTIBOOT_PAYLOAD *multiboot;

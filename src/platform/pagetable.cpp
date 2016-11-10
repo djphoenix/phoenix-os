@@ -39,10 +39,8 @@ void Pagetable::init() {
   char *modules_start, *modules_top;
   char *bss_start, *bss_top;
 
-  GRUBDATA *kernel_data;
-  GRUB *grub_data;
-  asm("lea kernel_data(%%rip), %q0":"=r"(kernel_data));
-  asm("mov grub_data(%%rip), %q0":"=r"(grub_data));
+  MULTIBOOT_PAYLOAD *multiboot;
+  asm("mov multiboot(%%rip), %q0":"=r"(multiboot));
 
   asm("mov %%cr3, %q0":"=r"(pagetable));
   asm("lea __stack_start__(%%rip), %q0":"=r"(stack_start));
@@ -53,53 +51,6 @@ void Pagetable::init() {
   asm("lea __modules_end__(%%rip), %q0":"=r"(modules_top));
   asm("lea __bss_start__(%%rip), %q0":"=r"(bss_start));
   asm("lea __bss_end__(%%rip), %q0":"=r"(bss_top));
-
-  // Buffering grub data
-  kernel_data->flags = grub_data->flags;
-  kernel_data->mem_lower = grub_data->mem_lower;
-  kernel_data->mem_upper = grub_data->mem_upper;
-  kernel_data->boot_device = grub_data->boot_device;
-  kernel_data->boot_device = grub_data->boot_device;
-  kernel_data->mods = reinterpret_cast<MODULE*>(grub_data->pmods_addr);
-  if ((uintptr_t)kernel_data->mods < (uintptr_t)bss_top)
-    kernel_data->mods = reinterpret_cast<MODULE*>((uintptr_t)kernel_data->mods
-        + (uintptr_t)bss_top);
-  kernel_data->mmap_length = grub_data->mmap_length;
-  kernel_data->mmap_addr = reinterpret_cast<char*>(grub_data->pmmap_addr);
-  if ((uintptr_t)kernel_data->mmap_addr < (uintptr_t)bss_top)
-    kernel_data->mmap_addr += (uintptr_t)bss_top;
-
-  GRUBMODULE *modules = reinterpret_cast<GRUBMODULE*>(
-      alloca(sizeof(GRUBMODULE) * grub_data->mods_count));
-  char *cmdline = 0;
-  size_t cmdlinel = 0;
-
-  if (((kernel_data->flags & 4) == 4) && (grub_data->pcmdline != 0)) {
-    const char* c = reinterpret_cast<const char*>(grub_data->pcmdline);
-    if ((uintptr_t)c < 0x100000) c += 0x100000;
-    int len = strlen(c, 255);
-    cmdline = reinterpret_cast<char*>(alloca(len));
-    Memory::copy(cmdline, c, len);
-    cmdline[len] = 0;
-    cmdlinel = len;
-  }
-
-  if (((kernel_data->flags & 8) == 8) && (grub_data->mods_count != 0)
-      && (kernel_data->mods != 0)) {
-    modules[grub_data->mods_count].start = 0;
-    GRUBMODULE *c = reinterpret_cast<GRUBMODULE*>(kernel_data->mods);
-    for (unsigned int i = 0; i < grub_data->mods_count; i++) {
-      modules[i].start = c->start;
-      modules[i].end = c->end;
-
-      // Set module pages as system
-      fillPages(modules[i].start & 0xFFFFF000, modules[i].end & 0xFFFFF000,
-                pagetable);
-      c++;
-    }
-  } else {
-    kernel_data->mods = 0;
-  }
 
   // Initialization of pagetables
 
@@ -115,9 +66,7 @@ void Pagetable::init() {
   fillPages(text_start, data_top, pagetable);  // PXOS Code & Data
   fillPages(modules_start, modules_top, pagetable);  // PXOS Modules
   fillPages(bss_start, bss_top, pagetable);  // PXOS BSS
-  fillPages(kernel_data->mmap_addr,
-            kernel_data->mmap_addr + kernel_data->mmap_length,
-            pagetable);
+  fillPages(multiboot, multiboot+1, pagetable);
 
   // Page table
   PTE::find(pagetable, pagetable)->user = 0;
@@ -158,42 +107,52 @@ void Pagetable::init() {
     }
   }
 
-  if (cmdlinel > 0) {
-    kernel_data->cmdline = new char[cmdlinel+1];
-    Memory::copy(kernel_data->cmdline, cmdline, cmdlinel + 1);
-  } else {
-    kernel_data->cmdline = 0;
+  if (multiboot->flags & MB_FLAG_CMDLINE) {
+    if (multiboot->pcmdline < 0x80000)
+      multiboot->pcmdline += (uintptr_t)bss_top;
+    map(reinterpret_cast<void*>(multiboot->pcmdline));
   }
 
-  if (((kernel_data->flags & 8) == 8) && (kernel_data->mods != 0)) {
-    MODULE *mod = new MODULE();
-    kernel_data->mods = mod;
-    mod->start = 0;
-    mod->end = 0;
-    mod->next = 0;
-    int i = 0;
-    while (modules[i].start != 0) {
-      mod->start = reinterpret_cast<void*>(modules[i].start);
-      mod->end = reinterpret_cast<void*>(modules[i].end);
-      i++;
-      if (modules[i].start != 0)
-        mod = (mod->next = new MODULE());
-    }
-    mod->next = 0;
-  }
+  if (multiboot->flags & MB_FLAG_MODS) {
+    if (multiboot->pmods_addr < 0x80000)
+      multiboot->pmods_addr += (uintptr_t)bss_top;
 
-  // GRUB info
-  const char *mmap = reinterpret_cast<const char*>(kernel_data->mmap_addr);
-  const char *mmap_top = mmap + kernel_data->mmap_length;
-  while (mmap < mmap_top) {
-    const GRUBMEMENT *ent = reinterpret_cast<const GRUBMEMENT*>(mmap);
-    if (ent->type != 1) {
-      uintptr_t low = (uintptr_t)ent->base & 0xFFFFFFFFFFFFF000;
-      uintptr_t top = ALIGN((uintptr_t)ent->base + ent->length, 0x1000);
+    uintptr_t low = (uintptr_t)multiboot->pmods_addr & 0xFFFFFFFFFFFFF000;
+    uintptr_t top = ALIGN(
+        (uintptr_t)multiboot->pmods_addr +
+        multiboot->mods_count * sizeof(MULTIBOOT_MODULE),
+        0x1000);
+    for (uintptr_t addr = low; addr < top; addr += 0x1000)
+      map(reinterpret_cast<void*>(addr));
+
+    const MULTIBOOT_MODULE *mods =
+        reinterpret_cast<MULTIBOOT_MODULE*>(multiboot->pmods_addr);
+    for (uint32_t i = 0; i < multiboot->mods_count; i++) {
+      uintptr_t low = mods[i].start;
+      uintptr_t top = ALIGN(mods[i].end, 0x1000);
       for (uintptr_t addr = low; addr < top; addr += 0x1000)
         map(reinterpret_cast<void*>(addr));
     }
-    mmap += ent->size + sizeof(ent->size);
+  }
+
+  if (multiboot->flags & MB_FLAG_MEMMAP) {
+    if (multiboot->pmmap_addr < 0x80000)
+      multiboot->pmmap_addr += (uintptr_t)bss_top;
+
+    const char *mmap = reinterpret_cast<const char*>(multiboot->pmmap_addr);
+    const char *mmap_top = mmap + multiboot->mmap_length;
+    while (mmap < mmap_top) {
+      const MULTIBOOT_MMAP_ENT *ent =
+          reinterpret_cast<const MULTIBOOT_MMAP_ENT*>(mmap);
+      map(ent);
+      if (ent->type != 1) {
+        uintptr_t low = (uintptr_t)ent->base & 0xFFFFFFFFFFFFF000;
+        uintptr_t top = ALIGN((uintptr_t)ent->base + ent->length, 0x1000);
+        for (uintptr_t addr = low; addr < top; addr += 0x1000)
+          map(reinterpret_cast<void*>(addr));
+      }
+      mmap += ent->size + sizeof(ent->size);
+    }
   }
 }
 

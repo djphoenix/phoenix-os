@@ -23,7 +23,7 @@
 .global _efi_start
 .global GDT64
 .global GDT64_PTR
-.extern grub_data
+.extern multiboot
 .extern __text_start__
 .extern __modules_end__
 .extern __stack_end__
@@ -42,7 +42,7 @@ multiboot_header:
   .long multiboot_header
   .long __text_start__
   .long __modules_end__
-  .long __bss_end__
+  .long __bss_end__ + 0x80000
   .long multiboot_entry
 
 
@@ -63,7 +63,12 @@ multiboot_entry:
   shr $2, %ecx
   rep stosl
 
-  mov %ebx, grub_data
+  # Advance pointer to multiboot table if needed
+  cmp $0x80000, %ebx
+  jge 1f
+  add $__bss_end__, %ebx
+1:
+  mov %ebx, multiboot
 
   # Moving first 512K to BSS
   xor %esi, %esi

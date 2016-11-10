@@ -17,14 +17,24 @@
 #pragma once
 #include "kernlib.hpp"
 
-struct GRUBMODULE {
-  uint32_t start;
-  uint32_t end;
+enum MUTLIBOOT_FLAGS: uint32_t {
+  MB_FLAG_MEM = (1 << 0),
+  MB_FLAG_BOOTDEV = (1 << 1),
+  MB_FLAG_CMDLINE = (1 << 2),
+  MB_FLAG_MODS = (1 << 3),
+  MB_FLAG_SYMTAB = (1 << 4),
+  MB_FLAG_ELFSYMTAB = (1 << 5),
+  MB_FLAG_MEMMAP = (1 << 6),
+  MB_FLAG_DRIVEMAP = (1 << 7),
+  MB_FLAG_CONFTAB = (1 << 8),
+  MB_FLAG_BLNAME = (1 << 9),
+  MB_FLAG_APMTAB = (1 << 10),
+  MB_FLAG_VBETAB = (1 << 11)
 };
 
-struct GRUB {
-  uint32_t flags;
-  uint32_t mem_lower, mem_upper;
+struct MULTIBOOT_PAYLOAD {
+  MUTLIBOOT_FLAGS flags;
+  size_t mem_lower:32, mem_upper:32;
   uint32_t boot_device;
   uint32_t pcmdline;
   uint32_t mods_count;
@@ -39,32 +49,18 @@ struct GRUB {
   uint32_t papm_table;
   uint64_t pvbe_control_info, pvbe_mode_info, pvbe_mode, pvbe_interface_seg,
       pvbe_interface_off, pvbe_interface_len;
+} PACKED;
+
+struct MULTIBOOT_MODULE {
+  uint32_t start;
+  uint32_t end;
 };
 
-struct GRUBMEMENT {
+struct MULTIBOOT_MMAP_ENT {
   uint32_t size;
   void *base;
   size_t length;
   uint32_t type;
 } PACKED;
 
-struct MODULE {
-  void* start;
-  void* end;
-  MODULE* next;
-};
-
-struct GRUBDATA {
-  uint32_t flags;
-  uint32_t mem_lower, mem_upper;
-  uint32_t boot_device;
-  char* cmdline;
-  MODULE *mods;
-  size_t mmap_length;
-  char* mmap_addr;
-  char* boot_loader_name;
-};
-
-extern GRUB *grub_data;
-
-extern GRUBDATA kernel_data;
+extern MULTIBOOT_PAYLOAD *multiboot;
