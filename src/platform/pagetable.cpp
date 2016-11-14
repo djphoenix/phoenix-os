@@ -93,23 +93,22 @@ void Pagetable::init() {
         }
       }
     }
-  }
-
-  // Clearing unused pages
-  for (uint16_t i = 0; i < 512; i++) {
-    if (!pagetable[i].present) continue;
-    PTE *pde = pagetable[i].getPTE();
-    PTE::find(pde, pagetable)->user = 0;
-    for (uint32_t j = 0; j < 512; j++) {
-      if (!pde[j].present) continue;
-      PTE *pdpe = pde[j].getPTE();
-      PTE::find(pdpe, pagetable)->user = 0;
-      for (uint16_t k = 0; k < 512; k++) {
-        if (!pdpe[k].present) continue;
-        PTE *pml4e = pdpe[k].getPTE();
-        for (uint16_t l = 0; l < 512; l++) {
-          if (pml4e[l].user)
-            pml4e[l].present = 0;
+    // Clearing unused pages
+    for (uint16_t i = 0; i < 512; i++) {
+      if (!pagetable[i].present) continue;
+      PTE *pde = pagetable[i].getPTE();
+      PTE::find(pde, pagetable)->user = 0;
+      for (uint32_t j = 0; j < 512; j++) {
+        if (!pde[j].present) continue;
+        PTE *pdpe = pde[j].getPTE();
+        PTE::find(pdpe, pagetable)->user = 0;
+        for (uint16_t k = 0; k < 512; k++) {
+          if (!pdpe[k].present) continue;
+          PTE *pml4e = pdpe[k].getPTE();
+          for (uint16_t l = 0; l < 512; l++) {
+            if (pml4e[l].user)
+              pml4e[l].present = 0;
+          }
         }
       }
     }
