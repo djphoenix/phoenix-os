@@ -104,7 +104,12 @@ uint64_t __attribute__((sysv_abi)) interrupt_handler(uint64_t intr,
   return ret;
 }
 
-const FAULT FAULTS[] = {
+struct FAULT {
+  char code[5];
+  bool has_error_code;
+} PACKED;
+
+static const FAULT FAULTS[] = {
   /* 00 */{ "#DE", false },
   /* 01 */{ "#DB", false },
   /* 02 */{ "#NMI", false },
@@ -151,6 +156,47 @@ struct int_regs {
 struct int_info {
   uint64_t rip, cs, rflags, rsp, ss;
 } PACKED;
+
+void Interrupts::print(uint8_t num, intcb_regs *regs, uint32_t code) {
+  uint64_t cr2;
+  asm volatile("mov %%cr2, %0":"=a"(cr2));
+  uint32_t cpuid = ACPI::getController()->getCPUID();
+  char rflags_buf[10] = "---------";
+  if (regs->rflags & (1 << 0))
+    rflags_buf[8] = 'C';
+  if (regs->rflags & (1 << 2))
+    rflags_buf[7] = 'P';
+  if (regs->rflags & (1 << 4))
+    rflags_buf[6] = 'A';
+  if (regs->rflags & (1 << 6))
+    rflags_buf[5] = 'Z';
+  if (regs->rflags & (1 << 7))
+    rflags_buf[4] = 'S';
+  if (regs->rflags & (1 << 8))
+    rflags_buf[3] = 'T';
+  if (regs->rflags & (1 << 9))
+    rflags_buf[2] = 'I';
+  if (regs->rflags & (1 << 10))
+    rflags_buf[1] = 'D';
+  if (regs->rflags & (1 << 11))
+    rflags_buf[0] = 'O';
+  printf("\n%s fault %s (cpu=%u, error=0x%x)\n"
+         "IP=%016lx CS=%04hx SS=%04hx DPL=%hu\n"
+         "FL=%016lx [%s]\n"
+         "SP=%016lx BP=%016lx CR2=%08lx\n"
+         "SI=%016lx DI=%016lx\n"
+         "A =%016lx C =%016lx D =%016lx B =%016lx\n"
+         "8 =%016lx 9 =%016lx 10=%016lx 11=%016lx\n"
+         "12=%016lx 13=%016lx 14=%016lx 15=%016lx\n",
+         regs->dpl ? "Userspace" : "Kernel", FAULTS[num].code, cpuid, code,
+         regs->rip, regs->cs, regs->ss, regs->dpl,
+         regs->rflags, rflags_buf,
+         regs->rsp, regs->rbp, cr2,
+         regs->rsi, regs->rdi,
+         regs->rax, regs->rcx, regs->rdx, regs->rbx,
+         regs->r8, regs->r9, regs->r10, regs->r11,
+         regs->r12, regs->r13, regs->r14, regs->r15);
+}
 
 uint64_t Interrupts::handle(unsigned char intr, uint64_t stack, uint64_t *cr3) {
   fault.lock();
@@ -211,42 +257,7 @@ uint64_t Interrupts::handle(unsigned char intr, uint64_t stack, uint64_t *cr3) {
 
   if (intr < 0x20) {
     fault.lock();
-    FAULT f = FAULTS[intr];
-    uint64_t cr2;
-    asm volatile("mov %%cr2, %0":"=a"(cr2));
-    char rflags_buf[10] = "---------";
-    if (info->rflags & (1 << 0))
-      rflags_buf[8] = 'C';
-    if (info->rflags & (1 << 2))
-      rflags_buf[7] = 'P';
-    if (info->rflags & (1 << 4))
-      rflags_buf[6] = 'A';
-    if (info->rflags & (1 << 6))
-      rflags_buf[5] = 'Z';
-    if (info->rflags & (1 << 7))
-      rflags_buf[4] = 'S';
-    if (info->rflags & (1 << 8))
-      rflags_buf[3] = 'T';
-    if (info->rflags & (1 << 9))
-      rflags_buf[2] = 'I';
-    if (info->rflags & (1 << 10))
-      rflags_buf[1] = 'D';
-    if (info->rflags & (1 << 11))
-      rflags_buf[0] = 'O';
-    printf("\nKernel fault %s (cpu=%u, error=0x%lx)\n"
-           "RIP=%016lx CS=%04lx SS=%04lx DPL=%lu\n"
-           "RFL=%016lx [%s]\n"
-           "RSP=%016lx RBP=%016lx CR2=%08lx\n"
-           "RSI=%016lx RDI=%016lx\n"
-           "RAX=%016lx RCX=%016lx RDX=%016lx\n"
-           "RBX=%016lx R8 =%016lx R9 =%016lx\n"
-           "R10=%016lx R11=%016lx R12=%016lx\n"
-           "R13=%016lx R14=%016lx R15=%016lx\n",
-           f.code, cpuid, error_code, info->rip, info->cs & 0xFFF8,
-           info->ss & 0xFFF8, info->cs & 0x7, info->rflags, rflags_buf,
-           info->rsp, regs->rbp, cr2, regs->rsi, regs->rdi, regs->rax,
-           regs->rcx, regs->rdx, regs->rbx, regs->r8, regs->r9, regs->r10,
-           regs->r11, regs->r12, regs->r13, regs->r14, regs->r15);
+    print(intr, &cb_regs, error_code);
     for (;;)
       asm volatile("hlt");
   } else if (intr == 0x21) {

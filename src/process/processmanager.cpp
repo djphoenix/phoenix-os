@@ -135,45 +135,7 @@ bool ProcessManager::HandleFault(
           (instrbuf[0] == 0xC3) ||  // ret
           false)
       || false) {
-    char rflags_buf[10] = "---------";
-    if (regs->rflags & (1 << 0))
-      rflags_buf[8] = 'C';
-    if (regs->rflags & (1 << 2))
-      rflags_buf[7] = 'P';
-    if (regs->rflags & (1 << 4))
-      rflags_buf[6] = 'A';
-    if (regs->rflags & (1 << 6))
-      rflags_buf[5] = 'Z';
-    if (regs->rflags & (1 << 7))
-      rflags_buf[4] = 'S';
-    if (regs->rflags & (1 << 8))
-      rflags_buf[3] = 'T';
-    if (regs->rflags & (1 << 9))
-      rflags_buf[2] = 'I';
-    if (regs->rflags & (1 << 10))
-      rflags_buf[1] = 'D';
-    if (regs->rflags & (1 << 11))
-      rflags_buf[0] = 'O';
-    uint64_t cr2;
-    asm volatile("mov %%cr2, %0":"=a"(cr2));
-    const FAULT *f;
-    asm volatile("lea FAULTS(%%rip), %q0":"=r"(f));
-    f += intr;
-    printf("\nUserspace fault %s (cpu=%u, error=0x%x)\n"
-           "RIP=%016lx RSP=%016lx CS=%04x SS=%04x\n"
-           "RFL=%016lx [%s] CR2=%016lx\n"
-           "RBP=%016lx RSI=%016lx RDI=%016lx\n"
-           "RAX=%016lx RCX=%016lx RDX=%016lx\n"
-           "RBX=%016lx R8 =%016lx R9 =%016lx\n"
-           "R10=%016lx R11=%016lx R12=%016lx\n"
-           "R13=%016lx R14=%016lx R15=%016lx\n",
-           f->code, regs->cpuid, code,
-           regs->rip, regs->rsp, regs->cs, regs->ss,
-           regs->rflags, rflags_buf, cr2,
-           regs->rbp, regs->rsi, regs->rdi,
-           regs->rax, regs->rcx, regs->rdx, regs->rbx,
-           regs->r8, regs->r9, regs->r10, regs->r11,
-           regs->r12, regs->r13, regs->r14, regs->r15);
+    Interrupts::print(intr, regs, code);
   } else {
     printf("Exit\n");
   }

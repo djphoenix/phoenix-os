@@ -162,13 +162,6 @@ struct intcb_regs {
   uint64_t r12, r13, r14, r15;
 };
 
-struct FAULT {
-  char code[5];
-  bool has_error_code;
-} PACKED;
-
-extern const FAULT FAULTS[];
-
 typedef bool intcb(uint32_t intr, uint32_t code, intcb_regs *regs);
 
 struct intcbreg {
@@ -187,6 +180,7 @@ class Interrupts {
   static INTERRUPT32 interrupts32[256];
   static void init();
   static uint64_t handle(uint8_t intr, uint64_t stack, uint64_t *cr3);
+  static void print(uint8_t num, intcb_regs *regs, uint32_t code);
   static void maskIRQ(uint16_t mask);
   static uint16_t getIRQmask();
   static void addCallback(uint8_t intr, intcb* cb);
