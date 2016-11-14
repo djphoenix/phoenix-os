@@ -111,7 +111,6 @@ struct ioapic_redir {
 
 class ACPI {
  private:
-  AcpiMadt *madt;
   char *localApicAddr, *ioApicAddr;
   uint8_t ioApicMaxCount;
   uint32_t acpiCpuIds[256];
@@ -119,11 +118,11 @@ class ACPI {
   static uint8_t activeCpuCount;
   static uint64_t busfreq;
   static ACPI *controller;
-  bool ParseRsdp(void* rsdp);
-  void ParseRsdt(AcpiHeader* rsdt);
-  void ParseXsdt(AcpiHeader* xsdt);
-  void ParseDT(AcpiHeader* dt);
-  void ParseApic(AcpiMadt *madt);
+  bool ParseRsdp(const void* rsdp);
+  void ParseRsdt(const AcpiHeader* rsdt);
+  void ParseXsdt(const AcpiHeader* xsdt);
+  void ParseDT(const AcpiHeader* dt);
+  void ParseApic(const AcpiMadt *madt);
   void initIOAPIC();
   void initCPU();
 

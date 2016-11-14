@@ -23,8 +23,8 @@ ACPI* ACPI::controller = 0;
 uint8_t ACPI::activeCpuCount = 0;
 uint64_t ACPI::busfreq = 0;
 
-static void *const ACPI_FIND_START = reinterpret_cast<char*>(0x000e0000);
-static void *const ACPI_FIND_TOP = reinterpret_cast<char*>(0x000fffff);
+static const void *const ACPI_FIND_START = reinterpret_cast<char*>(0x000e0000);
+static const void *const ACPI_FIND_TOP = reinterpret_cast<char*>(0x000fffff);
 static const uint64_t ACPI_SIG_RTP_DSR = 0x2052545020445352;
 static const uint32_t ACPI_SIG_CIPA = 0x43495041;
 
@@ -41,8 +41,8 @@ ACPI* ACPI::getController() {
 }
 
 ACPI::ACPI() {
-  uint64_t *p = static_cast<uint64_t*>(ACPI_FIND_START);
-  uint64_t *end = static_cast<uint64_t*>(ACPI_FIND_TOP);
+  const uint64_t *p = static_cast<const uint64_t*>(ACPI_FIND_START);
+  const uint64_t *end = static_cast<const uint64_t*>(ACPI_FIND_TOP);
   acpiCpuCount = 0;
   activeCpuCount = 1;
 
@@ -75,16 +75,16 @@ ACPI::ACPI() {
   LapicOut(LAPIC_LVT_TMR, LAPIC_DISABLE);
   busfreq = ((-1 - LapicIn(LAPIC_TMRCURRCNT)) << 4) * 100;
 }
-void ACPI::ParseDT(AcpiHeader *header) {
+void ACPI::ParseDT(const AcpiHeader *header) {
   Pagetable::map(header);
 
   if (header->signature == ACPI_SIG_CIPA)
-    ParseApic(reinterpret_cast<AcpiMadt*>(header));
+    ParseApic(reinterpret_cast<const AcpiMadt*>(header));
 }
-void ACPI::ParseRsdt(AcpiHeader *rsdt) {
+void ACPI::ParseRsdt(const AcpiHeader *rsdt) {
   Pagetable::map(rsdt);
-  uint32_t *p = reinterpret_cast<uint32_t*>(rsdt + 1);
-  uint32_t *end = p + (rsdt->length - sizeof(*rsdt)) / sizeof(uint32_t);
+  const uint32_t *p = reinterpret_cast<const uint32_t*>(rsdt + 1);
+  const uint32_t *end = p + (rsdt->length - sizeof(*rsdt)) / sizeof(uint32_t);
 
   while (p < end) {
     Pagetable::map(p);
@@ -93,10 +93,10 @@ void ACPI::ParseRsdt(AcpiHeader *rsdt) {
     ParseDT(reinterpret_cast<AcpiHeader*>(address));
   }
 }
-void ACPI::ParseXsdt(AcpiHeader *xsdt) {
+void ACPI::ParseXsdt(const AcpiHeader *xsdt) {
   Pagetable::map(xsdt);
-  uint64_t *p = reinterpret_cast<uint64_t*>(xsdt + 1);
-  uint64_t *end = p + (xsdt->length - sizeof(*xsdt)) / sizeof(uint64_t);
+  const uint64_t *p = reinterpret_cast<const uint64_t*>(xsdt + 1);
+  const uint64_t *end = p + (xsdt->length - sizeof(*xsdt)) / sizeof(uint64_t);
 
   while (p < end) {
     Pagetable::map(p);
@@ -105,32 +105,32 @@ void ACPI::ParseXsdt(AcpiHeader *xsdt) {
     ParseDT(reinterpret_cast<AcpiHeader*>(address));
   }
 }
-void ACPI::ParseApic(AcpiMadt *a_madt) {
-  Pagetable::map(a_madt);
-  madt = a_madt;
+void ACPI::ParseApic(const AcpiMadt *madt) {
+  Pagetable::map(madt);
 
   localApicAddr = reinterpret_cast<char*>(madt->localApicAddr);
   Pagetable::map(localApicAddr);
 
-  uint8_t *p = reinterpret_cast<uint8_t*>(madt + 1);
-  uint8_t *end = p + (madt->header.length - sizeof(AcpiMadt));
+  const uint8_t *p = reinterpret_cast<const uint8_t*>(madt + 1);
+  const uint8_t *end = p + (madt->header.length - sizeof(AcpiMadt));
 
   while (p < end) {
-    ApicHeader *header = reinterpret_cast<ApicHeader*>(p);
+    const ApicHeader *header = reinterpret_cast<const ApicHeader*>(p);
     Pagetable::map(header);
     Pagetable::map(header + 1);
     uint16_t type = header->type;
     uint16_t length = header->length;
     Pagetable::map(header);
     if (type == 0) {
-      ApicLocalApic *s = reinterpret_cast<ApicLocalApic*>(p);
+      const ApicLocalApic *s = reinterpret_cast<const ApicLocalApic*>(p);
       acpiCpuIds[acpiCpuCount++] = s->apicId;
     } else if (type == 1) {
-      ApicIoApic *s = reinterpret_cast<ApicIoApic*>(p);
+      const ApicIoApic *s = reinterpret_cast<const ApicIoApic*>(p);
       ioApicAddr = reinterpret_cast<char*>(s->ioApicAddress);
       Pagetable::map(ioApicAddr);
     } else if (type == 2) {
-      ApicInterruptOverride *s = reinterpret_cast<ApicInterruptOverride*>(p);
+      const ApicInterruptOverride *s =
+          reinterpret_cast<const ApicInterruptOverride*>(p);
       (void)s;
       // TODO: handle interrupt overrides
     }
@@ -138,8 +138,8 @@ void ACPI::ParseApic(AcpiMadt *a_madt) {
     p += length;
   }
 }
-bool ACPI::ParseRsdp(void *ptr) {
-  uint8_t *p = static_cast<uint8_t*>(ptr);
+bool ACPI::ParseRsdp(const void *ptr) {
+  const uint8_t *p = static_cast<const uint8_t*>(ptr);
 
   uint8_t sum = 0;
   for (int i = 0; i < 20; ++i)
@@ -153,8 +153,8 @@ bool ACPI::ParseRsdp(void *ptr) {
   oem[6] = 0;
 
   char revision = p[15];
-  uint32_t *rsdtPtr = static_cast<uint32_t*>(ptr) + 4;
-  uint64_t *xsdtPtr = static_cast<uint64_t*>(ptr) + 3;
+  const uint32_t *rsdtPtr = static_cast<const uint32_t*>(ptr) + 4;
+  const uint64_t *xsdtPtr = static_cast<const uint64_t*>(ptr) + 3;
 
   Pagetable::map(rsdtPtr);
   Pagetable::map(rsdtPtr + 1);
