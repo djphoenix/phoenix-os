@@ -107,10 +107,10 @@ uintptr_t Process::addSection(SectionType type, size_t size) {
   uintptr_t vaddr = 0xF000000000;
   if (type == SectionTypeStack)
     vaddr = 0xA000000000;
-  check: for (uintptr_t caddr = vaddr; caddr < vaddr + size; caddr += 0x1000) {
+  for (uintptr_t caddr = vaddr; caddr < vaddr + size; caddr += 0x1000) {
     if (getPhysicalAddress(vaddr) != 0) {
       vaddr += 0x1000;
-      goto check;
+      caddr = vaddr - 0x1000;
     }
   }
   uintptr_t addr = vaddr;
