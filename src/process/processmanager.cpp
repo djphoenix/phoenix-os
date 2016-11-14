@@ -222,10 +222,11 @@ void ProcessManager::queueThread(Process *process, Thread *thread) {
   q->next = 0;
   uint64_t t = EnterCritical();
   processSwitchMutex.lock();
-  if (lastThread)
-    lastThread->next = q;
-  else
+  if (lastThread) {
+    lastThread = (lastThread->next = q);
+  } else {
     lastThread = nextThread = q;
+  }
   processSwitchMutex.release();
   LeaveCritical(t);
 }
