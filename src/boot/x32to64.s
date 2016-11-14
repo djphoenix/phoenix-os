@@ -209,6 +209,13 @@ _efi_start: # EFI
   jmp efi_main
 
 x64_entry:
+  call static_init
+  mov %rsp, %rbp
+  jmp main
+
+static_init:
+  push %rbp
+  push %rax
   lea __INIT_LIST__(%rip), %rbp
 1:
   add $8, %rbp
@@ -227,8 +234,9 @@ x64_entry:
   callq *%rax
   jmp 3b
 4:
-  mov %rsp, %rbp
-  jmp main
+  pop %rax
+  pop %rbp
+  ret  
 
 __main: # Fix for Windows builds
   ret
