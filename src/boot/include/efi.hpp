@@ -17,35 +17,35 @@
 #pragma once
 #include "kernlib.hpp"
 
-#define _EFIERR 0x8000000000000000LL
 #define EFIAPI __attribute__((ms_abi))
 
 enum EFI_STATUS: uint64_t {
   EFI_SUCCESS = 0,
-  EFI_LOAD_ERROR = _EFIERR | 1,
-  EFI_INVALID_PARAMETER = _EFIERR | 2,
-  EFI_UNSUPPORTED = _EFIERR | 3,
-  EFI_BAD_BUFFER_SIZE = _EFIERR | 4,
-  EFI_BUFFER_TOO_SMALL = _EFIERR | 5,
-  EFI_NOT_READY = _EFIERR | 6,
-  EFI_DEVICE_ERROR = _EFIERR | 7,
-  EFI_WRITE_PROTECTED = _EFIERR | 8,
-  EFI_OUT_OF_RESOURCES = _EFIERR | 9,
-  EFI_VOLUME_CORRUPTED = _EFIERR | 10,
-  EFI_VOLUME_FULL = _EFIERR | 11,
-  EFI_NO_MEDIA = _EFIERR | 12,
-  EFI_MEDIA_CHANGED = _EFIERR | 13,
-  EFI_NOT_FOUND = _EFIERR | 14,
-  EFI_ACCESS_DENIED = _EFIERR | 15,
-  EFI_NO_RESPONSE = _EFIERR | 16,
-  EFI_NO_MAPPING = _EFIERR | 17,
-  EFI_TIMEOUT = _EFIERR | 18,
-  EFI_NOT_STARTED = _EFIERR | 19,
-  EFI_ALREADY_STARTED = _EFIERR | 20,
-  EFI_ABORTED = _EFIERR | 21,
-  EFI_ICMP_ERROR = _EFIERR | 22,
-  EFI_TFTP_ERROR = _EFIERR | 23,
-  EFI_PROTOCOL_ERROR = _EFIERR | 24
+  EFI_ERROR = 0x8000000000000000LL,
+  EFI_LOAD_ERROR = EFI_ERROR | 1,
+  EFI_INVALID_PARAMETER = EFI_ERROR | 2,
+  EFI_UNSUPPORTED = EFI_ERROR | 3,
+  EFI_BAD_BUFFER_SIZE = EFI_ERROR | 4,
+  EFI_BUFFER_TOO_SMALL = EFI_ERROR | 5,
+  EFI_NOT_READY = EFI_ERROR | 6,
+  EFI_DEVICE_ERROR = EFI_ERROR | 7,
+  EFI_WRITE_PROTECTED = EFI_ERROR | 8,
+  EFI_OUT_OF_RESOURCES = EFI_ERROR | 9,
+  EFI_VOLUME_CORRUPTED = EFI_ERROR | 10,
+  EFI_VOLUME_FULL = EFI_ERROR | 11,
+  EFI_NO_MEDIA = EFI_ERROR | 12,
+  EFI_MEDIA_CHANGED = EFI_ERROR | 13,
+  EFI_NOT_FOUND = EFI_ERROR | 14,
+  EFI_ACCESS_DENIED = EFI_ERROR | 15,
+  EFI_NO_RESPONSE = EFI_ERROR | 16,
+  EFI_NO_MAPPING = EFI_ERROR | 17,
+  EFI_TIMEOUT = EFI_ERROR | 18,
+  EFI_NOT_STARTED = EFI_ERROR | 19,
+  EFI_ALREADY_STARTED = EFI_ERROR | 20,
+  EFI_ABORTED = EFI_ERROR | 21,
+  EFI_ICMP_ERROR = EFI_ERROR | 22,
+  EFI_TFTP_ERROR = EFI_ERROR | 23,
+  EFI_PROTOCOL_ERROR = EFI_ERROR | 24
 };
 
 static const uint64_t EFI_SYSTEM_TABLE_SIGNATURE = 0x4942492053595354LL;
@@ -84,21 +84,6 @@ enum EFI_TPL {
   EFI_TPL_HIGH_LEVEL = 31
 };
 
-struct EFI_TABLE_HEADER {
-  uint64_t Signature;
-  uint32_t Revision;
-  uint32_t HeaderSize;
-  uint32_t CRC32;
-  uint32_t Reserved;
-};
-
-struct EFI_GUID {
-  uint32_t Data1;
-  uint16_t Data2;
-  uint16_t Data3;
-  uint8_t Data4[8];
-};
-
 enum EFI_MEMORY_TYPE: uint32_t {
   EFI_MEMORY_TYPE_RESERVED,
   EFI_MEMORY_TYPE_LOADER,
@@ -113,26 +98,7 @@ enum EFI_MEMORY_TYPE: uint32_t {
   EFI_MEMORY_TYPE_ACPI_NVS,
   EFI_MEMORY_TYPE_MAPPED_IO,
   EFI_MEMORY_TYPE_MAPPED_IO_PORTSPACE,
-  EFI_MEMORY_TYPE_PAL_CODE,
-  EFI_MEMORY_TYPE_MAX
-};
-
-static const char EFI_MEMORY_TYPE_STR[][16] = {
-  "RESERVED",
-  "LOADER",
-  "DATA",
-  "BS_CODE",
-  "BS_DATA",
-  "RS_CODE",
-  "RS_DATA",
-  "CONVENTIONAL",
-  "UNUSABLE",
-  "ACPI_RECLAIM",
-  "ACPI_NVS",
-  "MAPPED_IO",
-  "MAPPED_IO_PORT",
-  "PAL_CODE",
-  "MAX"
+  EFI_MEMORY_TYPE_PAL_CODE
 };
 
 enum EFI_MEMORY_ATTR: uint64_t {
@@ -145,6 +111,28 @@ enum EFI_MEMORY_ATTR: uint64_t {
   EFI_MEMORY_RP = 0x2000,
   EFI_MEMORY_XP = 0x4000,
   EFI_MEMORY_RUNTIME = 0x8000000000000000L
+};
+
+enum EFI_ALLOCATE_TYPE {
+  EFI_ALLOCATE_TYPE_ANY,
+  EFI_ALLOCATE_TYPE_MAX,
+  EFI_ALLOCATE_TYPE_ADDR
+};
+
+struct EFI_TABLE_HEADER {
+  uint64_t Signature;
+  uint32_t Revision;
+  uint32_t HeaderSize;
+  uint32_t CRC32;
+  uint32_t Reserved;
+};
+
+struct EFI_GUID {
+  uint32_t Data1;
+  uint16_t Data2;
+  uint16_t Data3;
+  uint16_t Data4;
+  uint64_t Data5:48;
 };
 
 struct EFI_MEMORY_DESCRIPTOR {
@@ -234,8 +222,10 @@ struct EFI_BOOT_SERVICES_TABLE {
   EFI_TABLE_HEADER Hdr;
   EFI_STATUS EFIAPI(*const RaisePriority)(EFI_TPL NewTpl);
   EFI_STATUS EFIAPI(*const RestorePriority)(EFI_TPL OldTpl);
-  const void *AllocatePages;
-  const void *FreePages;
+  EFI_STATUS EFIAPI(*const AllocatePages)(
+      EFI_ALLOCATE_TYPE Type, EFI_MEMORY_TYPE MemoryType, uint64_t NoPages,
+      void **Address);
+  EFI_STATUS EFIAPI(*const FreePages)(void *pages, uint64_t NoPages);
   EFI_STATUS EFIAPI(*const GetMemoryMap)(
       uint64_t *MemoryMapSize, EFI_MEMORY_DESCRIPTOR *MemoryMap,
       uint64_t *MapKey, uint64_t *DescriptorSize, uint32_t *DescriptorVersion);
@@ -320,6 +310,21 @@ struct EFI_CONFIGURATION_TABLE {
   const void *VendorTable;
 };
 
+static inline bool operator ==(const EFI_GUID lhs, const EFI_GUID rhs) {
+  return
+      lhs.Data1 == rhs.Data1 &&
+      lhs.Data2 == rhs.Data2 &&
+      lhs.Data3 == rhs.Data3 &&
+      lhs.Data4 == rhs.Data4 &&
+      lhs.Data5 == rhs.Data5;
+}
+
+static const EFI_GUID EFI_CONF_TABLE_GUID_ACPI1 =
+  { 0xEB9D2D30, 0x2D88, 0x11D3, 0x169A, 0x4DC13F279000 };
+
+static const EFI_GUID EFI_CONF_TABLE_GUID_ACPI2 =
+  { 0x8868E871, 0xE4F1, 0x11D3, 0x22BC, 0x81883CC78000 };
+
 struct EFI_SYSTEM_TABLE {
   EFI_TABLE_HEADER Hdr;
   const wchar_t *FirmwareVendor;
@@ -332,6 +337,13 @@ struct EFI_SYSTEM_TABLE {
   const EFI_SIMPLE_TEXT_OUTPUT_INTERFACE *StdErr;
   const EFI_RUNTIME_SERVICES_TABLE *RuntimeServices;
   const EFI_BOOT_SERVICES_TABLE *BootServices;
-  uint8_t NumberOfTableEntries;
+  uint64_t NumberOfTableEntries;
   const EFI_CONFIGURATION_TABLE *ConfigurationTable;
+};
+
+class EFI {
+ private:
+  static const EFI_SYSTEM_TABLE *SystemTable;
+ public:
+  static const EFI_SYSTEM_TABLE *getSystemTable();
 };

@@ -206,7 +206,9 @@ multiboot_entry:
 .code64
 
 _efi_start: # EFI
-  jmp efi_main
+  cli
+  # EFI::SystemTable
+  mov %rdx, _ZN3EFI11SystemTableE(%rip)
 
 x64_entry:
   call reloc_vtables
