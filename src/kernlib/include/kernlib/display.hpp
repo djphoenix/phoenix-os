@@ -20,7 +20,10 @@
 
 class Display {
  private:
+  static Display *initInstance();
   static Display *instance;
+ protected:
+  Mutex mutex;
  public:
   static Display *getInstance();
   virtual void clean() = 0;
@@ -35,7 +38,6 @@ class ConsoleDisplay: public Display {
   static const size_t size;
   char *display;
   void putc(const char c);
-  Mutex mutex;
  public:
   ConsoleDisplay();
   void write(const char *str);

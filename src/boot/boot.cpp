@@ -23,7 +23,6 @@
 #include "processmanager.hpp"
 
 void NORETURN main() {
-  Display::getInstance()->clean();
   Pagetable::init();
   SMP::init();
   ModuleManager::init();

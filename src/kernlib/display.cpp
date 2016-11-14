@@ -22,6 +22,7 @@ const size_t ConsoleDisplay::size = ConsoleDisplay::top - ConsoleDisplay::base;
 
 ConsoleDisplay::ConsoleDisplay() {
   display = base;
+  clean();
 }
 
 void ConsoleDisplay::putc(const char c) {
@@ -60,16 +61,18 @@ void ConsoleDisplay::clean() {
 }
 
 static Mutex instanceMutex;
-static ConsoleDisplay defaultDisplay;
-Display *Display::instance;
+static ConsoleDisplay sharedConsole;
+Display *Display::instance = Display::initInstance();
+
+Display *Display::initInstance() {
+  return &sharedConsole;
+}
 
 Display *Display::getInstance() {
   if (instance) return instance;
   instanceMutex.lock();
-  if (!instance) {
-    instance = &defaultDisplay;
-    // TODO: create dynamic instance
-  }
+  if (!instance)
+    instance = initInstance();
   instanceMutex.release();
   return instance;
 }
