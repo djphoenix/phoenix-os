@@ -209,9 +209,27 @@ _efi_start: # EFI
   jmp efi_main
 
 x64_entry:
+  call reloc_vtables
   call static_init
   mov %rsp, %rbp
   jmp main
+  
+reloc_vtables:
+  lea _start(%rip), %rcx
+  sub $_start, %rcx
+  lea __VTABLE_START__(%rip), %rbp
+  lea __VTABLE_END__(%rip), %rdx
+1:
+  cmp %rbp, %rdx
+  je 3f
+  cmp $0, (%rbp)
+  je 2f
+  add %rcx, (%rbp)
+2:
+  add $8, %rbp
+  jmp 1b
+3:
+  ret
 
 static_init:
   push %rbp

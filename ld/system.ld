@@ -45,14 +45,17 @@ SECTIONS
         *(.rodata .rodata.*)
          . = ALIGN(8);
         
+        __VTABLE_START__ = . ;
         ___INIT_LIST__ = .; __INIT_LIST__ = . ;
-        LONG (-1); LONG (-1); *(.init_array*) LONG (0); LONG (0);
+        LONG (0); LONG (0); *(.init_array*) LONG (0); LONG (0);
         ___CTOR_LIST__ = .; __CTOR_LIST__ = . ;
-        LONG (-1); LONG (-1); *(.ctors); *(.ctor); *(SORT(.ctors.*));  LONG (0); LONG (0);
+        LONG (0); LONG (0); *(.ctors); *(.ctor); *(SORT(.ctors.*));  LONG (0); LONG (0);
         ___DTOR_LIST__ = .; __DTOR_LIST__ = . ;
-        LONG (-1); LONG (-1); *(.dtors); *(.dtor); *(SORT(.dtors.*));  LONG (0); LONG (0);
-        *(.data .data.*)
+        LONG (0); LONG (0); *(.dtors); *(.dtor); *(SORT(.dtors.*));  LONG (0); LONG (0);
+        *(.data.rel.*)
+        __VTABLE_END__ = . ;
         *(.got .got.*)
+        *(.data .data.*)
         __data_end__ = . ;
 
         __modules_start__ = . ;
