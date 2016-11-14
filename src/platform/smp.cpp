@@ -60,7 +60,25 @@ void SMP::setup_gdt() {
   uint32_t cpuid = acpi->getCPUID();
   uint16_t tr = 5 * sizeof(GDT_ENT) + cpuid * sizeof(GDT_SYS_ENT);
   uint64_t t = EnterCritical();
-  asm volatile("lgdtq %0; ltr %w1"::"m"(gdtrec), "a"(tr));
+
+  asm volatile(
+      "mov %%rsp, %%rcx;"
+      "pushq $16;"
+      "pushq %%rcx;"
+      "pushfq;"
+      "pushq $8;"
+      "lea 1f(%%rip), %%rcx;"
+      "pushq %%rcx;"
+      "lgdtq %0;"
+      "ltr %w1;"
+      "iretq;"
+      "1:"
+      "mov %%ss, %%ax;"
+      "mov %%ax, %%ds;"
+      "mov %%ax, %%es;"
+      "mov %%ax, %%gs;"
+      ::"m"(gdtrec), "a"(tr):"%rcx");
+
   LeaveCritical(t);
 }
 
@@ -109,7 +127,8 @@ void SMP::init() {
   char smp_init_vector = (((uintptr_t)startupCode) >> 12) & 0xFF;
 
   asm("mov %%cr3, %q0":"=r"(info->pagetableptr));
-  asm("lea GDT64_PTR(%%rip), %q0":"=r"(info->gdtptr));
+  asm("lea gdtrec(%%rip), %q0":"=r"(info->gdtptr));
+
   info->lapicAddr = acpi->getLapicAddr();
   info->cpuids = new uint64_t[cpuCount]();
   info->stacks = new const char*[cpuCount]();
