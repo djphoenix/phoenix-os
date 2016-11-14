@@ -17,15 +17,10 @@
 #pragma once
 #include "std.hpp"
 
-extern "C" {
+int printf(const char *format, ...) __attribute__ ((format (printf, 1, 2)));
 
-  int printf(const char *format, ...)
-  __attribute__ ((format (printf, 1, 2)));
-
-  int snprintf(char *str, size_t size, const char *format, ...)
+int snprintf(char *str, size_t size, const char *format, ...)
   __attribute__ ((format (printf, 3, 4)));
 
-  int vprintf(const char *format, va_list ap);
-  int vsnprintf(char *str, size_t size, const char *format, va_list ap);
-
-}
+int vprintf(const char *format, va_list ap);
+int vsnprintf(char *str, size_t size, const char *format, va_list ap);

@@ -21,22 +21,18 @@
 #include <stdint.h>
 #include <stddef.h>
 
-template<typename T> T MAX(T a, T b) { return a > b ? a : b; }
-template<typename T> T MIN(T a, T b) { return a < b ? a : b; }
-template<typename T> T ABS(T a) { return a > 0 ? a : -a; }
+template<typename T> inline static T MAX(T a, T b) { return a > b ? a : b; }
+template<typename T> inline static T MIN(T a, T b) { return a < b ? a : b; }
+template<typename T> inline static T ABS(T a) { return a > 0 ? a : -a; }
 
 #define PACKED __attribute__((packed))
 #define NORETURN __attribute__((noreturn))
 
 #define alloca(size) __builtin_alloca((size))
 
-extern "C" {
-
-  size_t strlen(const char*, size_t limit = -1);
-  char* strdup(const char*);
-  int strcmp(const char*, const char*);
-
-}
+size_t strlen(const char*, size_t limit = -1);
+char* strdup(const char*);
+int strcmp(const char*, const char*);
 
 inline static uintptr_t ALIGN(uintptr_t base, size_t align) {
   if (base % align == 0)
