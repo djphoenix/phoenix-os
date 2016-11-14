@@ -85,6 +85,8 @@ ACPI::ACPI() {
     }
   }
 
+  LapicOut(LAPIC_TMRDIV, 3);
+  LapicOut(LAPIC_LVT_TMR, 0x20 | LAPIC_SW_ENABLE);
   outportb(0x61, (inportb(0x61) & 0xFD) | 1);
   outportb(0x43, 0xB2);
   outportb(0x42, 0x9B);
@@ -94,7 +96,7 @@ ACPI::ACPI() {
   outportb(0x61, t);
   outportb(0x61, t | 1);
   LapicOut(LAPIC_TMRINITCNT, -1);
-  while ((inportb(0x61) & 0x20) == 0) {}
+  while ((inportb(0x61) & 0x20) == (t & 0x20)) {}
   LapicOut(LAPIC_LVT_TMR, LAPIC_DISABLE);
   busfreq = ((-1 - LapicIn(LAPIC_TMRCURRCNT)) << 4) * 100;
 }
