@@ -17,6 +17,26 @@
 #include "kernlib.hpp"
 #include "efi.hpp"
 
+class ConsoleDisplay: public Display {
+ private:
+  static char *const base;
+  static char *const top;
+  static const size_t size;
+  char *display;
+  void putc(const char c);
+ public:
+  ConsoleDisplay();
+  void write(const char *str);
+  void clean();
+};
+
+class EFIDisplay: public Display {
+ public:
+  EFIDisplay();
+  void write(const char *str);
+  void clean();
+};
+
 char *const ConsoleDisplay::base = reinterpret_cast<char*>(0xB8000);
 char *const ConsoleDisplay::top = reinterpret_cast<char*>(0xB8FA0);
 const size_t ConsoleDisplay::size = ConsoleDisplay::top - ConsoleDisplay::base;

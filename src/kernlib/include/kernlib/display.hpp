@@ -30,23 +30,3 @@ class Display {
   virtual void write(const char*) = 0;
   virtual ~Display() = 0;
 };
-
-class ConsoleDisplay: public Display {
- private:
-  static char *const base;
-  static char *const top;
-  static const size_t size;
-  char *display;
-  void putc(const char c);
- public:
-  ConsoleDisplay();
-  void write(const char *str);
-  void clean();
-};
-
-class EFIDisplay: public Display {
- public:
-  EFIDisplay();
-  void write(const char *str);
-  void clean();
-};
