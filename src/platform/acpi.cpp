@@ -16,6 +16,7 @@
 
 #include "acpi.hpp"
 
+#include "efi.hpp"
 #include "cpu.hpp"
 #include "pagetable.hpp"
 
@@ -41,8 +42,6 @@ ACPI* ACPI::getController() {
 }
 
 ACPI::ACPI() {
-  const uint64_t *p = static_cast<const uint64_t*>(ACPI_FIND_START);
-  const uint64_t *end = static_cast<const uint64_t*>(ACPI_FIND_TOP);
   acpiCpuCount = 0;
   activeCpuCount = 1;
 
@@ -51,15 +50,39 @@ ACPI::ACPI() {
     return;
   }
 
-  while (p < end) {
-    Pagetable::map(p);
-    Pagetable::map(p + 1);
-    uint64_t signature = *p;
+  const EFI_SYSTEM_TABLE *ST = EFI::getSystemTable();
+  if (ST && ST->ConfigurationTable) {
+    const EFI_CONFIGURATION_TABLE *acpi1 = 0, *acpi2 = 0;
+    for (uint64_t i = 0; i < ST->NumberOfTableEntries; i++) {
+      const EFI_CONFIGURATION_TABLE *tbl = ST->ConfigurationTable + i;
+      if (tbl->VendorGuid == EFI_CONF_TABLE_GUID_ACPI1) acpi1 = tbl;
+      if (tbl->VendorGuid == EFI_CONF_TABLE_GUID_ACPI2) acpi2 = tbl;
+    }
 
-    if ((signature == ACPI_SIG_RTP_DSR) && ParseRsdp(p))
-      break;
+    bool found = 0;
+    if (acpi2) {
+      const uint64_t *ptr =
+          reinterpret_cast<const uint64_t*>(acpi2->VendorTable);
+      if ((*ptr == ACPI_SIG_RTP_DSR) && ParseRsdp(ptr)) found = 1;
+    }
+    if (!found && acpi1) {
+      const uint64_t *ptr =
+          reinterpret_cast<const uint64_t*>(acpi1->VendorTable);
+      if ((*ptr == ACPI_SIG_RTP_DSR) && ParseRsdp(ptr)) found = 1;
+    }
+  } else {
+    const uint64_t *p = static_cast<const uint64_t*>(ACPI_FIND_START);
+    const uint64_t *end = static_cast<const uint64_t*>(ACPI_FIND_TOP);
+    while (p < end) {
+      Pagetable::map(p);
+      Pagetable::map(p + 1);
+      uint64_t signature = *p;
 
-    p += 2;
+      if ((signature == ACPI_SIG_RTP_DSR) && ParseRsdp(p))
+        break;
+
+      p += 2;
+    }
   }
 
   outportb(0x61, (inportb(0x61) & 0xFD) | 1);
