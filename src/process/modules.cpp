@@ -99,7 +99,7 @@ void ModuleManager::parseInternal() {
 void ModuleManager::parseInitRD() {
   MULTIBOOT_PAYLOAD *multiboot;
   asm("mov multiboot(%%rip), %q0":"=r"(multiboot));
-  if ((multiboot->flags & MB_FLAG_MODS) == 0) return;
+  if (!multiboot || (multiboot->flags & MB_FLAG_MODS) == 0) return;
   const MULTIBOOT_MODULE *mods =
       reinterpret_cast<const MULTIBOOT_MODULE*>(multiboot->pmods_addr);
   for (uint32_t i = 0; i < multiboot->mods_count; i++) {
