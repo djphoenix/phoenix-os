@@ -43,3 +43,10 @@ class ConsoleDisplay: public Display {
   void write(const char *str);
   void clean();
 };
+
+class EFIDisplay: public Display {
+ public:
+  EFIDisplay();
+  void write(const char *str);
+  void clean();
+};

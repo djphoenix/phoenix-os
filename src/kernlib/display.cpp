@@ -15,12 +15,14 @@
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "kernlib.hpp"
+#include "efi.hpp"
 
 char *const ConsoleDisplay::base = reinterpret_cast<char*>(0xB8000);
 char *const ConsoleDisplay::top = reinterpret_cast<char*>(0xB8FA0);
 const size_t ConsoleDisplay::size = ConsoleDisplay::top - ConsoleDisplay::base;
 
 ConsoleDisplay::ConsoleDisplay() {
+  if (EFI::getSystemTable() != 0) return;
   display = base;
   clean();
 }
@@ -60,11 +62,57 @@ void ConsoleDisplay::clean() {
   mutex.release();
 }
 
+EFIDisplay::EFIDisplay() {
+  const EFI_SYSTEM_TABLE *ST = EFI::getSystemTable();
+  ST->ConOut->Reset(ST->ConOut, 1);
+  uint64_t cols = 0, rows = 0, bestmode = 0;
+  for (uint64_t m = 0; m < ST->ConOut->Mode->MaxMode; m++) {
+    uint64_t c = 0, r = 0;
+    ST->ConOut->QueryMode(ST->ConOut, m, &c, &r);
+    if (c > cols || r > rows) {
+      cols = c; rows = r; bestmode = m;
+    }
+  }
+  if (ST->ConOut->Mode->Mode != bestmode)
+    ST->ConOut->SetMode(ST->ConOut, bestmode);
+  ST->ConOut->SetAttribute(ST->ConOut, {{ EFI_COLOR_WHITE, EFI_COLOR_BLACK }});
+}
+
+void EFIDisplay::clean() {
+  const EFI_SYSTEM_TABLE *ST = EFI::getSystemTable();
+  mutex.lock();
+  ST->ConOut->ClearScreen(ST->ConOut);
+  mutex.release();
+}
+
+void EFIDisplay::write(const char *str) {
+  size_t wlen = 0;
+  const char *s = str; char c;
+  while ((c = *s++) != 0)
+    wlen += (c == '\r') ? 0 : ((c == '\n') ? 2 : 1);
+  wchar_t *wstr =
+      reinterpret_cast<wchar_t*>(alloca((wlen + 1) * sizeof(wchar_t))),
+      *ws = wstr;
+  s = str;
+  while ((c = *s++) != 0) {
+    if (c == '\r') continue;
+    if (c == '\n') *ws++ = '\r';
+    *ws++ = c;
+  }
+  *ws++ = 0;
+
+  const EFI_SYSTEM_TABLE *ST = EFI::getSystemTable();
+  mutex.lock();
+  ST->ConOut->OutputString(ST->ConOut, wstr);
+  mutex.release();
+}
+
 static Mutex instanceMutex;
 static ConsoleDisplay sharedConsole;
 Display *Display::instance = Display::initInstance();
 
 Display *Display::initInstance() {
+  if (EFI::getSystemTable()) return new EFIDisplay();
   return &sharedConsole;
 }
 
