@@ -16,4 +16,7 @@
 
 #include "multiboot_info.hpp"
 
-MULTIBOOT_PAYLOAD *multiboot;
+MULTIBOOT_PAYLOAD *Multiboot::payload = 0;
+MULTIBOOT_PAYLOAD *Multiboot::getPayload() {
+  return payload;
+}

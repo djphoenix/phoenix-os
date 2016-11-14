@@ -63,4 +63,9 @@ struct MULTIBOOT_MMAP_ENT {
   uint32_t type;
 } PACKED;
 
-extern MULTIBOOT_PAYLOAD *multiboot;
+class Multiboot {
+ private:
+  static MULTIBOOT_PAYLOAD *payload;
+ public:
+  static MULTIBOOT_PAYLOAD *getPayload();
+};

@@ -40,8 +40,7 @@ void Pagetable::init() {
   char *modules_start, *modules_top;
   char *bss_start, *bss_top;
 
-  MULTIBOOT_PAYLOAD *multiboot;
-  asm("mov multiboot(%%rip), %q0":"=r"(multiboot));
+  MULTIBOOT_PAYLOAD *multiboot = Multiboot::getPayload();
 
   asm("mov %%cr3, %q0":"=r"(pagetable));
   asm("lea __stack_start__(%%rip), %q0":"=r"(stack_start));

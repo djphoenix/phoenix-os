@@ -66,7 +66,8 @@ multiboot_entry:
   jge 1f
   add %edi, %ebx
 1:
-  mov %ebx, multiboot-_start(%ebp)
+  # Multiboot::payload
+  mov %ebx, _ZN9Multiboot7payloadE-_start(%ebp)
 
   # Moving first 512K to BSS
   xor %esi, %esi
