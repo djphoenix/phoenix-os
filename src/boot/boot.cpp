@@ -26,7 +26,6 @@ void NORETURN main() {
   Display::getInstance()->clean();
   Pagetable::init();
   SMP::init();
-  Interrupts::init();
   ModuleManager::init();
   process_loop();
 }

@@ -99,6 +99,7 @@ void SMP::init() {
   uint32_t cpuCount = acpi->getCPUCount();
   if (cpuCount == 1) {
     setup_gdt();
+    Interrupts::loadVector();
     return;
   }
 
@@ -161,6 +162,7 @@ void SMP::init() {
     }
   }
 
+  Interrupts::loadVector();
   cpuinit.release();
 
   delete[] info->cpuids;
