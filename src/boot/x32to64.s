@@ -209,6 +209,11 @@ _efi_start: # EFI
   cli
   # EFI::SystemTable
   mov %rdx, _ZN3EFI11SystemTableE(%rip)
+  mov $0xFF, %al
+  mov $0x21, %dx
+  outb %al, %dx
+  mov $0xA1, %dx
+  outb %al, %dx
 
 x64_entry:
   call reloc_vtables
