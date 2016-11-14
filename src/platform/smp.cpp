@@ -38,10 +38,10 @@ void SMP::init_gdt(uint32_t ncpu) {
   gdtrec.addr = gdt;
   gdtrec.limit = GDT::size(ncpu) - 1;
   gdt->ents[0] = GDT_ENT();
-  gdt->ents[1] = GDT_ENT(0, 0, 0xA, 0, 1, 1, 0, 1, 0, 0);
-  gdt->ents[2] = GDT_ENT(0, 0, 0x2, 0, 1, 1, 0, 1, 0, 0);
-  gdt->ents[3] = GDT_ENT(0, 0xFFFFFFFFFFFFFFFF, 0xA, 3, 1, 1, 0, 1, 0, 0);
-  gdt->ents[4] = GDT_ENT(0, 0xFFFFFFFFFFFFFFFF, 0x2, 3, 1, 1, 0, 1, 0, 0);
+  gdt->ents[1] = GDT_ENT(0, 0xFFFFFFFFFFFFFFFF, 0xA, 0, 1, 1, 0, 1, 0, 1);
+  gdt->ents[2] = GDT_ENT(0, 0xFFFFFFFFFFFFFFFF, 0x2, 0, 1, 1, 0, 0, 1, 1);
+  gdt->ents[3] = GDT_ENT(0, 0xFFFFFFFFFFFFFFFF, 0xA, 3, 1, 1, 0, 1, 0, 1);
+  gdt->ents[4] = GDT_ENT(0, 0xFFFFFFFFFFFFFFFF, 0x2, 3, 1, 1, 0, 0, 1, 1);
   for (uint32_t idx = 0; idx < ncpu; idx++) {
     void *stack = Pagetable::alloc();
     uintptr_t stack_ptr = (uintptr_t)stack + 0x1000;

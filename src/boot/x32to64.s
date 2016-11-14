@@ -242,16 +242,16 @@ aNoCPUID: .ascii "Your CPU are not support CPUID instruction\0"
 
 GDT64_PTR:
 GDT64.Pointer:
-  .short GDT64 - GDT64.End - 1
+  .short GDT64.End - GDT64 - 1
   .quad GDT64
 
 GDT64:
 GDT64.Null:
   .quad 0
 GDT64.Code:
-  .long 0, 0x00209800
+  .quad 0x00AF9A000000FFFF
 GDT64.Data:
-  .long 0, 0x00009200
+  .quad 0x00CF92000000FFFF
 GDT64.End:
 
   .section .reloc, "a"
