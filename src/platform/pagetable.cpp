@@ -224,6 +224,10 @@ void* Pagetable::_alloc(uint8_t avl, bool nolow) {
         ent = reinterpret_cast<EFI_MEMORY_DESCRIPTOR*>(
             (uintptr_t)ent + entsize)) {
       if (ent->Type != EFI_MEMORY_TYPE_CONVENTIONAL) continue;
+      if (ent->PhysicalStart == 0) {
+        ent->PhysicalStart += 0x1000; ent->NumberOfPages--;
+        if (ent->NumberOfPages == 0) continue;
+      }
       if (nolow) {
         if ((ent->PhysicalStart + ent->NumberOfPages * 0x1000) < 0x100000)
           continue;
