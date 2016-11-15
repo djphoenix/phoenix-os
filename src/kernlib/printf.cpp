@@ -16,9 +16,9 @@
 
 #include "kernlib.hpp"
 
-static char *longlong_to_string(char *buf, size_t len, uint64_t n, uint8_t base,
-                                bool fl_signed, bool fl_showsign,
-                                bool fl_caps) {
+static inline char *longlong_to_string(
+    char *buf, size_t len, uint64_t n, uint8_t base,
+    bool fl_signed, bool fl_showsign, bool fl_caps) {
   int pos = len;
   char table_start = fl_caps ? 'A' : 'a';
   bool negative = 0;

@@ -19,6 +19,8 @@
 #include "readelf.hpp"
 #include "multiboot_info.hpp"
 
+Mutex ModuleManager::managerMutex;
+
 bool ModuleManager::parseModuleInfo(MODULEINFO *info, Process *process) {
   struct {
     uintptr_t entry, name, version, desc, reqs, dev;
@@ -110,13 +112,13 @@ void ModuleManager::init() {
   mm->parseInternal();
   mm->parseInitRD();
 }
-static Mutex moduleManagerMutex;
+
 ModuleManager* ModuleManager::getManager() {
   if (manager) return manager;
-  moduleManagerMutex.lock();
+  managerMutex.lock();
   if (!manager)
     manager = new ModuleManager();
-  moduleManagerMutex.release();
+  managerMutex.release();
   return manager;
 }
 ModuleManager::ModuleManager() {}

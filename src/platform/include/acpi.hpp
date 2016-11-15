@@ -111,13 +111,15 @@ struct ioapic_redir {
 
 class ACPI {
  private:
+  static Mutex controllerMutex;
+  static ACPI *controller;
+
   char *localApicAddr, *ioApicAddr;
   uint8_t ioApicMaxCount;
   uint32_t acpiCpuIds[256];
   uint8_t acpiCpuCount;
-  static uint8_t activeCpuCount;
-  static uint64_t busfreq;
-  static ACPI *controller;
+  uint8_t activeCpuCount;
+  uint64_t busfreq;
   bool ParseRsdp(const void* rsdp);
   void ParseRsdt(const AcpiHeader* rsdt);
   void ParseXsdt(const AcpiHeader* xsdt);

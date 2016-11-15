@@ -20,6 +20,7 @@
 
 class Display {
  private:
+  static Mutex instanceMutex;
   static Display *initInstance();
   static Display *instance;
  protected:

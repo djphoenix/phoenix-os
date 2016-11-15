@@ -19,6 +19,7 @@
 
 class SMP {
  private:
+  static Mutex startupMutex;
   static void NORETURN startup();
  public:
   static void init();

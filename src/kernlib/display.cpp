@@ -127,9 +127,9 @@ void EFIDisplay::write(const char *str) {
   mutex.release();
 }
 
-static Mutex instanceMutex;
 static ConsoleDisplay sharedConsole;
 Display *Display::instance = Display::initInstance();
+Mutex Display::instanceMutex;
 
 Display *Display::initInstance() {
   if (EFI::getSystemTable()) return new EFIDisplay();

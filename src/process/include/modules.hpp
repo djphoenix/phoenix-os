@@ -24,6 +24,7 @@ struct MODULEINFO {
 };
 class ModuleManager {
  private:
+  static Mutex managerMutex;
   static ModuleManager* manager;
   void parseInternal();
   void parseInitRD();

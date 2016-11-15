@@ -18,13 +18,13 @@
 #include "acpi.hpp"
 #include "processmanager.hpp"
 
-static Mutex cpuinit;
+Mutex SMP::startupMutex;
 
 void SMP::startup() {
   Interrupts::loadVector();
   ACPI::getController()->activateCPU();
-  cpuinit.lock();
-  cpuinit.release();
+  startupMutex.lock();
+  startupMutex.release();
   process_loop();
 }
 
@@ -80,7 +80,7 @@ void SMP::init() {
   if (nullcpus > 0)
     nullcpus--;
 
-  cpuinit.lock();
+  startupMutex.lock();
 
   for (uint32_t i = 0; i < cpuCount; i++) {
     if (info->cpuids[i] != localId) {
@@ -95,7 +95,7 @@ void SMP::init() {
     }
   }
 
-  cpuinit.release();
+  startupMutex.release();
 
   delete[] info->cpuids;
   delete[] info->stacks;

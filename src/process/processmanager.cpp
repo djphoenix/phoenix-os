@@ -32,8 +32,9 @@ void process_loop() {
   _loop();
 }
 
+Mutex ProcessManager::managerMutex;
 ProcessManager* ProcessManager::manager = 0;
-static Mutex managerMutex;
+
 ProcessManager* ProcessManager::getManager() {
   if (manager) return manager;
   uint64_t t = EnterCritical();
@@ -44,6 +45,7 @@ ProcessManager* ProcessManager::getManager() {
   LeaveCritical(t);
   return manager;
 }
+
 ProcessManager::ProcessManager() {
   nextThread = lastThread = 0;
   uint64_t cpus = ACPI::getController()->getCPUCount();
