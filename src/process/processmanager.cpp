@@ -45,16 +45,17 @@ ProcessManager* ProcessManager::getManager() {
   return manager;
 }
 ProcessManager::ProcessManager() {
-  Interrupts::addCallback(0x20, &ProcessManager::TimerHandler);
-  for (int i = 0; i < 0x20; i++) {
-    Interrupts::addCallback(i, &ProcessManager::FaultHandler);
-  }
   nextThread = lastThread = 0;
   uint64_t cpus = ACPI::getController()->getCPUCount();
   cpuThreads = new QueuedThread*[cpus]();
   for (uint64_t c = 0; c < cpus; c++)
     cpuThreads[c] = 0;
   nullThreads = new Thread[cpus]();
+
+  Interrupts::addCallback(0x20, &ProcessManager::TimerHandler);
+  for (int i = 0; i < 0x20; i++) {
+    Interrupts::addCallback(i, &ProcessManager::FaultHandler);
+  }
 }
 bool ProcessManager::TimerHandler(uint32_t, uint32_t, intcb_regs *regs) {
   return getManager()->SwitchProcess(regs);
