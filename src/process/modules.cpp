@@ -63,11 +63,11 @@ void ModuleManager::loadStream(Stream *stream, bool start) {
       delete process;
       break;
     }
-    if (mod.name) delete[] mod.name;
-    if (mod.version) delete[] mod.version;
-    if (mod.description) delete[] mod.description;
-    if (mod.requirements) delete[] mod.requirements;
-    if (mod.developer) delete[] mod.developer;
+    delete mod.name;
+    delete mod.version;
+    delete mod.description;
+    delete mod.requirements;
+    delete mod.developer;
     if (start) process->startup();
     sub->seek(size, -1);
     if (!stream->eof()) {
