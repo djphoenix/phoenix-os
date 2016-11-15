@@ -16,8 +16,11 @@
 
 #include "interrupts.hpp"
 #include "acpi.hpp"
+#include "pagetable.hpp"
 
 IDT *Interrupts::idt = 0;
+GDT *Interrupts::gdt = 0;
+TSS64_ENT *Interrupts::tss = 0;
 intcbreg *Interrupts::callbacks[256];
 Mutex Interrupts::callback_locks[256];
 Mutex Interrupts::fault;
@@ -275,8 +278,48 @@ void Interrupts::init() {
     loadVector();
     return;
   }
+
+  uint64_t ncpu = ACPI::getController()->getCPUCount();
+
+  gdt = new(GDT::size(ncpu)) GDT();
+  tss = new TSS64_ENT[ncpu]();
   idt = new IDT();
   handlers = new int_handler[256]();
+
+  gdt->ents[0] = GDT_ENT();
+  gdt->ents[1] = GDT_ENT(0, 0xFFFFFFFFFFFFFFFF, 0xA, 0, 1, 1, 0, 1, 0, 1);
+  gdt->ents[2] = GDT_ENT(0, 0xFFFFFFFFFFFFFFFF, 0x2, 0, 1, 1, 0, 0, 1, 1);
+  gdt->ents[3] = GDT_ENT(0, 0xFFFFFFFFFFFFFFFF, 0xA, 3, 1, 1, 0, 1, 0, 1);
+  gdt->ents[4] = GDT_ENT(0, 0xFFFFFFFFFFFFFFFF, 0x2, 3, 1, 1, 0, 0, 1, 1);
+  for (uint32_t idx = 0; idx < ncpu; idx++) {
+    void *stack = Pagetable::alloc();
+    uintptr_t stack_ptr = (uintptr_t)stack + 0x1000;
+    Memory::zero(&tss[idx], sizeof(tss[idx]));
+    tss[idx].ist[0] = stack_ptr;
+    gdt->sys_ents[idx] = GDT_SYS_ENT(
+        (uintptr_t)&tss[idx], sizeof(TSS64_ENT),
+        0x9, 0, 0, 1, 0, 1, 0, 0);
+  }
+
+  DTREG gdtreg = { (uint16_t)(GDT::size(ncpu) -1), &gdt->ents[0] };
+
+  asm volatile(
+      "mov %%rsp, %%rcx;"
+      "pushq $16;"
+      "pushq %%rcx;"
+      "pushfq;"
+      "pushq $8;"
+      "lea 1f(%%rip), %%rcx;"
+      "pushq %%rcx;"
+      "lgdtq (%q0);"
+      "iretq;"
+      "1:"
+      "mov %%ss, %%ax;"
+      "mov %%ax, %%ds;"
+      "mov %%ax, %%es;"
+      "mov %%ax, %%gs;"
+      ::"r"(&gdtreg):"%rax", "%rcx");
+
   const char* addr;
   asm volatile("lea __interrupt_wrap(%%rip), %q0":"=r"(addr));
   asm volatile(
@@ -328,7 +371,13 @@ void Interrupts::loadVector() {
     init();
     return;
   }
-  asm volatile("lidtq %0\nsti"::"m"(idt->rec));
+  DTREG idtreg = { sizeof(IDT) -1, &idt->ints[0] };
+  uint32_t cpuid = ACPI::getController()->getCPUID();
+  uint16_t tr = 5 * sizeof(GDT_ENT) + cpuid * sizeof(GDT_SYS_ENT);
+  asm volatile(
+      "lidtq %0;"
+      "ltr %w1;"
+      "sti"::"m"(idtreg), "a"(tr));
   init_lock.release();
 }
 

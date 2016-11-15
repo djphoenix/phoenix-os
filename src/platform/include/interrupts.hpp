@@ -25,6 +25,7 @@ struct INTERRUPT32 {
   uint8_t type;
   uint16_t offset_middle;
 } PACKED;
+
 struct INTERRUPT64 {
   uint16_t offset_low;
   uint16_t selector;
@@ -47,10 +48,12 @@ struct INTERRUPT64 {
       type(type), rsvd2(0), dpl(dpl), present(present),
       offset_middle(offset >> 16), offset_high(offset >> 32), rsvd3(0) {}
 } PACKED;
+
 struct DTREG {
   uint16_t limit;
   void* addr;
 } PACKED;
+
 struct int_handler {
   // 68 04 03 02 01  pushq  ${int_num}
   // e9 46 ec 3f 00  jmp . + {diff}
@@ -68,14 +71,6 @@ struct int_handler {
 
   ALIGNED_NEWARR(0x1000)
 } PACKED;
-struct IDT {
-  INTERRUPT64 ints[256];
-  DTREG rec;
-
-  IDT() { rec.addr = &ints[0]; rec.limit = sizeof(ints) -1; }
-
-  ALIGNED_NEW(0x1000)
-};
 
 struct TSS64_ENT {
   uint32_t reserved1;
@@ -147,6 +142,21 @@ struct GDT_SYS_ENT {
           granularity), base_high(base >> 32), rsvd(0) { }
 } PACKED;
 
+struct GDT {
+  GDT_ENT ents[5];
+  GDT_SYS_ENT sys_ents[];
+
+  static size_t size(size_t sys_count) {
+    return sizeof(GDT_ENT) * 5 + sizeof(GDT_SYS_ENT) * sys_count;
+  }
+} PACKED;
+
+struct IDT {
+  INTERRUPT64 ints[256];
+
+  ALIGNED_NEW(0x1000)
+};
+
 struct intcb_regs {
   uint32_t cpuid;
   uint64_t cr3;
@@ -176,6 +186,8 @@ class Interrupts {
   static Mutex fault, init_lock;
   static int_handler* handlers;
   static IDT *idt;
+  static GDT *gdt;
+  static TSS64_ENT *tss;
  public:
   static INTERRUPT32 interrupts32[256];
   static void init();

@@ -18,78 +18,13 @@
 #include "acpi.hpp"
 #include "processmanager.hpp"
 
-struct GDT {
-  GDT_ENT ents[5];
-  GDT_SYS_ENT sys_ents[];
-
-  static size_t size(size_t sys_count) {
-    return sizeof(GDT_ENT) * 5 + sizeof(GDT_SYS_ENT) * sys_count;
-  }
-} PACKED;
-
-GDT *gdt = 0;
-TSS64_ENT *tss = 0;
-DTREG gdtrec = {0, 0};
-
-void SMP::init_gdt(uint32_t ncpu) {
-  gdt = new(GDT::size(ncpu)) GDT();
-  tss = new TSS64_ENT[ncpu]();
-
-  gdtrec.addr = gdt;
-  gdtrec.limit = GDT::size(ncpu) - 1;
-  gdt->ents[0] = GDT_ENT();
-  gdt->ents[1] = GDT_ENT(0, 0xFFFFFFFFFFFFFFFF, 0xA, 0, 1, 1, 0, 1, 0, 1);
-  gdt->ents[2] = GDT_ENT(0, 0xFFFFFFFFFFFFFFFF, 0x2, 0, 1, 1, 0, 0, 1, 1);
-  gdt->ents[3] = GDT_ENT(0, 0xFFFFFFFFFFFFFFFF, 0xA, 3, 1, 1, 0, 1, 0, 1);
-  gdt->ents[4] = GDT_ENT(0, 0xFFFFFFFFFFFFFFFF, 0x2, 3, 1, 1, 0, 0, 1, 1);
-  for (uint32_t idx = 0; idx < ncpu; idx++) {
-    void *stack = Pagetable::alloc();
-    uintptr_t stack_ptr = (uintptr_t)stack + 0x1000;
-    Memory::zero(&tss[idx], sizeof(tss[idx]));
-    tss[idx].ist[0] = stack_ptr;
-    gdt->sys_ents[idx] = GDT_SYS_ENT(
-        (uintptr_t)&tss[idx], sizeof(TSS64_ENT),
-        0x9, 0, 0, 1, 0, 1, 0, 0);
-  }
-}
-
-void SMP::setup_gdt() {
-  ACPI* acpi = ACPI::getController();
-  if (gdt == 0)
-    init_gdt(acpi->getCPUCount());
-  uint32_t cpuid = acpi->getCPUID();
-  uint16_t tr = 5 * sizeof(GDT_ENT) + cpuid * sizeof(GDT_SYS_ENT);
-  uint64_t t = EnterCritical();
-
-  asm volatile(
-      "mov %%rsp, %%rcx;"
-      "pushq $16;"
-      "pushq %%rcx;"
-      "pushfq;"
-      "pushq $8;"
-      "lea 1f(%%rip), %%rcx;"
-      "pushq %%rcx;"
-      "lgdtq %0;"
-      "ltr %w1;"
-      "iretq;"
-      "1:"
-      "mov %%ss, %%ax;"
-      "mov %%ax, %%ds;"
-      "mov %%ax, %%es;"
-      "mov %%ax, %%gs;"
-      ::"m"(gdtrec), "a"(tr):"%rcx");
-
-  LeaveCritical(t);
-}
-
 static Mutex cpuinit;
 
 void SMP::startup() {
-  setup_gdt();
+  Interrupts::loadVector();
   ACPI::getController()->activateCPU();
   cpuinit.lock();
   cpuinit.release();
-  Interrupts::loadVector();
   process_loop();
 }
 
@@ -97,11 +32,7 @@ void SMP::init() {
   ACPI* acpi = ACPI::getController();
   uint32_t localId = acpi->getLapicID();
   uint32_t cpuCount = acpi->getCPUCount();
-  if (cpuCount == 1) {
-    setup_gdt();
-    Interrupts::loadVector();
-    return;
-  }
+  if (cpuCount < 2) return;
 
   struct StartupInfo {
     const void *gdtptr;
@@ -111,6 +42,9 @@ void SMP::init() {
     const char **stacks;
     void(*startup)();
   } PACKED;
+
+  DTREG gdtptr;
+  asm("sgdt %0":"=m"(gdtptr):"m"(gdtptr));
 
   const char *smp_init, *smp_end;
   asm("lea _smp_init(%%rip), %q0":"=r"(smp_init));
@@ -128,14 +62,13 @@ void SMP::init() {
   char smp_init_vector = (((uintptr_t)startupCode) >> 12) & 0xFF;
 
   asm("mov %%cr3, %q0":"=r"(info->pagetableptr));
-  asm("lea gdtrec(%%rip), %q0":"=r"(info->gdtptr));
 
+  info->gdtptr = &gdtptr;
   info->lapicAddr = acpi->getLapicAddr();
   info->cpuids = new uint64_t[cpuCount]();
   info->stacks = new const char*[cpuCount]();
   info->startup = startup;
 
-  setup_gdt();
   uint32_t nullcpus = 0;
   for (uint32_t i = 0; i < cpuCount; i++) {
     info->cpuids[i] = acpi->getLapicIDOfCPU(i);
@@ -162,7 +95,6 @@ void SMP::init() {
     }
   }
 
-  Interrupts::loadVector();
   cpuinit.release();
 
   delete[] info->cpuids;
