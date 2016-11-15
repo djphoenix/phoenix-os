@@ -137,7 +137,11 @@ next_page:
   }
 done:
   heap_mutex.release();
-  return reinterpret_cast<void*>(ptr);
+
+  void *a = reinterpret_cast<void*>(ptr);
+  Memory::zero(a, size);
+
+  return a;
 }
 void Heap::free(void* addr) {
   if (addr == 0)
