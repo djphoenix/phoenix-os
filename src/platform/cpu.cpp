@@ -117,25 +117,22 @@ uint64_t CPU::getFeatures() {
         "=a"(eax), "=c"(ecx), "=d"(edx) :
         "a"(eax) :"ebx");
     features = ((uint64_t)edx << 32) | (uint64_t)ecx;
-    union {
-      struct {
-        uint32_t stepping:3;
-        uint32_t model:4;
-        uint32_t family:4;
-        uint32_t type:2;
-        uint32_t model_ext:4;
-        uint32_t family_ext:8;
-      } PACKED;
-      uint32_t eax;
-    } cpuid_info;
-    cpuid_info.eax = eax;
-    info.stepping = cpuid_info.stepping;
-    info.type = cpuid_info.type;
-    info.model = cpuid_info.model;
-    info.family = cpuid_info.family;
+    struct CPUID_INFO {
+      uint32_t stepping:3;
+      uint32_t model:4;
+      uint32_t family:4;
+      uint32_t type:2;
+      uint32_t model_ext:4;
+      uint32_t family_ext:8;
+    };
+    CPUID_INFO *cpuid_info = reinterpret_cast<CPUID_INFO*>(&eax);
+    info.stepping = cpuid_info->stepping;
+    info.type = cpuid_info->type;
+    info.model = cpuid_info->model;
+    info.family = cpuid_info->family;
     if (info.family == 6 || info.family == 15) {
-      info.family += cpuid_info.family_ext;
-      info.model += cpuid_info.model_ext << 4;
+      info.family += cpuid_info->family_ext;
+      info.model += cpuid_info->model_ext << 4;
     }
   }
   return features;
