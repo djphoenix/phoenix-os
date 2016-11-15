@@ -16,7 +16,7 @@
 
 #include "readelf.hpp"
 
-struct Elf_t {
+struct ELF_HDR {
   struct {
     uint32_t magic;
     uint8_t eclass, data, version, osabi, abiversion, pad, rsvd[6];
@@ -73,152 +73,196 @@ struct ELF64REL {
 } PACKED;
 
 size_t readelf(Process *process, Stream *stream) {
-  Elf_t Elf;
-  if ((stream->read(&Elf, sizeof(Elf)) != sizeof(Elf)) || (Elf.ident.magic
-      != 'FLE\x7F')
-      || (Elf.ident.eclass != 2) || (Elf.ident.data != 1)
-      || (Elf.ident.version != 1) || (Elf.ident.osabi != 0)
-      || (Elf.ident.abiversion != 0) || (Elf.type != 1) || (Elf.version != 1)
-      || (Elf.ehsize != sizeof(Elf))
+  // Read and check header
+  ELF_HDR elf;
+  size_t size = 0;
+  ELF64SECT *sections;
+  uintptr_t *sectmap;
+  char *sectnames;
+
+  if ((stream->read(&elf, sizeof(elf)) != sizeof(elf))
+      || (elf.ident.magic != 'FLE\x7F')
+      || (elf.ident.eclass != 2) || (elf.ident.data != 1)
+      || (elf.ident.version != 1) || (elf.ident.osabi != 0)
+      || (elf.ident.abiversion != 0) || (elf.type != 1) || (elf.version != 1)
+      || (elf.ehsize != sizeof(elf))
     ) return 0;
-  size_t size = MAX(Elf.phoff + Elf.phentsize * Elf.phnum,
-                    Elf.shoff + Elf.shentsize * Elf.shnum);
-  ELF64SECT *sections = new ELF64SECT[Elf.shnum]();
-  stream->seek(Elf.shoff);
-  stream->read(sections, sizeof(ELF64SECT) * Elf.shnum);
-  char *names = 0;
-  if (Elf.shstrndx != 0) {
-    ELF64SECT sect = sections[Elf.shstrndx];
-    names = new char[sect.size]();
-    stream->seek(sect.offset, -1);
-    stream->read(names, sect.size);
+
+  // Init variables
+  size = MAX(elf.phoff + elf.phentsize * elf.phnum,
+             elf.shoff + elf.shentsize * elf.shnum);
+  sections = new ELF64SECT[elf.shnum]();
+  sectmap = new uintptr_t[elf.shnum]();
+
+  // Read section headers
+  stream->seek(elf.shoff);
+  stream->read(sections, sizeof(ELF64SECT) * elf.shnum);
+
+  // Read section names
+  sectnames = 0;
+  if (elf.shstrndx != 0) {
+    ELF64SECT *sect = sections + elf.shstrndx;
+    sectnames = new char[sect->size]();
+    stream->seek(sect->offset, -1);
+    stream->read(sectnames, sect->size);
   }
-  uintptr_t *sectmap = new uintptr_t[Elf.shnum]();
-  // Fill up process sections
-  for (uint32_t i = 0; i < Elf.shnum; i++) {
-    ELF64SECT sect = sections[i];
-    size = MAX(size, sect.offset + sect.size);
-    if (sect.type == SHT_NULL)
-      continue;
-    if (sect.type == SHT_SYMTAB) {
-      uint32_t symcount = sect.size / sizeof(ELF64SYM);
-      ELF64SYM *symbols = new ELF64SYM[symcount];
-      stream->seek(sect.offset, -1);
-      stream->read(symbols, sect.size);
-      char *symnames = 0;
-      if (sect.link != 0) {
-        ELF64SECT nsect = sections[sect.link];
-        symnames = new char[nsect.size]();
-        stream->seek(nsect.offset, -1);
-        stream->read(symnames, nsect.size);
-      }
-      for (uint32_t i = 0; i < symcount; i++) {
-        ELF64SYM sym = symbols[i];
-        char *name = (symnames != 0 ? &symnames[sym.name] : 0);
-        if (name == 0 || name[0] == 0)
-          continue;
-        ELF64SECT sect = sections[sym.shndx];
-        if (sect.type == SHT_NULL)
-          continue;
-        uintptr_t ps = sectmap[sym.shndx];
-        if (ps == 0)
-          continue;
-        uintptr_t offset = ps + sym.value;
-        process->addSymbol(name, offset);
-      }
-      delete[] symbols;
-      delete[] symnames;
-    }
-    if ((sect.flags & SHF_ALLOC) == 0)
-      continue;
-    if (sect.size == 0)
-      continue;
+
+  // Read section contents
+  for (uint32_t s = 0; s < elf.shnum; s++) {
+    ELF64SECT *sect = sections + s;
+    // Check elf size
+    if (sect->offset + sect->size > size)
+      size = sect->offset + sect->size;
+    // Skip null sections
+    if (sect->type == SHT_NULL) continue;
+    // Skip SYMTAB sections
+    if (sect->type == SHT_SYMTAB) continue;
+    // Skip empty sections
+    if (sect->flags & SHT_NOBITS) continue;
+    if (sect->size == 0) continue;
+    // Section type
     SectionType type = SectionTypeData;
-    if ((sect.flags & SHF_EXECINSTR) != 0)
+    if ((sect->flags & SHF_EXECINSTR) != 0)
       type = SectionTypeCode;
-    else if (sect.type == SHT_NOBITS)
+    else if (sect->type == SHT_NOBITS)
       type = SectionTypeBSS;
-    uintptr_t ps = process->addSection(type, sect.size);
-    sectmap[i] = ps;
-    if (sect.type != SHT_NOBITS) {
-      stream->seek(sect.offset, -1);
-      char *buf = new char[sect.size]();
-      stream->read(buf, sect.size);
-      process->writeData(ps, buf, sect.size);
+    // Add section
+    uintptr_t vaddr = process->addSection(type, sect->size);
+    sectmap[s] = vaddr;
+    if (sect->type != SHT_NOBITS) {
+      // Copy section data
+      stream->seek(sect->offset, -1);
+      char *buf = new char[sect->size]();
+      stream->read(buf, sect->size);
+      process->writeData(vaddr, buf, sect->size);
       delete[] buf;
     }
   }
-  // Process relocs
-  for (uint32_t i = 0; i < Elf.shnum; i++) {
-    ELF64SECT relsect = sections[i];
-    if (relsect.type != SHT_RELA && relsect.type != SHT_REL)
+
+  // Fill symbol table
+  for (uint32_t s = 0; s < elf.shnum; s++) {
+    ELF64SECT *sect = sections + s;
+    // Skip non-symtab sections
+    if (sect->type != SHT_SYMTAB) continue;
+    // Calculate symbol count
+    uint32_t symcount = sect->size / sizeof(ELF64SYM);
+    // Read symbol table
+    ELF64SYM *symbols = new ELF64SYM[symcount];
+    stream->seek(sect->offset, -1);
+    stream->read(symbols, sect->size);
+    // Read symbol name table
+    char *symnames = 0;
+    if (sect->link != 0) {
+      ELF64SECT *nsect = sections + sect->link;
+      symnames = new char[nsect->size]();
+      stream->seek(nsect->offset, -1);
+      stream->read(symnames, nsect->size);
+    }
+    // Enumerate symbols
+    for (uint32_t i = 0; i < symcount; i++) {
+      ELF64SYM *sym = symbols + i;
+      char *name = symnames ? &symnames[sym->name] : 0;
+      // Skip unnamed symbols
+      if (name == 0 || name[0] == 0) continue;
+      // Find symbol section
+      ELF64SECT *symsect = sections + sym->shndx;
+      // Skip undefined symbols
+      if (symsect->type == SHT_NULL) continue;
+      // Find vaddr of symbol section
+      uintptr_t symbase = sectmap[sym->shndx];
+      // Skip non-allocated symbols
+      if (symbase == 0) continue;
+      // Add symbol to internal table
+      uintptr_t offset = symbase + sym->value;
+      process->addSymbol(name, offset);
+    }
+    // Free buffers
+    delete[] symbols;
+    delete[] symnames;
+  }
+
+  // Process relocations
+  for (uint32_t rs = 0; rs < elf.shnum; rs++) {
+    ELF64SECT *relsect = sections + rs;
+    // Skip non-reloc sections
+    if (relsect->type != SHT_RELA && relsect->type != SHT_REL)
       continue;
-    ELF64SECT symsect = sections[relsect.link];
-    uintptr_t sectstart = sectmap[relsect.info];
-    if (sectstart == 0)
-      continue;
-    if (symsect.type != SHT_SYMTAB)
-      continue;
-    size_t relcnt;
-    ELF64RELA *relocs;
-    stream->seek(relsect.offset, -1);
-    if (relsect.type == SHT_RELA) {
-      relcnt = relsect.size / sizeof(ELF64RELA);
-      relocs = new ELF64RELA[relcnt]();
-      stream->read(relocs, relsect.size);
+    // Find symbol section
+    ELF64SECT *symsect = sections + relsect->link;
+    // Find section base
+    uintptr_t sectbase = sectmap[relsect->info];
+    // Skip non-allocated sections
+    if (sectbase == 0) continue;
+    // Skip invalid symbol sections
+    if (symsect->type != SHT_SYMTAB) continue;
+    // Calculate relocation count
+    size_t relcnt = 0;
+    if (relsect->type == SHT_RELA)
+      relcnt = relsect->size / sizeof(ELF64RELA);
+    if (relsect->type == SHT_REL)
+      relcnt = relsect->size / sizeof(ELF64REL);
+    // Skip empty reloc sections
+    if (relcnt == 0) continue;
+    // Alloc reloc buffer
+    ELF64RELA *relocs = new ELF64RELA[relcnt]();
+    // Read reloc list
+    stream->seek(relsect->offset, -1);
+    if (relsect->type == SHT_RELA) {
+      stream->read(relocs, relsect->size);
     } else {
-      relcnt = relsect.size / sizeof(ELF64REL);
-      relocs = new ELF64RELA[relcnt]();
+      // Convert ELF64REL to ELF64RELA
       ELF64REL *_relocs = new ELF64REL[relcnt]();
-      stream->read(_relocs, relsect.size);
+      stream->read(_relocs, relsect->size);
       for (size_t r = 0; r < relcnt; r++)
         relocs[r] = {
           _relocs[r].addr,
-          { _relocs[r].info.type, _relocs[r].info.sym},
+          { _relocs[r].info.type, _relocs[r].info.sym },
           0
         };
       delete[] _relocs;
     }
-
-    size_t symcnt = symsect.size / sizeof(ELF64SYM);
+    // Read symbol table
+    size_t symcnt = symsect->size / sizeof(ELF64SYM);
     ELF64SYM *symbols = new ELF64SYM[symcnt]();
-    stream->seek(symsect.offset, -1);
-    stream->read(symbols, symsect.size);
+    stream->seek(symsect->offset, -1);
+    stream->read(symbols, symsect->size);
+    // Read symbol name table
     char *symnames = 0;
-    if (symsect.link != 0) {
-      ELF64SECT nsect = sections[symsect.link];
-      symnames = new char[nsect.size]();
-      stream->seek(nsect.offset, -1);
-      stream->read(symnames, nsect.size);
+    if (symsect->link != 0) {
+      ELF64SECT *nsect = sections + symsect->link;
+      symnames = new char[nsect->size]();
+      stream->seek(nsect->offset, -1);
+      stream->read(symnames, nsect->size);
     }
-
+    // Process relocations
     for (size_t r = 0; r < relcnt; r++) {
-      ELF64RELA rel = relocs[r];
-      ELF64SYM sym = symbols[rel.info.sym];
-      ELF64SECT _symsect = sections[sym.shndx];
+      ELF64RELA *rel = relocs + r;
+      ELF64SYM *relsym = symbols + rel->info.sym;
+      ELF64SECT *relsymsect = sections + relsym->shndx;
 
       char *symname;
       uintptr_t addr, offset;
-      if (sym.info == 3) {
-        symname = names != 0 ? &names[_symsect.name] : 0;
-        offset = sectmap[sym.shndx];
+
+      offset = sectmap[relsym->shndx] + relsym->value;
+
+      if (relsym->info == 3) {  // Point to section
+        symname = sectnames != 0 ? &sectnames[relsymsect->name] : 0;
       } else {
-        symname = (symnames != 0 ? &symnames[sym.name] : 0);
-        uintptr_t ptr = sectmap[sym.shndx];
-        offset = ptr + sym.value;
+        symname = symnames != 0 ? &symnames[relsym->name] : 0;
       }
 
-      if (_symsect.type == SHT_NULL) {
+      if (relsymsect->type == SHT_NULL) {
+        // Link library
         offset = process->linkLibrary(symname);
       }
 
-      addr = sectstart + rel.addr;
-      offset += rel.add;
+      addr = sectbase + rel->addr;
+      offset += rel->add;
 
       uint64_t diff64 = offset - addr;
       uint32_t diff32 = diff64;
 
-      switch (rel.info.type) {
+      switch (rel->info.type) {
         case 0:   // R_X86_64_NONE
           break;
         case 1:   // R_X86_64_64
@@ -243,7 +287,7 @@ size_t readelf(Process *process, Stream *stream) {
         case 16:  // R_X86_64_NUM
         default:
           printf("Unhandled reloc type=%x addr=%#zx name=%s%+ld = %#zx\n",
-                 rel.info.type, addr, symname, rel.add, offset);
+                 rel->info.type, addr, symname, rel->add, offset);
           break;
       }
     }
@@ -253,6 +297,6 @@ size_t readelf(Process *process, Stream *stream) {
   }
   delete[] sectmap;
   delete[] sections;
-  delete[] names;
+  delete[] sectnames;
   return size;
 }
