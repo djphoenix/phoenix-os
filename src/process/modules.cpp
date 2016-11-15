@@ -52,35 +52,31 @@ bool ModuleManager::parseModuleInfo(MODULEINFO *info, Process *process) {
 ModuleManager* ModuleManager::manager = 0;
 void ModuleManager::loadStream(Stream *stream, bool start) {
   Stream *sub = stream;
+  Process *process;
   size_t size;
   MODULEINFO mod;
-  parse: mod = {0, 0, 0, 0, 0};
-  Process *process = new Process();
-  size = readelf(process, sub);
-  if (size == 0) {
-    delete process;
-    goto end;
+  for (;;) {
+    mod = {0, 0, 0, 0, 0};
+    process = new Process();
+    size = readelf(process, sub);
+    if (size == 0 || !parseModuleInfo(&mod, process)) {
+      delete process;
+      break;
+    }
+    if (mod.name) delete[] mod.name;
+    if (mod.version) delete[] mod.version;
+    if (mod.description) delete[] mod.description;
+    if (mod.requirements) delete[] mod.requirements;
+    if (mod.developer) delete[] mod.developer;
+    if (start) process->startup();
+    sub->seek(size, -1);
+    if (!stream->eof()) {
+      Stream *_sub = sub->substream();
+      if (sub != stream)
+        delete sub;
+      sub = _sub;
+    }
   }
-  if (!parseModuleInfo(&mod, process)) {
-    delete process;
-    goto end;
-  }
-  if (mod.name) delete[] mod.name;
-  if (mod.version) delete[] mod.version;
-  if (mod.description) delete[] mod.description;
-  if (mod.requirements) delete[] mod.requirements;
-  if (mod.developer) delete[] mod.developer;
-  if (start)
-    process->startup();
-  sub->seek(size, -1);
-  if (!stream->eof()) {
-    Stream *_sub = sub->substream();
-    if (sub != stream)
-      delete sub;
-    sub = _sub;
-    goto parse;
-  }
-end:
   if (sub != stream)
     delete sub;
 }
