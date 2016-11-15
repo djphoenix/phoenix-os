@@ -43,7 +43,7 @@ ACPI::ACPI() {
   acpiCpuCount = 0;
   activeCpuCount = 1;
 
-  if (!((CPU::getFeatures() >> 32) & CPUID_FEAT_APIC)) {
+  if (!(CPU::getFeatures() & CPUID_FEAT_APIC)) {
     acpiCpuCount = 1;
     return;
   }
@@ -338,8 +338,6 @@ void ACPI::initIOAPIC() {
   IOapicMap(1, kbd);
 }
 bool ACPI::initAPIC() {
-  if (!((CPU::getFeatures() >> 32) & CPUID_FEAT_APIC))
-    return false;
   if (localApicAddr == 0)
     return false;
   initCPU();
