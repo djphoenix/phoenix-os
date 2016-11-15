@@ -29,18 +29,10 @@ int_handler* Interrupts::handlers = 0;
 asm(
     ".global __interrupt_wrap;"
     "__interrupt_wrap:;"
+
+    // Save registers
     "push %rax;"
     "push %rcx;"
-
-    "mov 16(%rsp), %rax;"
-    "mov 8(%rsp), %rcx;"
-    "mov %rcx, 16(%rsp);"
-    "mov 0(%rsp), %rcx;"
-    "mov %rcx, 8(%rsp);"
-    "add $8, %rsp;"
-    "mov %rsp, %rcx;"
-    "add $16, %rcx;"
-
     "push %rdx;"
     "push %rbx;"
     "push %rbp;"
@@ -55,57 +47,77 @@ asm(
     "push %r14;"
     "push %r15;"
 
-    "mov %rcx,%rsi;"
-    "mov %rax,%rdi;"
-    "call interrupt_handler;"
+    // Move interrupt number to first arg
+    "mov 120(%rsp), %rdi;"
 
-    "popq %r15;"
-    "popq %r14;"
-    "popq %r13;"
-    "popq %r12;"
-    "popq %r11;"
-    "popq %r10;"
-    "popq %r9;"
-    "popq %r8;"
-    "popq %rdi;"
-    "popq %rsi;"
-    "popq %rbp;"
-    "popq %rbx;"
-    "popq %rdx;"
+    // Set interrupt stack pointer to second arg
+    "lea 128(%rsp), %rsi;"
 
-    "mov %rsp, %rcx;"
-    "add %rax, %rcx;"
+    // Save pagetable address in place of interrupt number
+    "mov %cr3, %rax;"
+    "mov %rax, 120(%rsp);"
+
+    // Set pointer of pagetable address to third arg
+    "lea 120(%rsp), %rdx;"
+
+    // Load kernel pagetable
+    "__interrupt_pagetable_mov:"
+    "mov $0xF0123456, %rax;"
+    "mov %rax, %cr3;"
+
+    // Call actual handler (Interrupts::handle)
+    "call _ZN10Interrupts6handleEhmPm;"
+
+    // Restore registers
+    "pop %r15;"
+    "pop %r14;"
+    "pop %r13;"
+    "pop %r12;"
+    "pop %r11;"
+    "pop %r10;"
+    "pop %r9;"
+    "pop %r8;"
+    "pop %rdi;"
+    "pop %rsi;"
+    "pop %rbp;"
+    "pop %rbx;"
+    "pop %rdx;"
+    "pop %rcx;"
+
+    // Fix stack for error-code padding
+    "test %rax, %rax;"
+    "jz 1f;"
+    "mov 8(%rsp), %rax; mov %rax, 16(%rsp);"
+    "mov 0(%rsp), %rax; mov %rax, 8(%rsp);"
+    "add $8, %rsp;"
+    "1:"
+
+    // Send EOI to local APIC
+    "cmp $0, 2+_intr_lapic_eoi(%rip);"
+    "jz 1f;"
+    "_intr_lapic_eoi:"
+    "mov $0xF0123456, %rax;"
+    "movl $0, (%rax);"
+    "1:"
+
+    // Restore caller pagetable
     "mov 8(%rsp), %rax;"
-    "mov %rax, 8(%rcx);"
-    "mov (%rsp), %rax;"
-    "mov %rax, (%rcx);"
-    "mov %rcx, %rsp;"
+    "mov %rax, %cr3;"
 
-    "popq %rcx;"
-    "movb $0x20, %al;"
-    "outb %al, $0x20;"
-    "popq %rax;"
+    // Send EOI to PIC
+    "mov $0x20, %al;"
+    "out %al, $0x20;"
 
+    // Restore last register
+    "pop %rax;"
+
+    // Fix stack for interrupt number (actually pagetable address)
+    "add $8, %rsp;"
+
+    // Return from interrupt
     "iretq;"
+
     ".align 16");
-extern "C" {
-  uint64_t __attribute__((sysv_abi)) interrupt_handler(uint64_t intr,
-                                                       uint64_t stack);
-}
-uint64_t __attribute__((sysv_abi)) interrupt_handler(uint64_t intr,
-                                                     uint64_t stack) {
-  uint64_t cr3 = 0;
-  asm volatile("mov %%cr3, %q0":"=r"(cr3));
-  asm volatile(
-      "__interrupt_pagetable_mov:"
-      "mov $0, %%rax;"
-      "mov %%rax, %%cr3"
-      :::"%rax"
-  );
-  uint64_t ret = Interrupts::handle(intr, stack, &cr3);
-  asm volatile("mov %q0, %%cr3"::"r"(cr3));
-  return ret;
-}
 
 struct FAULT {
   char code[5];
@@ -201,7 +213,8 @@ void Interrupts::print(uint8_t num, intcb_regs *regs, uint32_t code) {
          regs->r12, regs->r13, regs->r14, regs->r15);
 }
 
-uint64_t Interrupts::handle(unsigned char intr, uint64_t stack, uint64_t *cr3) {
+uint64_t __attribute__((sysv_abi)) Interrupts::handle(
+    unsigned char intr, uint64_t stack, uint64_t *pagetable) {
   fault.lock();
   fault.release();
   uint64_t *rsp = reinterpret_cast<uint64_t*>(stack);
@@ -216,7 +229,7 @@ uint64_t Interrupts::handle(unsigned char intr, uint64_t stack, uint64_t *cr3) {
   uint32_t cpuid = ACPI::getController()->getCPUID();
 
   intcb_regs cb_regs = {
-      cpuid, *cr3,
+      cpuid, *pagetable,
 
       info->rip,
       (uint16_t)(info->cs & 0xFFF8), info->rflags, info->rsp,
@@ -253,8 +266,7 @@ uint64_t Interrupts::handle(unsigned char intr, uint64_t stack, uint64_t *cr3) {
       cb_regs.rflags | 0x202,
       cb_regs.rsp, (uint64_t)(cb_regs.ss | cb_regs.dpl)
     };
-    *cr3 = cb_regs.cr3;
-    ACPI::EOI();
+    *pagetable = cb_regs.cr3;
     return has_code ? 8 : 0;
   }
 
@@ -268,7 +280,6 @@ uint64_t Interrupts::handle(unsigned char intr, uint64_t stack, uint64_t *cr3) {
   } else if (intr != 0x20) {
     printf("INT %02xh\n", intr);
   }
-  ACPI::EOI();
   return 0;
 }
 void Interrupts::init() {
@@ -321,11 +332,15 @@ void Interrupts::init() {
       ::"r"(&gdtreg):"%rax", "%rcx");
 
   const char* addr;
+  char *lapic_eoi =
+      reinterpret_cast<char*>(ACPI::getController()->getLapicAddr());
+  if (lapic_eoi) lapic_eoi += LAPIC_EOI;
   asm volatile("lea __interrupt_wrap(%%rip), %q0":"=r"(addr));
   asm volatile(
+      "mov %%eax, 2+_intr_lapic_eoi(%%rip);"
       "mov %%cr3, %%rax;"
-      "mov %%eax, 3+__interrupt_pagetable_mov(%%rip)"
-      :::"%rax"
+      "mov %%eax, 2+__interrupt_pagetable_mov(%%rip)"
+      ::"a"(lapic_eoi)
       );
   for (int i = 0; i < 256; i++) {
     uintptr_t jmp_from = (uintptr_t)&(handlers[i].reljmp);
