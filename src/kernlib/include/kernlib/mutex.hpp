@@ -21,9 +21,7 @@ class Mutex {
  private:
   bool state;
  public:
-  Mutex() {
-    state = 0;
-  }
+  Mutex(): state(0) {}
   void lock();
   void release();
 };

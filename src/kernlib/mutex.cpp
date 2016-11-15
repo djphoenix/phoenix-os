@@ -17,19 +17,20 @@
 #include "kernlib.hpp"
 
 void Mutex::lock() {
-  bool ret_val = 0, old_val = 0, new_val = 1;
-  do {
-    asm volatile("lock cmpxchgb %1,%2":
-        "=a"(ret_val):
-        "r"(new_val),"m"(state),"0"(old_val):
-        "memory");
-  } while (ret_val);
+  asm volatile(
+      "1:"
+      "mov $1, %%dl;"
+      "xor %%al, %%al;"
+      "lock cmpxchgb %%dl, %0;"
+      "jnz 1b"
+      ::"m"(state)
+       :"%rax","%rdx");
 }
 
 void Mutex::release() {
-  bool ret_val = 0, new_val = 0;
-  asm volatile("lock xchgb %1,%2":
-      "=a"(ret_val):
-      "r"(new_val),"m"(state):
-      "memory");
+  asm volatile(
+      "xor %%al, %%al;"
+      "lock xchgb %%al, %0"
+      ::"m"(state)
+       :"%rax");
 }
