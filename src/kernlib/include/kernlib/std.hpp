@@ -15,7 +15,6 @@
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
-#include "std.hpp"
 
 #include <stdarg.h>
 #include <stdint.h>
