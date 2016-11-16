@@ -24,7 +24,7 @@ void Mutex::lock() {
       "lock cmpxchgb %%dl, %0;"
       "jnz 1b"
       ::"m"(state)
-       :"%rax","%rdx");
+       :"rax","rdx");
 }
 
 void Mutex::release() {
@@ -32,5 +32,5 @@ void Mutex::release() {
       "xor %%al, %%al;"
       "lock xchgb %%al, %0"
       ::"m"(state)
-       :"%rax");
+       :"rax");
 }

@@ -321,7 +321,7 @@ void Interrupts::init() {
       "mov %%ax, %%ds;"
       "mov %%ax, %%es;"
       "mov %%ax, %%gs;"
-      ::"r"(&gdtreg):"%rax", "%rcx");
+      ::"r"(&gdtreg):"rax", "rcx");
 
   const char* addr;
   char *lapic_eoi =
