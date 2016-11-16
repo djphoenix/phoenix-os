@@ -24,7 +24,7 @@ class Stream {
   virtual size_t seek(int64_t offset, char base = 0) = 0;
   virtual Stream* substream(int64_t offset = -1, size_t limit = -1) = 0;
   virtual bool eof() = 0;
-  virtual char* readstr(int64_t offset = -1) = 0;
+  virtual char* readstr() = 0;
   virtual ~Stream() {}
 };
 
@@ -40,6 +40,6 @@ class MemoryStream: public Stream {
   size_t size();
   size_t seek(int64_t offset, char base = 0);
   Stream* substream(int64_t offset = -1, size_t limit = -1);
-  char* readstr(int64_t offset = -1);
+  char* readstr();
   bool eof();
 };
