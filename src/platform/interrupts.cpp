@@ -18,7 +18,7 @@
 #include "acpi.hpp"
 #include "pagetable.hpp"
 
-IDT *Interrupts::idt = 0;
+INTERRUPT64 *Interrupts::idt = 0;
 GDT *Interrupts::gdt = 0;
 TSS64_ENT *Interrupts::tss = 0;
 intcbreg *Interrupts::callbacks[256];
@@ -286,7 +286,7 @@ void Interrupts::init() {
 
   gdt = new(GDT::size(ncpu)) GDT();
   tss = new TSS64_ENT[ncpu]();
-  idt = new IDT();
+  idt = new INTERRUPT64[256]();
   handlers = new int_handler[256]();
 
   gdt->ents[0] = GDT_ENT();
@@ -341,7 +341,7 @@ void Interrupts::init() {
     handlers[i] = int_handler(i, diff);
 
     uintptr_t hptr = (uintptr_t)(&handlers[i]);
-    idt->ints[i] = INTERRUPT64(hptr, 8, 1, 0xE, 0, true);
+    idt[i] = INTERRUPT64(hptr, 8, 1, 0xE, 0, true);
     callbacks[i] = 0;
   }
 
@@ -375,7 +375,7 @@ void Interrupts::loadVector() {
     init();
     return;
   }
-  DTREG idtreg = { sizeof(IDT) -1, &idt->ints[0] };
+  DTREG idtreg = { sizeof(INTERRUPT64) * 256 -1, &idt[0] };
   uint32_t cpuid = ACPI::getController()->getCPUID();
   uint16_t tr = 5 * sizeof(GDT_ENT) + cpuid * sizeof(GDT_SYS_ENT);
   asm volatile(

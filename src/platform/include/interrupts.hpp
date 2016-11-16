@@ -47,6 +47,8 @@ struct INTERRUPT64 {
       offset_low(offset), selector(selector), ist(ist), rsvd1(0),
       type(type), rsvd2(0), dpl(dpl), present(present),
       offset_middle(offset >> 16), offset_high(offset >> 32), rsvd3(0) {}
+
+  ALIGNED_NEWARR(0x1000)
 } PACKED;
 
 struct DTREG {
@@ -151,12 +153,6 @@ struct GDT {
   }
 } PACKED;
 
-struct IDT {
-  INTERRUPT64 ints[256];
-
-  ALIGNED_NEW(0x1000)
-};
-
 struct intcb_regs {
   uint32_t cpuid;
   uint64_t cr3;
@@ -185,7 +181,7 @@ class Interrupts {
   static Mutex callback_locks[256];
   static Mutex fault;
   static int_handler* handlers;
-  static IDT *idt;
+  static INTERRUPT64 *idt;
   static GDT *gdt;
   static TSS64_ENT *tss;
  public:
