@@ -215,6 +215,7 @@ void* Pagetable::_alloc(uint8_t avl, bool nolow) {
     ST->BootServices->GetMemoryMap(&mapsize, map, &key, &entsize, &ver);
 
     ent = map;
+    uintptr_t min = nolow ? 0x100000 : 0x1000;
     void *ptr = 0;
     top = reinterpret_cast<EFI_MEMORY_DESCRIPTOR*>((uintptr_t)map + mapsize);
     for (ent = map;
@@ -222,18 +223,9 @@ void* Pagetable::_alloc(uint8_t avl, bool nolow) {
         ent = reinterpret_cast<EFI_MEMORY_DESCRIPTOR*>(
             (uintptr_t)ent + entsize)) {
       if (ent->Type != EFI_MEMORY_TYPE_CONVENTIONAL) continue;
-      if (ent->PhysicalStart == 0) {
-        ent->PhysicalStart += 0x1000; ent->NumberOfPages--;
-        if (ent->NumberOfPages == 0) continue;
-      }
-      if (nolow) {
-        if ((ent->PhysicalStart + ent->NumberOfPages * 0x1000) < 0x100000)
-          continue;
-        ptr = reinterpret_cast<void*>(
-            MAX(ent->PhysicalStart, (uintptr_t)0x100000));
-      } else {
-        ptr = reinterpret_cast<void*>(ent->PhysicalStart);
-      }
+      if ((ent->PhysicalStart + ent->NumberOfPages * 0x1000) <= min)
+        continue;
+      ptr = reinterpret_cast<void*>(MAX(ent->PhysicalStart, min));
       break;
     }
 
