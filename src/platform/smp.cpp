@@ -35,16 +35,13 @@ void SMP::init() {
   if (cpuCount < 2) return;
 
   struct StartupInfo {
-    const void *gdtptr;
+    DTREG *gdtptr;
     const void *pagetableptr;
     const void *lapicAddr;
     uint64_t *cpuids;
     const char **stacks;
     void(*startup)();
   } PACKED;
-
-  DTREG gdtptr;
-  asm volatile("sgdt %0":"=m"(gdtptr):"m"(gdtptr));
 
   const char *smp_init, *smp_end;
   asm volatile("lea _smp_init(%%rip), %q0":"=r"(smp_init));
@@ -61,13 +58,14 @@ void SMP::init() {
   Memory::copy(startupCode, smp_init, smp_init_size);
   char smp_init_vector = (((uintptr_t)startupCode) >> 12) & 0xFF;
 
-  asm volatile("mov %%cr3, %q0":"=r"(info->pagetableptr));
-
-  info->gdtptr = &gdtptr;
+  info->gdtptr = new DTREG();
   info->lapicAddr = acpi->getLapicAddr();
   info->cpuids = new uint64_t[cpuCount]();
   info->stacks = new const char*[cpuCount]();
   info->startup = startup;
+
+  asm volatile("mov %%cr3, %q0":"=r"(info->pagetableptr));
+  asm volatile("sgdt %0":"=m"(*info->gdtptr):"m"(*info->gdtptr));
 
   uint32_t nullcpus = 0;
   for (uint32_t i = 0; i < cpuCount; i++) {
@@ -93,11 +91,13 @@ void SMP::init() {
         acpi->sendCPUStartup(info->cpuids[i], smp_init_vector);
       }
     }
+    asm volatile("hlt");
   }
 
   startupMutex.release();
 
-  delete[] info->cpuids;
-  delete[] info->stacks;
+  delete info->gdtptr;
+  delete info->cpuids;
+  delete info->stacks;
   Pagetable::free(startupCode);
 }

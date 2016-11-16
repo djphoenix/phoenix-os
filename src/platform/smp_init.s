@@ -59,6 +59,7 @@ _protected:
   mov %ax, %ds
   mov %ax, %es
   mov %ax, %ss
+  mov %ax, %gs
 
   mov %ebp, %eax
 
