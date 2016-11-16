@@ -44,11 +44,11 @@ void SMP::init() {
   } PACKED;
 
   DTREG gdtptr;
-  asm("sgdt %0":"=m"(gdtptr):"m"(gdtptr));
+  asm volatile("sgdt %0":"=m"(gdtptr):"m"(gdtptr));
 
   const char *smp_init, *smp_end;
-  asm("lea _smp_init(%%rip), %q0":"=r"(smp_init));
-  asm("lea _smp_end(%%rip), %q0":"=r"(smp_end));
+  asm volatile("lea _smp_init(%%rip), %q0":"=r"(smp_init));
+  asm volatile("lea _smp_end(%%rip), %q0":"=r"(smp_end));
 
   const size_t smp_init_size = smp_end - smp_init;
 
@@ -61,7 +61,7 @@ void SMP::init() {
   Memory::copy(startupCode, smp_init, smp_init_size);
   char smp_init_vector = (((uintptr_t)startupCode) >> 12) & 0xFF;
 
-  asm("mov %%cr3, %q0":"=r"(info->pagetableptr));
+  asm volatile("mov %%cr3, %q0":"=r"(info->pagetableptr));
 
   info->gdtptr = &gdtptr;
   info->lapicAddr = acpi->getLapicAddr();

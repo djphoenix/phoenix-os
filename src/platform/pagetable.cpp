@@ -40,21 +40,21 @@ void Pagetable::init() {
   char *modules_start, *modules_top;
   char *bss_start, *bss_top;
 
+  const EFI_SYSTEM_TABLE *ST = EFI::getSystemTable();
   MULTIBOOT_PAYLOAD *multiboot = Multiboot::getPayload();
 
-  asm("mov %%cr3, %q0":"=r"(pagetable));
-  asm("lea __stack_start__(%%rip), %q0":"=r"(stack_start));
-  asm("lea __stack_end__(%%rip), %q0":"=r"(stack_top));
-  asm("lea __text_start__(%%rip), %q0":"=r"(text_start));
-  asm("lea __data_end__(%%rip), %q0":"=r"(data_top));
-  asm("lea __modules_start__(%%rip), %q0":"=r"(modules_start));
-  asm("lea __modules_end__(%%rip), %q0":"=r"(modules_top));
-  asm("lea __bss_start__(%%rip), %q0":"=r"(bss_start));
-  asm("lea __bss_end__(%%rip), %q0":"=r"(bss_top));
+  asm volatile("mov %%cr3, %q0":"=r"(pagetable));
+  asm volatile("lea __stack_start__(%%rip), %q0":"=r"(stack_start));
+  asm volatile("lea __stack_end__(%%rip), %q0":"=r"(stack_top));
+  asm volatile("lea __text_start__(%%rip), %q0":"=r"(text_start));
+  asm volatile("lea __data_end__(%%rip), %q0":"=r"(data_top));
+  asm volatile("lea __modules_start__(%%rip), %q0":"=r"(modules_start));
+  asm volatile("lea __modules_end__(%%rip), %q0":"=r"(modules_top));
+  asm volatile("lea __bss_start__(%%rip), %q0":"=r"(bss_start));
+  asm volatile("lea __bss_end__(%%rip), %q0":"=r"(bss_top));
 
   // Initialization of pagetables
 
-  const EFI_SYSTEM_TABLE *ST = EFI::getSystemTable();
   if (ST) {
     void *p = 0;
     ST->BootServices->AllocatePages(

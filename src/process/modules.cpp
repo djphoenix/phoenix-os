@@ -84,8 +84,8 @@ void ModuleManager::loadStream(Stream *stream, bool start) {
 }
 void ModuleManager::parseInternal() {
   const char *mods_start, *mods_end;
-  asm("lea __modules_start__(%%rip), %q0":"=r"(mods_start));
-  asm("lea __modules_end__(%%rip), %q0":"=r"(mods_end));
+  asm volatile("lea __modules_start__(%%rip), %q0":"=r"(mods_start));
+  asm volatile("lea __modules_end__(%%rip), %q0":"=r"(mods_end));
 
   size_t modules_size = mods_end - mods_start;
 

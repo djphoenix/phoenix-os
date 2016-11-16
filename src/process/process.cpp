@@ -245,7 +245,8 @@ void Process::startup() {
     }
   }
   uintptr_t handler;
-  asm("lea __interrupt_wrap(%%rip), %q0":"=r"(handler)); handler &= KB4;
+  asm volatile("lea __interrupt_wrap(%%rip), %q0":"=r"(handler));
+  handler &= KB4;
   addPage(handler, reinterpret_cast<void*>(handler), 5);
   GDT_ENT *gdt_ent = reinterpret_cast<GDT_ENT*>(
       (uintptr_t)gdt.addr + 8 * 3);
