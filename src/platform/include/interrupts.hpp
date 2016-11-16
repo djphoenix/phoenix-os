@@ -183,7 +183,7 @@ class Interrupts {
  private:
   static intcbreg *callbacks[256];
   static Mutex callback_locks[256];
-  static Mutex fault, init_lock;
+  static Mutex fault;
   static int_handler* handlers;
   static IDT *idt;
   static GDT *gdt;

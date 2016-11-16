@@ -24,7 +24,6 @@ TSS64_ENT *Interrupts::tss = 0;
 intcbreg *Interrupts::callbacks[256];
 Mutex Interrupts::callback_locks[256];
 Mutex Interrupts::fault;
-Mutex Interrupts::init_lock;
 int_handler* Interrupts::handlers = 0;
 asm(
     ".global __interrupt_wrap;"
@@ -283,13 +282,6 @@ uint64_t __attribute__((sysv_abi)) Interrupts::handle(
   return 0;
 }
 void Interrupts::init() {
-  init_lock.lock();
-  if (idt != 0) {
-    init_lock.release();
-    loadVector();
-    return;
-  }
-
   uint64_t ncpu = ACPI::getController()->getCPUCount();
 
   gdt = new(GDT::size(ncpu)) GDT();
@@ -362,7 +354,6 @@ void Interrupts::init() {
   outportb(0x21, 0x01);
   outportb(0xA1, 0x01);
 
-  init_lock.release();
   loadVector();
 
   if (!(ACPI::getController())->initAPIC()) {
@@ -380,9 +371,7 @@ void Interrupts::maskIRQ(uint16_t mask) {
 }
 
 void Interrupts::loadVector() {
-  init_lock.lock();
   if (idt == 0) {
-    init_lock.release();
     init();
     return;
   }
@@ -393,7 +382,6 @@ void Interrupts::loadVector() {
       "lidtq %0;"
       "ltr %w1;"
       "sti"::"m"(idtreg), "a"(tr));
-  init_lock.release();
 }
 
 uint16_t Interrupts::getIRQmask() {
