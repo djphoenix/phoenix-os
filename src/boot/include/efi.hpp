@@ -240,7 +240,8 @@ struct EFI_BOOT_SERVICES_TABLE {
   const void *InstallProtocolInterface;
   const void *ReInstallProtocolInterface;
   const void *UnInstallProtocolInterface;
-  const void *HandleProtocol;
+  EFI_STATUS EFIAPI(*const HandleProtocol)(
+      const void *Handle, const EFI_GUID *Protocol, void **Interface);
   const void *PCHandleProtocol;
   const void *RegisterProtocolNotify;
   const void *LocateHandle;
@@ -253,7 +254,7 @@ struct EFI_BOOT_SERVICES_TABLE {
       uint64_t ExitDataSize, const wchar_t *ExitData);
   const void *ImageUnLoad;
   EFI_STATUS EFIAPI(*const ExitBootServices)(
-      void *ImageHandle, uint64_t MapKey);
+      const void *ImageHandle, uint64_t MapKey);
   EFI_STATUS EFIAPI(*const GetNextMonotonicCount)(uint64_t *Count);
   EFI_STATUS EFIAPI(*const Stall)(uint64_t Microseconds);
   EFI_STATUS EFIAPI(*const SetWatchdogTimer)(
@@ -266,7 +267,8 @@ struct EFI_BOOT_SERVICES_TABLE {
   const void *OpenProtocolInformation;
   const void *ProtocolsPerHandle;
   const void *LocateHandleBuffer;
-  const void *LocateProtocol;
+  EFI_STATUS EFIAPI(*const LocateProtocol)(
+      const EFI_GUID *Protocol, const void *Registration, void **Interface);
   const void *InstallMultipleProtocolInterfaces;
   const void *UnInstallMultipleProtocolInterfaces;
   EFI_STATUS EFIAPI(*const CalculateCrc32)(
@@ -325,6 +327,12 @@ static const EFI_GUID EFI_CONF_TABLE_GUID_ACPI1 =
 static const EFI_GUID EFI_CONF_TABLE_GUID_ACPI2 =
   { 0x8868E871, 0xE4F1, 0x11D3, 0x22BC, 0x81883CC78000 };
 
+static const EFI_GUID EFI_LOADED_IMAGE_PROTOCOL =
+  { 0x5B1B31A1, 0x9562, 0x11d2, 0x3F8E, 0x3B7269C9A000 };
+
+static const EFI_GUID EFI_GRAPHICS_OUTPUT_PROTOCOL =
+  { 0x9042A9DE, 0x23DC, 0x4A38, 0xFB96, 0x6A5180D0DE7A };
+
 struct EFI_SYSTEM_TABLE {
   EFI_TABLE_HEADER Hdr;
   const wchar_t *FirmwareVendor;
@@ -339,6 +347,68 @@ struct EFI_SYSTEM_TABLE {
   const EFI_BOOT_SERVICES_TABLE *BootServices;
   uint64_t NumberOfTableEntries;
   const EFI_CONFIGURATION_TABLE *ConfigurationTable;
+};
+
+struct EFI_LOADED_IMAGE {
+  uint32_t Revision;
+  void *ParentHandle;
+  EFI_SYSTEM_TABLE *SystemTable;
+
+  void *DeviceHandle;
+  wchar_t *FilePath;
+  void *Reserved;
+
+  uint32_t LoadOptionsSize;
+  void *LoadOptions;
+
+  void *ImageBase;
+  uint64_t ImageSize;
+  EFI_MEMORY_TYPE ImageCodeType;
+  EFI_MEMORY_TYPE ImageDataType;
+
+  EFI_STATUS EFIAPI(*const Unload)(const void *ImageHandle);
+};
+
+struct EFI_PIXEL_BITMASK {
+  uint32_t RedMask;
+  uint32_t GreenMask;
+  uint32_t BlueMask;
+  uint32_t ReservedMask;
+};
+
+enum EFI_GRAPHICS_PIXEL_FORMAT: uint32_t {
+  EFI_GRAPHICS_PIXEL_FORMAT_RGBX_8BPP,
+  EFI_GRAPHICS_PIXEL_FORMAT_BGRX_8BPP,
+  EFI_GRAPHICS_PIXEL_FORMAT_BITMASK,
+  EFI_GRAPHICS_PIXEL_FORMAT_BLTONLY
+};
+
+struct EFI_GRAPHICS_OUTPUT_MODE_INFORMATION {
+  uint32_t Version;
+  uint32_t HorizontalResolution;
+  uint32_t VerticalResolution;
+  EFI_GRAPHICS_PIXEL_FORMAT  PixelFormat;
+  EFI_PIXEL_BITMASK PixelInformation;
+  uint32_t PixelsPerScanLine;
+};
+
+struct EFI_GRAPHICS_OUTPUT_PROTOCOL_MODE {
+  uint32_t MaxMode;
+  uint32_t Mode;
+  EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *Info;
+  uint64_t SizeOfInfo;
+  void *FrameBufferBase;
+  uint64_t FrameBufferSize;
+};
+
+struct EFI_GRAPHICS_OUTPUT {
+  EFI_STATUS EFIAPI(*const QueryMode)(
+      EFI_GRAPHICS_OUTPUT *This, uint32_t ModeNumber,
+      uint64_t *SizeOfInfo, EFI_GRAPHICS_OUTPUT_MODE_INFORMATION **Info);
+  EFI_STATUS EFIAPI(*const SetMode)(
+      EFI_GRAPHICS_OUTPUT *This, uint32_t ModeNumber);
+  const void *Blt;
+  EFI_GRAPHICS_OUTPUT_PROTOCOL_MODE *Mode;
 };
 
 class EFI {
