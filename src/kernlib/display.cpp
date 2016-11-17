@@ -19,11 +19,6 @@
 #include "pagetable.hpp"
 #include "font-8x16.hpp"
 
-inline static void serout(const char *str) {
-  char c;
-      while ((c = *str++) != 0) outportb(0x3F8, c);
-}
-
 class ConsoleDisplay: public Display {
  private:
   static char *const base;
@@ -163,12 +158,28 @@ class FramebufferDisplay: public Display {
 };
 
 class SerialDisplay: public Display {
+ private:
+  static const uint16_t port = 0x3F8;
+  static const uint16_t baud = 9600;
+  static const uint16_t divisor = 115200 / baud;
+
  public:
-  SerialDisplay() {}
+  SerialDisplay() {
+    // Disable interrupts
+    outportb(port + 1, 0);
+    // Enable DLAB
+    outportb(port + 3, 0x80);
+    // Set divisor
+    outportb(port + 0, divisor & 0xFF);
+    outportb(port + 1, (divisor >> 16) & 0xFF);
+    // Set port mode (8N1), disable DLAB
+    outportb(port + 3, 0x03);
+  }
   void write(const char *str) {
     uint64_t t = EnterCritical();
     mutex.lock();
-    serout(str);
+    char c;
+    while ((c = *str++) != 0) outportb(0x3F8, c);
     mutex.release();
     LeaveCritical(t);
   }
