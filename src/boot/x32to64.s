@@ -220,6 +220,7 @@ x64_entry:
   call reloc_vtables
   call static_init
   call _ZN9Pagetable4initEv
+  call _ZN7Display5setupEv
   mov %rsp, %rbp
   jmp main
   

@@ -37,6 +37,20 @@ class EFIDisplay: public Display {
   void clean();
 };
 
+class SerialDisplay: public Display {
+ public:
+  SerialDisplay() {
+    // TODO: setup serial
+  }
+  void write(const char *str) {
+    char c;
+    while ((c = *str++) != 0) {
+      outportb(0x3F8, c);
+    }
+  }
+  void clean() {}
+};
+
 char *const ConsoleDisplay::base = reinterpret_cast<char*>(0xB8000);
 char *const ConsoleDisplay::top = reinterpret_cast<char*>(0xB8FA0);
 const size_t ConsoleDisplay::size = ConsoleDisplay::top - ConsoleDisplay::base;
@@ -127,20 +141,23 @@ void EFIDisplay::write(const char *str) {
   mutex.release();
 }
 
-static ConsoleDisplay sharedConsole;
-Display *Display::instance = Display::initInstance();
+static SerialDisplay serialConsole;
+Display *Display::instance = &serialConsole;
 Mutex Display::instanceMutex;
 
-Display *Display::initInstance() {
-  if (EFI::getSystemTable()) return new EFIDisplay();
-  return &sharedConsole;
+void Display::setup() {
+  if (instance != &serialConsole) return;
+  if (EFI::getSystemTable()) {
+    instance = new EFIDisplay();
+  } else {
+    instance = new ConsoleDisplay();
+  }
 }
 
 Display *Display::getInstance() {
   if (instance) return instance;
   instanceMutex.lock();
-  if (!instance)
-    instance = initInstance();
+  if (!instance) setup();
   instanceMutex.release();
   return instance;
 }

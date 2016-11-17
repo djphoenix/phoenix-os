@@ -28,7 +28,7 @@ $(EFIKERN): $(BIN)
 	$(Q) cp $< $@
 
 launch: $(BIN)
-	$(QEMU) -kernel $< -smp cores=2,threads=2 -cpu Broadwell
+	$(QEMU) -kernel $< -smp cores=2,threads=2 -cpu Broadwell -serial stdio
 
 launch-efi: $(EFIKERN) $(EFIBIOS)
-	$(QEMU) -drive file=fat:$(EFIROOT) -smp cores=2,threads=2 -cpu Broadwell -bios $(EFIBIOS)
+	$(QEMU) -drive file=fat:$(EFIROOT) -smp cores=2,threads=2 -cpu Broadwell -bios $(EFIBIOS) -serial stdio

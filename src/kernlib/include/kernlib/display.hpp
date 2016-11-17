@@ -21,8 +21,8 @@
 class Display {
  private:
   static Mutex instanceMutex;
-  static Display *initInstance();
   static Display *instance;
+  static void setup();
  protected:
   Mutex mutex;
  public:
