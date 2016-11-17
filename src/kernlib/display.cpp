@@ -17,17 +17,56 @@
 #include "kernlib.hpp"
 #include "efi.hpp"
 
+inline static void serout(const char *str) {
+  char c;
+      while ((c = *str++) != 0) outportb(0x3F8, c);
+}
+
 class ConsoleDisplay: public Display {
  private:
   static char *const base;
   static char *const top;
   static const size_t size;
   char *display;
-  void putc(const char c);
+  void putc(const char c) {
+    if (c == 0) return;
+    size_t pos = display - base;
+    if (c == '\n') {
+      display += 160 - (pos % 160);
+    } else if (c == '\t') {
+      do {
+        *(display++) = ' ';
+        *(display++) = 0x0F;
+      } while (pos % 8 != 0);
+    } else {
+      *(display++) = c;
+      *(display++) = 0x0F;
+    }
+    if (display >= top) {
+      Memory::copy(base, base + 160, size - 160);
+      display = top - 160;
+      Memory::fill(display, 0, 160);
+    }
+  }
+
  public:
-  ConsoleDisplay();
-  void write(const char *str);
-  void clean();
+  ConsoleDisplay() {
+    if (EFI::getSystemTable() != 0) return;
+    display = base;
+    clean();
+  }
+  void write(const char *str) {
+    uint64_t t = EnterCritical();
+    mutex.lock();
+    while (*str != 0) putc(*(str++));
+    mutex.release();
+    LeaveCritical(t);
+  }
+  void clean() {
+    mutex.lock();
+    Memory::fill(base, 0, size);
+    mutex.release();
+  }
 };
 
 class EFIDisplay: public Display {
@@ -39,14 +78,13 @@ class EFIDisplay: public Display {
 
 class SerialDisplay: public Display {
  public:
-  SerialDisplay() {
-    // TODO: setup serial
-  }
+  SerialDisplay() {}
   void write(const char *str) {
-    char c;
-    while ((c = *str++) != 0) {
-      outportb(0x3F8, c);
-    }
+    uint64_t t = EnterCritical();
+    mutex.lock();
+    serout(str);
+    mutex.release();
+    LeaveCritical(t);
   }
   void clean() {}
 };
@@ -54,47 +92,6 @@ class SerialDisplay: public Display {
 char *const ConsoleDisplay::base = reinterpret_cast<char*>(0xB8000);
 char *const ConsoleDisplay::top = reinterpret_cast<char*>(0xB8FA0);
 const size_t ConsoleDisplay::size = ConsoleDisplay::top - ConsoleDisplay::base;
-
-ConsoleDisplay::ConsoleDisplay() {
-  if (EFI::getSystemTable() != 0) return;
-  display = base;
-  clean();
-}
-
-void ConsoleDisplay::putc(const char c) {
-  if (c == 0) return;
-  size_t pos = display - base;
-  if (c == '\n') {
-    display += 160 - (pos % 160);
-  } else if (c == '\t') {
-    do {
-      *(display++) = ' ';
-      *(display++) = 0x0F;
-    } while (pos % 8 != 0);
-  } else {
-    *(display++) = c;
-    *(display++) = 0x0F;
-  }
-  if (display >= top) {
-    Memory::copy(base, base + 160, size - 160);
-    display = top - 160;
-    Memory::fill(display, 0, 160);
-  }
-}
-
-void ConsoleDisplay::write(const char *str) {
-  uint64_t t = EnterCritical();
-  mutex.lock();
-  while (*str != 0) putc(*(str++));
-  mutex.release();
-  LeaveCritical(t);
-}
-
-void ConsoleDisplay::clean() {
-  mutex.lock();
-  Memory::fill(base, 0, size);
-  mutex.release();
-}
 
 EFIDisplay::EFIDisplay() {
   const EFI_SYSTEM_TABLE *ST = EFI::getSystemTable();
@@ -156,9 +153,11 @@ void Display::setup() {
 
 Display *Display::getInstance() {
   if (instance) return instance;
+  uint64_t t = EnterCritical();
   instanceMutex.lock();
   if (!instance) setup();
   instanceMutex.release();
+  LeaveCritical(t);
   return instance;
 }
 
