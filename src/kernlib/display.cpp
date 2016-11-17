@@ -16,6 +16,7 @@
 
 #include "kernlib.hpp"
 #include "efi.hpp"
+#include "pagetable.hpp"
 
 inline static void serout(const char *str) {
   char c;
@@ -69,11 +70,47 @@ class ConsoleDisplay: public Display {
   }
 };
 
-class EFIDisplay: public Display {
+enum PixelFormat {
+  PixelFormatRGBX,
+  PixelFormatBGRX
+};
+
+class FramebufferDisplay: public Display {
+ private:
+  void *framebuffer;
+  size_t width, height;
+  PixelFormat pixelFormat;
+
+  size_t pixelBytes() {
+    switch (pixelFormat) {
+      case PixelFormatRGBX: return 4;
+      case PixelFormatBGRX: return 4;
+    }
+    return 0;
+  }
+  size_t bufferSize() { return width * height * pixelBytes(); }
+
  public:
-  EFIDisplay();
-  void write(const char *str);
-  void clean();
+  FramebufferDisplay(void *framebuffer, size_t width, size_t height,
+                     PixelFormat pixelFormat):
+    framebuffer(framebuffer), width(width), height(height),
+    pixelFormat(pixelFormat) {
+    for (uintptr_t ptr = (uintptr_t)framebuffer;
+        ptr < (uintptr_t)framebuffer + bufferSize() + 0xFFF;
+        ptr += 0x1000) {
+      Pagetable::map(reinterpret_cast<void*>(ptr));
+    }
+    printf("FB: %p, res: %lux%lu\n", framebuffer, width, height);
+
+    clean();
+  }
+  void write(const char *str) {
+    // TODO: Framebuffer print
+    serout(str);
+  }
+  void clean() {
+    Memory::zero(framebuffer, bufferSize());
+  }
 };
 
 class SerialDisplay: public Display {
@@ -93,59 +130,34 @@ char *const ConsoleDisplay::base = reinterpret_cast<char*>(0xB8000);
 char *const ConsoleDisplay::top = reinterpret_cast<char*>(0xB8FA0);
 const size_t ConsoleDisplay::size = ConsoleDisplay::top - ConsoleDisplay::base;
 
-EFIDisplay::EFIDisplay() {
-  const EFI_SYSTEM_TABLE *ST = EFI::getSystemTable();
-  ST->ConOut->Reset(ST->ConOut, 1);
-  uint64_t cols = 0, rows = 0, bestmode = 0;
-  for (uint64_t m = 0; m < ST->ConOut->Mode->MaxMode; m++) {
-    uint64_t c = 0, r = 0;
-    ST->ConOut->QueryMode(ST->ConOut, m, &c, &r);
-    if (c > cols || r > rows) {
-      cols = c; rows = r; bestmode = m;
-    }
-  }
-  if (ST->ConOut->Mode->Mode != bestmode)
-    ST->ConOut->SetMode(ST->ConOut, bestmode);
-  ST->ConOut->SetAttribute(ST->ConOut, {{ EFI_COLOR_WHITE, EFI_COLOR_BLACK }});
-}
-
-void EFIDisplay::clean() {
-  const EFI_SYSTEM_TABLE *ST = EFI::getSystemTable();
-  mutex.lock();
-  ST->ConOut->ClearScreen(ST->ConOut);
-  mutex.release();
-}
-
-void EFIDisplay::write(const char *str) {
-  size_t wlen = 0;
-  const char *s = str; char c;
-  while ((c = *s++) != 0)
-    wlen += (c == '\r') ? 0 : ((c == '\n') ? 2 : 1);
-  wchar_t *wstr =
-      reinterpret_cast<wchar_t*>(alloca((wlen + 1) * sizeof(wchar_t))),
-      *ws = wstr;
-  s = str;
-  while ((c = *s++) != 0) {
-    if (c == '\r') continue;
-    if (c == '\n') *ws++ = '\r';
-    *ws++ = c;
-  }
-  *ws++ = 0;
-
-  const EFI_SYSTEM_TABLE *ST = EFI::getSystemTable();
-  mutex.lock();
-  ST->ConOut->OutputString(ST->ConOut, wstr);
-  mutex.release();
-}
-
 static SerialDisplay serialConsole;
 Display *Display::instance = &serialConsole;
 Mutex Display::instanceMutex;
 
 void Display::setup() {
   if (instance != &serialConsole) return;
-  if (EFI::getSystemTable()) {
-    instance = new EFIDisplay();
+  const EFI_SYSTEM_TABLE *ST = EFI::getSystemTable();
+  if (ST) {
+    EFI_GRAPHICS_OUTPUT *graphics_output = 0;
+    ST->BootServices->LocateProtocol(
+        &EFI_GRAPHICS_OUTPUT_PROTOCOL, 0,
+        reinterpret_cast<void**>(&graphics_output));
+    PixelFormat pixelFormat;
+    switch (graphics_output->Mode->Info->PixelFormat) {
+      case EFI_GRAPHICS_PIXEL_FORMAT_RGBX_8BPP:
+        pixelFormat = PixelFormatRGBX;
+        break;
+      case EFI_GRAPHICS_PIXEL_FORMAT_BGRX_8BPP:
+        pixelFormat = PixelFormatBGRX;
+        break;
+      default:
+        return;
+    }
+    instance = new FramebufferDisplay(
+        graphics_output->Mode->FrameBufferBase,
+        graphics_output->Mode->Info->HorizontalResolution,
+        graphics_output->Mode->Info->VerticalResolution,
+        pixelFormat);
   } else {
     instance = new ConsoleDisplay();
   }
