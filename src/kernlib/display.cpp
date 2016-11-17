@@ -17,6 +17,7 @@
 #include "kernlib.hpp"
 #include "efi.hpp"
 #include "pagetable.hpp"
+#include "font-8x16.hpp"
 
 inline static void serout(const char *str) {
   char c;
@@ -80,6 +81,7 @@ class FramebufferDisplay: public Display {
   void *framebuffer;
   size_t width, height;
   PixelFormat pixelFormat;
+  size_t offset;
 
   size_t pixelBytes() {
     switch (pixelFormat) {
@@ -90,26 +92,73 @@ class FramebufferDisplay: public Display {
   }
   size_t bufferSize() { return width * height * pixelBytes(); }
 
+  size_t charWidth() { return width / 8; }
+  size_t charHeight() { return height / 16; }
+
+  void putc(const char c) {
+    if (c == 0) return;
+    if (c == '\n') {
+      offset += charWidth() - (offset % charWidth());
+    } else if (c == '\t') {
+      offset += 8 - ((offset % charWidth()) % 8);
+    } else {
+      const uint8_t *fontsym = fb_font_8x16 + ((size_t)c * 16);
+      size_t offsetX = offset % charWidth();
+      size_t offsetY = offset / charWidth();
+      size_t pb = pixelBytes();
+
+      char *fbptr = static_cast<char*>(framebuffer)
+          + offsetY * 16 * width * pb
+          + offsetX * 8 * pb;
+
+      for (size_t y = 0; y < 16; y++) {
+        char *line = fbptr + y * width * pb;
+        uint8_t fontline = fontsym[y];
+        for (size_t x = 0; x < 8; x++) {
+          if (fontline & (1 << (8 - x))) {
+            for (size_t px = 0; px < pb; px++)
+              line[x * pb + px] = 0xFF;
+          }
+        }
+      }
+
+      offset++;
+    }
+    if (offset >= charHeight() * charWidth()) {
+      char *fbptr = static_cast<char*>(framebuffer);
+      size_t pb = pixelBytes();
+      Memory::copy(fbptr,
+                   fbptr + width * 16 * pb,
+                   bufferSize() - width * 16 * pb);
+      Memory::zero(fbptr + width * 16 * (charHeight() - 1) * pb,
+                   width * 16 * pb);
+      offset -= charWidth();
+    }
+  }
+
  public:
   FramebufferDisplay(void *framebuffer, size_t width, size_t height,
                      PixelFormat pixelFormat):
     framebuffer(framebuffer), width(width), height(height),
-    pixelFormat(pixelFormat) {
+    pixelFormat(pixelFormat), offset(0) {
     for (uintptr_t ptr = (uintptr_t)framebuffer;
         ptr < (uintptr_t)framebuffer + bufferSize() + 0xFFF;
         ptr += 0x1000) {
       Pagetable::map(reinterpret_cast<void*>(ptr));
     }
-    printf("FB: %p, res: %lux%lu\n", framebuffer, width, height);
-
     clean();
   }
   void write(const char *str) {
-    // TODO: Framebuffer print
-    serout(str);
+    uint64_t t = EnterCritical();
+    mutex.lock();
+    while (*str != 0) putc(*(str++));
+    mutex.release();
+    LeaveCritical(t);
   }
   void clean() {
+    mutex.lock();
     Memory::zero(framebuffer, bufferSize());
+    mutex.release();
   }
 };
 
