@@ -219,6 +219,7 @@ _efi_start: # EFI
 x64_entry:
   call reloc_vtables
   call static_init
+  call _ZN9Pagetable4initEv
   mov %rsp, %rbp
   jmp main
   
