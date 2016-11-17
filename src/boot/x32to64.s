@@ -210,6 +210,8 @@ _efi_start: # EFI
   cli
   # EFI::SystemTable
   mov %rdx, _ZN3EFI11SystemTableE(%rip)
+  # EFI::ImageHandle
+  mov %rcx, _ZN3EFI11ImageHandleE(%rip)
   mov $0xFF, %al
   outb %al, $0x21
   outb %al, $0xA1

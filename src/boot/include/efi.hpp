@@ -344,6 +344,8 @@ struct EFI_SYSTEM_TABLE {
 class EFI {
  private:
   static const EFI_SYSTEM_TABLE *SystemTable;
+  static const void *ImageHandle;
  public:
   static const EFI_SYSTEM_TABLE *getSystemTable();
+  static const void *getImageHandle();
 };
