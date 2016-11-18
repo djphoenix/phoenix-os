@@ -195,7 +195,7 @@ void Interrupts::print(uint8_t num, intcb_regs *regs, uint32_t code) {
   if (regs->rflags & (1 << 11))
     rflags_buf[0] = 'O';
   printf("\n%s fault %s (cpu=%u, error=0x%x)\n"
-         "IP=%016lx CS=%04hx SS=%04hx DPL=%hu\n"
+         "IP=%016lx CS=%04hx SS=%04hx DPL=%hhu\n"
          "FL=%016lx [%s]\n"
          "SP=%016lx BP=%016lx CR2=%08lx\n"
          "SI=%016lx DI=%016lx\n"
