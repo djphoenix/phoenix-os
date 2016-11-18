@@ -15,6 +15,7 @@
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "kernlib.hpp"
+#include "heap.hpp"
 
 static inline char *longlong_to_string(
     char *buf, size_t len, uint64_t n, uint8_t base,
@@ -359,10 +360,16 @@ int vprintf(const char *format, va_list ap) {
   va_copy(tmp, ap);
   int len = vsnprintf(0, 0, format, tmp);
   va_end(tmp);
-  char *buf = static_cast<char*>(alloca(len + 1));
+  char smbuf[512], *buf;
+  if (len > 511) {
+    buf = static_cast<char*>(Heap::alloc(len + 1));
+  } else {
+    buf = smbuf;
+  }
   len = vsnprintf(buf, len, format, ap);
   buf[len] = 0;
   Display::getInstance()->write(buf);
+  if (len > 511) Heap::free(buf);
   return len;
 }
 

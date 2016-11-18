@@ -16,6 +16,7 @@
 
 #include "cpu.hpp"
 #include "kernlib.hpp"
+#include "heap.hpp"
 
 char CPU::vendor[13] = "";
 char CPU::brandString[49] = "";
@@ -180,7 +181,7 @@ char* CPU::getFeaturesStr() {
   uint32_t count = bitcnt(f) + bitcnt(ef) + bitcnt(fe);
 
   size_t bufsize = 17 * count;
-  char *buf = static_cast<char*>(alloca(bufsize));
+  char *buf = static_cast<char*>(Heap::alloc(bufsize));
   char *end = buf;
 
   for (int i = 0; i < 64; i++) {
@@ -205,7 +206,9 @@ char* CPU::getFeaturesStr() {
     end--;
   end[0] = 0;
 
-  return strdup(buf);
+  buf = Heap::realloc(buf, strlen(buf) + 1);
+
+  return buf;
 }
 
 char* CPU::getBrandString() {
