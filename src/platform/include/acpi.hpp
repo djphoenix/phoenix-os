@@ -133,9 +133,9 @@ class ACPI {
   static ACPI* getController();
   uint32_t getLapicID();
   uint32_t getCPUID();
-  void* getLapicAddr();
-  uint32_t getCPUCount();
-  uint32_t getActiveCPUCount();
+  void* getLapicAddr() PURE;
+  uint32_t getCPUCount() PURE;
+  uint32_t getActiveCPUCount() PURE;
   uint32_t LapicIn(uint32_t reg);
   void LapicOut(uint32_t reg, uint32_t data);
   uint32_t IOapicIn(uint32_t reg);
@@ -143,8 +143,8 @@ class ACPI {
   void IOapicMap(uint32_t idx, ioapic_redir r);
   ioapic_redir IOapicReadMap(uint32_t idx);
   void activateCPU();
-  uint32_t getLapicIDOfCPU(uint32_t cpuId);
-  uint32_t getCPUIDOfLapic(uint32_t lapicId);
+  uint32_t getLapicIDOfCPU(uint32_t cpuId) PURE;
+  uint32_t getCPUIDOfLapic(uint32_t lapicId) PURE;
   void sendCPUInit(uint32_t id);
   void sendCPUStartup(uint32_t id, uint8_t vector);
   bool initAPIC();

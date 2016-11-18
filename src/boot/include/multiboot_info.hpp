@@ -67,5 +67,5 @@ class Multiboot {
  private:
   static MULTIBOOT_PAYLOAD *payload;
  public:
-  static MULTIBOOT_PAYLOAD *getPayload();
+  static MULTIBOOT_PAYLOAD *getPayload() PURE;
 };

@@ -121,4 +121,3 @@ ModuleManager* ModuleManager::getManager() {
   managerMutex.release();
   return manager;
 }
-ModuleManager::ModuleManager() {}

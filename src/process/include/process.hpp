@@ -51,13 +51,13 @@ class Process {
   void addSymbol(const char *name, uintptr_t ptr);
   void setEntryAddress(uintptr_t ptr);
 
-  uintptr_t getSymbolByName(const char* name);
+  uintptr_t getSymbolByName(const char* name) PURE;
   uintptr_t linkLibrary(const char* funcname);
 
   void writeData(uintptr_t address, void* src, size_t size);
   void readData(void* dst, uintptr_t address, size_t size);
   char* readString(uintptr_t address);
 
-  uintptr_t getVirtualAddress(void* addr);
-  void* getPhysicalAddress(uintptr_t ptr);
+  uintptr_t getVirtualAddress(void* addr) CONST;
+  void* getPhysicalAddress(uintptr_t ptr) PURE;
 };

@@ -19,8 +19,8 @@
 extern "C" {
   void *__dso_handle = 0;
 
-  void __cxa_pure_virtual() {}
-  int __cxa_atexit(void (*)(void*), void*, void*) { return 0; }
+  void CONST __cxa_pure_virtual() {}
+  int CONST __cxa_atexit(void (*)(void*), void*, void*) { return 0; }
 }
 
 size_t strlen(const char* c, size_t limit) {

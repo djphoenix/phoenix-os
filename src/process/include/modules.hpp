@@ -33,7 +33,6 @@ class ModuleManager {
   static void init();
 
  public:
-  ModuleManager();
   static ModuleManager* getManager();
 };
 

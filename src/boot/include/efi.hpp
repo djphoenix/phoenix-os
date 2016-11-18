@@ -416,6 +416,6 @@ class EFI {
   static const EFI_SYSTEM_TABLE *SystemTable;
   static const void *ImageHandle;
  public:
-  static const EFI_SYSTEM_TABLE *getSystemTable();
-  static const void *getImageHandle();
+  static const EFI_SYSTEM_TABLE *getSystemTable() PURE;
+  static const void *getImageHandle() PURE;
 };

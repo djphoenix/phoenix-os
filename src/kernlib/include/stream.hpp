@@ -37,9 +37,9 @@ class MemoryStream: public Stream {
  public:
   MemoryStream(const void* memory, size_t limit);
   size_t read(void* dest, size_t size);
-  size_t size();
+  size_t size() PURE;
   size_t seek(int64_t offset, char base = 0);
   Stream* substream(int64_t offset = -1, size_t limit = -1);
   char* readstr();
-  bool eof();
+  bool eof() PURE;
 };

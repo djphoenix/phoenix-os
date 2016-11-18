@@ -29,5 +29,5 @@ class Display {
   static Display *getInstance();
   virtual void clean() = 0;
   virtual void write(const char*) = 0;
-  virtual ~Display() = 0;
+  virtual ~Display() CONST = 0;
 };
