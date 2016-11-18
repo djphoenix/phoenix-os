@@ -179,7 +179,7 @@ class SerialDisplay: public Display {
     uint64_t t = EnterCritical();
     mutex.lock();
     char c;
-    while ((c = *str++) != 0) outportb(0x3F8, c);
+    while ((c = *str++) != 0) outportb(port, c);
     mutex.release();
     LeaveCritical(t);
   }
