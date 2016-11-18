@@ -221,8 +221,11 @@ x64_entry:
   call static_init
   call _ZN9Pagetable4initEv
   call _ZN7Display5setupEv
+  call _ZN10Interrupts4initEv
+  call _ZN3SMP4initEv
+  call _ZN13ModuleManager4initEv
   mov %rsp, %rbp
-  jmp main
+  jmp _Z12process_loopv
   
 reloc_vtables:
   lea _start(%rip), %rcx

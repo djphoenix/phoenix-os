@@ -184,10 +184,10 @@ class Interrupts {
   static INTERRUPT64 *idt;
   static GDT *gdt;
   static TSS64_ENT *tss;
- public:
-  static INTERRUPT32 interrupts32[256];
   static void init();
   static uint64_t handle(uint8_t intr, uint64_t stack, uint64_t *cr3);
+
+ public:
   static void print(uint8_t num, intcb_regs *regs, uint32_t code);
   static void maskIRQ(uint16_t mask);
   static uint16_t getIRQmask();

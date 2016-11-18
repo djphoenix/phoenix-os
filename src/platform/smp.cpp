@@ -14,9 +14,16 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#include "smp.hpp"
+#include "kernlib.hpp"
 #include "acpi.hpp"
 #include "processmanager.hpp"
+
+class SMP {
+ private:
+  static Mutex startupMutex;
+  static void NORETURN startup();
+  static void init();
+};
 
 Mutex SMP::startupMutex;
 

@@ -74,9 +74,9 @@ class Pagetable {
   static Mutex page_mutex;
   static uint64_t last_page;
   static void* _alloc(uint8_t avl = 0, bool nolow = false);
+  static void init();
 
  public:
-  static void init();
   static void* map(const void* mem);
   static void* alloc(uint8_t avl = 0);
   static void free(void* page);

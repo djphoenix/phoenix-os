@@ -30,10 +30,10 @@ class ModuleManager {
   void parseInitRD();
   void loadStream(Stream *stream, bool start = 0);
   bool parseModuleInfo(MODULEINFO *info, Process *process);
+  static void init();
 
  public:
   ModuleManager();
   static ModuleManager* getManager();
-  static void init();
 };
 
