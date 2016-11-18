@@ -18,18 +18,16 @@
 
 void Memory::copy(void *dest, const void *src, size_t count) {
   asm volatile(
-      "mov %0, %%rsi;"
-      "mov %1, %%rdi;"
       "cld;"
       "cmp %%rdi, %%rsi;"
       "jae 1f;"
-      "add %%rcx, %%rsi; dec %%rsi;"
-      "add %%rcx, %%rdi; dec %%rdi;"
+      "lea -1(%%rsi,%%rcx,1), %%rsi;"
+      "lea -1(%%rdi,%%rcx,1), %%rdi;"
       "std;"
-      "\n1:"
+      "1:"
       "rep movsb;"
       "cld;"
-      ::"r"(src),"r"(dest),"c"(count):"rsi","rdi"
+      ::"S"(src),"D"(dest),"c"(count)
   );
 }
 
@@ -39,9 +37,8 @@ void Memory::zero(void *addr, size_t size) {
 
 void Memory::fill(void *addr, uint8_t value, size_t size) {
   asm volatile(
-      "mov %0, %%rdi;"
       "cld;"
       "rep stosb;"
-      ::"r"(addr),"a"(value),"c"(size):"rdi"
+      ::"D"(addr),"a"(value),"c"(size)
   );
 }
