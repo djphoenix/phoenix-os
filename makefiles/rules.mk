@@ -31,7 +31,7 @@ $(OOBJDIR)/%.o: $(SRCDIR)/%.cpp
 $(OOBJDIR)/%.o: $(SRCDIR)/%.s
 	@ mkdir -p $(dir $@)
 	$(QECHO) AS $(subst $(SRCDIR)/,,$<)
-	$(Q) $(CC) -c -s $< -o $@
+	$(Q) $(CC) -c $< -o $@
 
 $(BIN).elf: $(KERNOBJS) $(OOBJDIR)/modules-linked.o
 	@ mkdir -p $(dir $@)
