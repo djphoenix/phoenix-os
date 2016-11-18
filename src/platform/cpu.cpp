@@ -15,6 +15,7 @@
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "cpu.hpp"
+#include "kernlib.hpp"
 
 char CPU::vendor[13] = "";
 char CPU::brandString[49] = "";
