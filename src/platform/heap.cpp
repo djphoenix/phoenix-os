@@ -163,8 +163,10 @@ void Heap::free(void* addr) {
   end: heap_mutex.release();
 }
 void *Heap::realloc(void *addr, size_t size, size_t align) {
-  if (size == 0)
+  if (size == 0) {
+    free(addr);
     return 0;
+  }
   if (addr == 0)
     return alloc(size, align);
   heap_mutex.lock();
@@ -174,6 +176,11 @@ void *Heap::realloc(void *addr, size_t size, size_t align) {
     for (int i = 0; i < 255; i++) {
       if (t->allocs[i].addr == addr) {
         oldsize = t->allocs[i].size;
+        if (oldsize >= size) {
+          t->allocs[i].size = size;
+          heap_mutex.release();
+          return addr;
+        }
         break;
       }
     }
