@@ -37,7 +37,7 @@ $(OOBJDIR)/%.o: $(SRCDIR)/%.s
 $(BIN).elf: $(KERNOBJS) $(OOBJDIR)/modules-linked.o
 	@ mkdir -p $(dir $@)
 	$(QECHO) LD $(subst $(OIMGDIR)/,,$@)
-	$(Q) $(CC) $(CFLAGS) -Lld -Tsystem.ld -o $@ -Wl,--start-group $^ -Wl,--end-group
+	$(Q) $(LD) $(CFLAGS) -Lld -Tsystem.ld -o $@ -Wl,--start-group $^ -Wl,--end-group
 
 $(BIN).elf.strip: $(BIN).elf
 	$(Q) $(STRIP) -o $@ $^
