@@ -92,7 +92,7 @@ asm(
     "1:"
 
     // Send EOI to local APIC
-    "cmp $0, 2+_intr_lapic_eoi(%rip);"
+    "cmpl $0, 2+_intr_lapic_eoi(%rip);"
     "jz 1f;"
     "_intr_lapic_eoi:"
     "mov $0xF0123456, %rax;"

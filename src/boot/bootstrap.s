@@ -235,7 +235,7 @@ reloc_vtables:
 1:
   cmp %rbp, %rdx
   je 3f
-  cmp $0, (%rbp)
+  cmpq $0, (%rbp)
   je 2f
   add %rcx, (%rbp)
 2:
