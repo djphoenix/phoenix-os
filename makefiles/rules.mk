@@ -21,7 +21,6 @@ $(OOBJDIR)/%.d: $(SRCDIR)/%.cpp
 
 $(OOBJDIR)/%.d: $(SRCDIR)/%.s
 	@ mkdir -p $(dir $@)
-	$(Q) $(CC) -c -MM -MT $(call SRCOBJ,$^) $^ -o $@
 	@ touch $@
 
 $(OOBJDIR)/%.o: $(SRCDIR)/%.cpp
