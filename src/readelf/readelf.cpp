@@ -116,6 +116,7 @@ size_t readelf(Process *process, Stream *stream) {
       size = sect->offset + sect->size;
     // Skip null sections
     if (sect->type == SHT_NULL) continue;
+    if ((sect->flags & SHF_ALLOC) == 0) continue;
     // Skip SYMTAB sections
     if (sect->type == SHT_SYMTAB) continue;
     // Skip empty sections
@@ -165,6 +166,8 @@ size_t readelf(Process *process, Stream *stream) {
       ELF64SECT *symsect = sections + sym->shndx;
       // Skip undefined symbols
       if (symsect->type == SHT_NULL) continue;
+      // Skip non-existing sections
+      if (sym->shndx >= elf->shnum) continue;
       // Find vaddr of symbol section
       uintptr_t symbase = sectmap[sym->shndx];
       // Skip non-allocated symbols
