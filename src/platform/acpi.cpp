@@ -23,11 +23,6 @@
 Mutex ACPI::controllerMutex;
 ACPI* ACPI::controller = 0;
 
-static const void *const ACPI_FIND_START = reinterpret_cast<char*>(0x000e0000);
-static const void *const ACPI_FIND_TOP = reinterpret_cast<char*>(0x000fffff);
-static const uint64_t ACPI_SIG_RTP_DSR = 0x2052545020445352;
-static const uint32_t ACPI_SIG_CIPA = 0x43495041;
-
 ACPI* ACPI::getController() {
   if (controller) return controller;
   uint64_t t = EnterCritical();
@@ -40,6 +35,12 @@ ACPI* ACPI::getController() {
 }
 
 ACPI::ACPI() {
+  static const void *const ACPI_FIND_START =
+      reinterpret_cast<char*>(0x000e0000);
+  static const void *const ACPI_FIND_TOP =
+      reinterpret_cast<char*>(0x000fffff);
+  static const uint64_t ACPI_SIG_RTP_DSR = 0x2052545020445352;  // 'RTP DSR '
+
   acpiCpuCount = 0;
   activeCpuCount = 1;
 
@@ -101,7 +102,7 @@ ACPI::ACPI() {
 void ACPI::ParseDT(const AcpiHeader *header) {
   Pagetable::map(header);
 
-  if (header->signature == ACPI_SIG_CIPA)
+  if (header->signature == 0x43495041)  // 'CIPA'
     ParseApic(reinterpret_cast<const AcpiMadt*>(header));
 }
 void ACPI::ParseRsdt(const AcpiHeader *rsdt) {

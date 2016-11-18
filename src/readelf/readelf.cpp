@@ -86,7 +86,7 @@ size_t readelf(Process *process, Stream *stream) {
 
   // Read and check header
   if ((stream->read(elf, sizeof(ELF_HDR)) != sizeof(ELF_HDR))
-      || (elf->ident.magic != 'FLE\x7F')
+      || (elf->ident.magic != 0x464C457F)  // '\x7FELF'
       || (elf->ident.eclass != 2) || (elf->ident.data != 1)
       || (elf->ident.version != 1) || (elf->ident.osabi != 0)
       || (elf->ident.abiversion != 0)
