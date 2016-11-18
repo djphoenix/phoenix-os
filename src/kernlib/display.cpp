@@ -197,7 +197,7 @@ Mutex Display::instanceMutex;
 void Display::setup() {
   if (instance != &serialConsole) return;
   const EFI_SYSTEM_TABLE *ST = EFI::getSystemTable();
-  if (ST) {
+  if (ST) {  // EFI Framebuffer
     EFI_GRAPHICS_OUTPUT *graphics_output = 0;
     ST->BootServices->LocateProtocol(
         &EFI_GRAPHICS_OUTPUT_PROTOCOL, 0,
@@ -218,9 +218,11 @@ void Display::setup() {
         graphics_output->Mode->Info->HorizontalResolution,
         graphics_output->Mode->Info->VerticalResolution,
         pixelFormat);
-  } else {
-    instance = new ConsoleDisplay();
+    return;
   }
+
+  // Fallback
+  instance = new ConsoleDisplay();
 }
 
 Display *Display::getInstance() {
