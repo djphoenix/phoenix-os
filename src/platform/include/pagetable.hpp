@@ -88,5 +88,5 @@ inline static void MmioWrite32(void *p, uint32_t data) {
 }
 inline static uint32_t MmioRead32(const void *p) {
   Pagetable::map(p);
-  return *(volatile uint32_t *)(p);
+  return *(const volatile uint32_t *)(p);
 }

@@ -48,9 +48,9 @@ Stream* MemoryStream::substream(int64_t offset, size_t limit) {
   return new MemoryStream(memory + (size_t)offset, limit);
 }
 char* MemoryStream::readstr() {
-  size_t len = strlen(memory + (size_t)offset, limit - offset);
+  size_t len = strlen(memory + offset, limit - offset);
   char* res = new char[len + 1]();
-  Memory::copy(res, memory + (size_t)offset, len);
+  Memory::copy(res, memory + offset, len);
   res[len] = 0;
   return res;
 }

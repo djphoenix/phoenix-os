@@ -23,7 +23,7 @@ inline static uint64_t rdtsc() {
   return (((uint64_t)edx << 32) | eax);
 }
 
-inline static uint64_t EnterCritical() {
+inline static uint64_t __attribute__((always_inline)) EnterCritical() {
   uint64_t flags;
   asm volatile("pushfq; cli; pop %q0":"=r"(flags));
   return flags;

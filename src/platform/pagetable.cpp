@@ -23,7 +23,7 @@ PTE *Pagetable::pagetable;
 Mutex Pagetable::page_mutex;
 uintptr_t Pagetable::last_page = 1;
 
-static inline void fillPages(uintptr_t low, uintptr_t top, PTE *pagetable) {
+static void fillPages(uintptr_t low, uintptr_t top, PTE *pagetable) {
   low &= 0xFFFFFFFFFFFFF000;
   top = ALIGN(top, 0x1000);
   for (; low < top; low += 0x1000) \
@@ -34,7 +34,7 @@ static inline void fillPages(void *low, void *top, PTE *pagetable) {
   fillPages((uintptr_t)low, (uintptr_t)top, pagetable);
 }
 
-static inline void *efiAllocatePage(uintptr_t min, const EFI_SYSTEM_TABLE *ST) {
+static void *efiAllocatePage(uintptr_t min, const EFI_SYSTEM_TABLE *ST) {
   size_t mapSize = 0, entSize = 0;
   EFI_MEMORY_DESCRIPTOR *map = 0, *ent;
   uint64_t mapKey;
@@ -62,8 +62,8 @@ static inline void *efiAllocatePage(uintptr_t min, const EFI_SYSTEM_TABLE *ST) {
   return ptr;
 }
 
-static inline void efiMapPage(PTE *pagetable, const void *page,
-                              const EFI_SYSTEM_TABLE *ST) {
+static void efiMapPage(PTE *pagetable, const void *page,
+                       const EFI_SYSTEM_TABLE *ST) {
   uintptr_t ptr = (uintptr_t)page, min = (uintptr_t)pagetable;
   uint64_t ptx = (ptr >> (12 + 9*3)) & 0x1FF;
   uint64_t pdx = (ptr >> (12 + 9*2)) & 0x1FF;

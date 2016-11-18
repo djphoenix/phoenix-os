@@ -42,7 +42,7 @@ static inline char *longlong_to_string(
   return &buf[pos];
 }
 
-static inline void printf_putc(char *str, size_t *size, int *len, char c) {
+static void printf_putc(char *str, size_t *size, int *len, char c) {
   if ((*len) == -1) return;
   (*len)++;
   if (str == 0) return;
