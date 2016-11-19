@@ -21,7 +21,7 @@
 INTERRUPT64 *Interrupts::idt = 0;
 GDT *Interrupts::gdt = 0;
 TSS64_ENT *Interrupts::tss = 0;
-intcbreg *Interrupts::callbacks[256];
+List<intcb*> *Interrupts::callbacks;
 Mutex Interrupts::callback_locks[256];
 Mutex Interrupts::fault;
 int_handler* Interrupts::handlers = 0;
@@ -239,14 +239,12 @@ uint64_t __attribute__((sysv_abi)) Interrupts::handle(
       regs->r8, regs->r9, regs->r10, regs->r11, regs->r12, regs->r13, regs->r14,
       regs->r15 };
 
-  intcbreg *reg = 0;
+  size_t idx = 0;
   intcb *cb;
   for (;;) {
     callback_locks[intr].lock();
-    reg = reg ? reg->next : callbacks[intr];
-    while (reg != 0 && reg->cb == 0)
-      reg = reg->next;
-    cb = (reg != 0) ? reg->cb : 0;
+    cb = (callbacks[intr].getCount() > idx) ? callbacks[intr][idx] : 0;
+    idx++;
     callback_locks[intr].release();
     if (cb == 0) break;
     handled = cb(intr, error_code, &cb_regs);
@@ -342,8 +340,8 @@ void Interrupts::init() {
 
     uintptr_t hptr = (uintptr_t)(&handlers[i]);
     idt[i] = INTERRUPT64(hptr, 8, 1, 0xE, 0, true);
-    callbacks[i] = 0;
   }
+  callbacks = new List<intcb*>[256]();
 
   outportb(0x20, 0x11);
   outportb(0xA0, 0x11);
@@ -389,20 +387,9 @@ uint16_t Interrupts::getIRQmask() {
 }
 
 void Interrupts::addCallback(uint8_t intr, intcb* cb) {
-  intcbreg *reg = new intcbreg();
-  reg->cb = cb;
-  reg->next = 0;
-
   uint64_t t = EnterCritical();
   callback_locks[intr].lock();
-  intcbreg *last = callbacks[intr];
-  if (last == 0) {
-    callbacks[intr] = reg;
-  } else {
-    while (last->next != 0)
-      last = last->next;
-    last->next = reg;
-  }
+  callbacks[intr].add(cb);
   callback_locks[intr].release();
   LeaveCritical(t);
 }

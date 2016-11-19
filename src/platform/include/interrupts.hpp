@@ -17,6 +17,7 @@
 #pragma once
 #include "kernlib.hpp"
 #include "heap.hpp"
+#include "list.hpp"
 
 struct INTERRUPT32 {
   uint16_t offset_low;
@@ -170,14 +171,9 @@ struct intcb_regs {
 
 typedef bool intcb(uint32_t intr, uint32_t code, intcb_regs *regs);
 
-struct intcbreg {
-  intcb *cb;
-  intcbreg *next;
-};
-
 class Interrupts {
  private:
-  static intcbreg *callbacks[256];
+  static List<intcb*> *callbacks;
   static Mutex callback_locks[256];
   static Mutex fault;
   static int_handler* handlers;
