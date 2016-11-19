@@ -162,6 +162,8 @@ size_t readelf(Process *process, Stream *stream) {
       char *name = namesect ? stream->readstr() : 0;
       // Skip unnamed symbols
       if (name == 0 || name[0] == 0) continue;
+      // Skip symbols in undefined sections
+      if (sym->shndx > elf->shnum) continue;
       // Find symbol section
       ELF64SECT *symsect = sections + sym->shndx;
       // Skip undefined symbols
