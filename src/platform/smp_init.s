@@ -20,104 +20,71 @@
 .code16
 _smp_init:
   cli
-
-  xor %eax, %eax
-  mov %cs, %ax
-  mov %ax, %ds
-  shl $4, %eax
-  mov %eax, %ebp
   
-  add $(gd_table-_smp_init), %eax
-  mov %eax, (gd_reg-_smp_init + 2)
+  # Fix data segment & set base pointer
+  xor %ebp, %ebp
+  mov %cs, %bp
+  mov %bp, %ds
+  shl $4, %ebp
+
+  # Fix entry point addr
+  lea (x64_entry-_smp_init)(%ebp), %eax
+  mov %eax, (1f-_smp_init+2)
+
+  # Load pagetable
+  mov _smp_end-_smp_init+0, %edx
+  mov %edx, %cr3
+  # Load GDT
+  lgdt _smp_end-_smp_init+40
   
-  add $(_protected-gd_table), %eax
-  mov %ax, (1f-_smp_init+1)
-  
-  lgdt gd_reg-_smp_init
-
-  mov %cr0, %eax
-  or $1, %al
-  mov %eax, %cr0
-  
-1:
-  ljmp $8, $(_protected-_smp_init)
-
-.align 16
-gd_table:
-  .short 0, 0, 0, 0
-  .short 0xFFFF,0x0000,0x9A00,0x00CF
-  .short 0xFFFF,0x0000,0x9200,0x00CF
- 
-gd_reg: 
-  .short .-gd_table-1
-  .long gd_table - _smp_init
-  
-.align 16
-.code32
-_protected:
-  mov $16, %ax
-  mov %ax, %ds
-  mov %ax, %es
-  mov %ax, %ss
-  mov %ax, %gs
-
-  mov %ebp, %eax
-
-  add $(x64_entry - _smp_init), %eax
-  mov %eax, 1+1f-_smp_init(%ebp)
-
-  mov 0+_smp_end-_smp_init(%ebp), %esi  # GDT PTR
-  lgdt (%esi)
-
-  mov %cr0, %eax
-  and $0x7FFFFFFF, %eax
-  mov %eax, %cr0
-
-  mov 8+_smp_end-_smp_init(%ebp), %esi  # Pagetable ptr
-  mov %esi, %cr3
-
-  mov %cr4, %eax
-  or $0x20, %eax
+  # Enable PAE & PGE
+  mov $0xA0, %eax
   mov %eax, %cr4
-
+  
+  # Enable LME
   mov $0xC0000080, %ecx
   rdmsr
   or $0x100, %eax
   wrmsr
-
+  
+  # Enable PG & PE
   mov %cr0, %eax
-  or $0x80000000, %eax
+  or $0x80000001, %eax
   mov %eax, %cr0
 
-1:
-  ljmpl $8, $(x64_entry-_smp_init)
+  # Jump to 64-bit mode
+1:ljmpl $8, $(x64_entry-_smp_init)
   
-.align 16
+.align 4
 .code64
 x64_entry:
-  mov 16+_smp_end-_smp_init(%rbp), %rbx  # Local APIC address
-  add $0x20, %rbx
-  xor %rcx, %rcx
-  mov (%rbx), %ecx
-  shr $24, %rcx
+  # Load params
+  add $_smp_end-_smp_init, %bp
+  mov  8(%rbp), %rbx  # Local APIC address
+  mov 16(%rbp), %rax  # CPU IDs
+  mov 24(%rbp), %rcx  # Stacks
+  mov 32(%rbp), %rdx  # Startup
 
-  mov 24+_smp_end-_smp_init(%rbp), %rax  # CPU IDs
-  xor %rdx, %rdx
+  # Get local APIC ID
+  xor %r8, %r8
+  mov 0x20(%rbx), %r8d
+  shr $24, %r8
+
+  # Find CPU ID
+  xor %r9, %r9
 1:
-  cmp (%rax), %rcx
+  cmp (%rax,%r9,8), %r8
   je 2f
-  add $8, %rax
-  inc %rdx
+  inc %r9
   jmp 1b
 2:
 
-  shl $3, %rdx
-  add 32+_smp_end-_smp_init(%rbp), %rdx  # Stacks
-  mov (%rdx), %rsp
+  # Load stack pointer
+  mov (%rcx,%r9,8), %rsp
 
-  mov 40+_smp_end-_smp_init(%rbp), %rax  # Startup
+  # Jump back to SMP initializer
   mov %rsp, %rbp
-  jmpq *%rax
+  jmpq *%rdx
 
 .align 8
 _smp_end:
