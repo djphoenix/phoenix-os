@@ -225,7 +225,7 @@ x64_entry:
   call _ZN3SMP4initEv
   call _ZN13ModuleManager4initEv
   mov %rsp, %rbp
-  jmp _Z12process_loopv
+  jmp _ZN14ProcessManager12process_loopEv
   
 reloc_vtables:
   lea _start(%rip), %rcx

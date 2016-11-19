@@ -18,18 +18,14 @@
 
 #include "acpi.hpp"
 
-void NORETURN _loop() {
-  for (;;)
-    asm volatile("hlt");
-}
-
-void process_loop() {
+void ProcessManager::process_loop() {
   uint32_t cpuid = ACPI::getController()->getCPUID();
-  Thread nullThread = Thread();
-  asm volatile("mov %%rsp, %0":"=m"(nullThread.regs.rsp));
-  nullThread.regs.rip = (uintptr_t)&_loop;
+  Thread nullThread;
+  asm volatile("movq %%rsp, %0":"=m"(nullThread.regs.rsp));
+  asm volatile("leaq _loop(%%rip), %0":"=r"(nullThread.regs.rip));
   ProcessManager::getManager()->createNullThread(cpuid, nullThread);
-  _loop();
+  asm volatile("_loop:");
+  for (;;) asm volatile("hlt");
 }
 
 Mutex ProcessManager::managerMutex;
@@ -75,7 +71,7 @@ void ProcessManager::createNullThread(uint32_t cpuid, Thread thread) {
 }
 bool ProcessManager::SwitchProcess(intcb_regs *regs) {
   processSwitchMutex.lock();
-  if (nullThreads[regs->cpuid].regs.rip != (uintptr_t)&_loop) {
+  if (nullThreads[regs->cpuid].regs.rip == 0) {
     processSwitchMutex.release();
     return false;
   }

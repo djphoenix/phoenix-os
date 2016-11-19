@@ -20,8 +20,6 @@
 #include "process.hpp"
 #include "interrupts.hpp"
 
-void NORETURN process_loop();
-
 struct QueuedThread {
   Process *process;
   Thread *thread;
@@ -50,4 +48,5 @@ class ProcessManager {
   void queueThread(Process *process, Thread *thread);
   void dequeueThread(Thread *thread);
   static ProcessManager* getManager();
+  static void NORETURN process_loop();
 };

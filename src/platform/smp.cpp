@@ -32,7 +32,7 @@ void SMP::startup() {
   ACPI::getController()->activateCPU();
   startupMutex.lock();
   startupMutex.release();
-  process_loop();
+  ProcessManager::process_loop();
 }
 
 void SMP::init() {
