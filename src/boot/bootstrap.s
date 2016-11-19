@@ -40,14 +40,25 @@ multiboot_header:
 
 multiboot_entry:
   cli
+
+  # Load stack pointer
+  lea __stack_end__, %esp
   
+  # Check for multiboot
   cmp $0x2BADB002, %eax
   jne 2f
 
+  # Save current value on stack
+  mov -4(%esp), %eax
+  
+  # Get base pointer
   call 1f
 1:
   pop %ebp
   sub $1b - _start, %ebp
+  
+  # Fix stack value
+  mov %eax, -4(%esp)
   
   cld
 
@@ -57,11 +68,9 @@ multiboot_entry:
   lea __bss_end__-_start(%ebp), %ecx
   sub %edi, %ecx
   xor %eax, %eax
-  shr $2, %ecx
-  rep stosl
+  rep stosb
 
   # Advance pointer to multiboot table if needed
-  lea __bss_end__-_start(%ebp), %edi
   cmp $0x80000, %ebx
   jge 1f
   add %edi, %ebx
@@ -71,16 +80,16 @@ multiboot_entry:
 
   # Moving first 512K to BSS
   xor %esi, %esi
-  lea __bss_end__-_start(%ebp), %edi
   mov $0x20000, %ecx
   rep movsl
 
   # Clear screen
   mov $0xB8000, %edi
-  mov $0x0F000F00, %eax
+  xor %eax, %eax
   mov $1000, %ecx
   rep stosl
 
+  # Disable cursor
   mov $0x3D4, %dx
   mov $0xA, %al
   out %al, %dx
@@ -88,8 +97,6 @@ multiboot_entry:
   in %dx, %al
   or $0x20, %al
   out %al, %dx
-
-  lea __stack_end__, %esp
 
   # Check CPUID
   pushfl
@@ -165,8 +172,7 @@ multiboot_entry:
   mov %eax, %cr0
 
   # Load GDT
-  lea GDT64.Pointer-_start(%ebp), %eax
-  lgdt (%eax)
+  lgdt GDT64.Pointer-_start(%ebp)
 
   # Load stack segment
   mov $16, %ax
@@ -179,26 +185,25 @@ multiboot_entry:
   ljmp $8, $x64_entry
 
 2:
-  lea aNoMultiboot-_start(%ebp), %eax
+  lea aNoMultiboot-_start(%ebp), %esi
   jmp 5f
 
 3:
-  lea aNoCPUID-_start(%ebp), %eax
+  lea aNoCPUID-_start(%ebp), %esi
   jmp 5f
 
 4:
-  lea aNoLongMode-_start(%ebp), %eax
+  lea aNoLongMode-_start(%ebp), %esi
 #  jmp 5f
 
 5:
   mov $0xB8000, %edi
+  mov $0x0C00, %ax
 6:
-  mov (%eax), %cl
-  mov %cl, (%edi)
-  movb $0x0C, 1(%edi)
-  inc %eax
-  add $2, %edi
-  test %cl, %cl
+  mov (%esi), %al
+  stosw
+  inc %esi
+  test %al, %al
   jnz 6b
 7:
   hlt
@@ -212,9 +217,6 @@ _efi_start: # EFI
   mov %rdx, _ZN3EFI11SystemTableE(%rip)
   # EFI::ImageHandle
   mov %rcx, _ZN3EFI11ImageHandleE(%rip)
-  mov $0xFF, %al
-  outb %al, $0x21
-  outb %al, $0xA1
 
 x64_entry:
   call reloc_vtables
@@ -228,8 +230,7 @@ x64_entry:
   jmp _ZN14ProcessManager12process_loopEv
   
 reloc_vtables:
-  lea _start(%rip), %rcx
-  sub $_start, %rcx
+  lea -_start(%rip), %rcx
   lea __VTABLE_START__(%rip), %rbp
   lea __VTABLE_END__(%rip), %rdx
 1:
