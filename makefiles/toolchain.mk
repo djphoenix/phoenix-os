@@ -40,7 +40,7 @@ QEMU=qemu-system-x86_64
 ifneq ($(shell which cpplint),)
 	LINT=$(shell which cpplint) --quiet
 else
-	LINT=@ sh -c "echo No lint found"
+	LINT=@ sh -c "echo No lint found"; true
 endif
 
 ifneq ($(shell which xorriso),)
@@ -52,8 +52,25 @@ else
 		ifneq ($(shell which genisoimage),)
 			MKISO := $(shell which genisoimage)
 		else
-			MKISO=@ sh -c "echo Neither xorriso nor mkisofs nor genisoimage was found"
+			MKISO=@ sh -c "echo Neither xorriso nor mkisofs nor genisoimage was found"; false
 		endif
 	endif
 endif
 
+ifneq ($(shell which mformat),)
+	MKFAT := $(shell which mformat)
+else
+	MKFAT := @ sh -c "echo mformat not found"; false
+endif
+
+ifneq ($(shell which mcopy),)
+	MCOPY := $(shell which mcopy)
+else
+  MCOPY := @ sh -c "echo mcopy not found"; false
+endif
+
+ifneq ($(shell which mmd),)
+	MMD := $(shell which mmd)
+else
+  MMD := @ sh -c "echo mmd not found"; false
+endif

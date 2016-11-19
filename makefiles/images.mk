@@ -11,7 +11,7 @@ SYSLINUX_DEP_FILELIST := \
 
 SYSLINUX_FILELIST := $(notdir $(SYSLINUX_DEP_FILELIST))
 
-ISOFILES := $(foreach f, $(SYSLINUX_FILELIST) phoenixos isolinux.cfg, $(ISOROOT)/$(f))
+ISOFILES := $(foreach f, $(SYSLINUX_FILELIST) phoenixos isolinux.cfg efiboot.img, $(ISOROOT)/$(f))
 
 define SYSLINUX_EXTRACT
 $(ISOROOT)/$(1): deps/$(DEP_SYSLINUX_FILE)
@@ -28,10 +28,19 @@ $(ISOROOT)/phoenixos: $(BIN)
 
 $(ISOROOT)/isolinux.cfg:
 	@ mkdir -p $(dir $@)
-	$(Q) echo 'default /mboot.c32 /phoenixos' > $(ISOROOT)/isolinux.cfg
+	$(Q) echo 'default /mboot.c32 /phoenixos' > $@
+
+$(ISOROOT)/efiboot.img: $(BIN)
+	@ mkdir -p $(dir $@)
+	$(Q) truncate -s 4m $@
+	$(Q) $(MKFAT) -t 1 -h 1 -s 8192 -v EFI -L 32 -i $@
+	$(Q) $(MMD) -i $@ ::efi
+	$(Q) $(MMD) -i $@ ::efi/boot
+	$(Q) $(MCOPY) -i $@ $(BIN) ::efi/boot/bootx64.efi
 
 ISOOPTS := -quiet -U -A $(ISONAME) -V $(ISONAME) -volset $(ISONAME) -J -joliet-long -r
 ISOOPTS += -b isolinux.bin -c boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table
+ISOOPTS += -eltorito-alt-boot -e efiboot.img -no-emul-boot
 
 bin/phoenixos.iso: $(ISOFILES)
 	@ mkdir -p $(dir $@)
