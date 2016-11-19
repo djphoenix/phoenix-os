@@ -69,5 +69,5 @@ SECTIONS
         *(COMMON)
         __bss_end__ = . ;
     }
-    /DISCARD/ : { *(.comment) *(.eh_frame) }
+    /DISCARD/ : { *(.comment) *(.eh_frame) *(.note*) }
 }
