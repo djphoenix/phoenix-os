@@ -190,9 +190,13 @@ char *const ConsoleDisplay::base = reinterpret_cast<char*>(0xB8000);
 char *const ConsoleDisplay::top = reinterpret_cast<char*>(0xB8FA0);
 const size_t ConsoleDisplay::size = ConsoleDisplay::top - ConsoleDisplay::base;
 
+static Display *getSerialDisplay();
+
 static SerialDisplay serialConsole;
-Display *Display::instance = &serialConsole;
+Display *Display::instance = getSerialDisplay();
 Mutex Display::instanceMutex;
+
+static Display *getSerialDisplay() { return &serialConsole; }
 
 void Display::setup() {
   if (instance != &serialConsole) return;
