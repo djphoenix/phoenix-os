@@ -19,13 +19,13 @@
 #include "acpi.hpp"
 
 void ProcessManager::process_loop() {
-  uint32_t cpuid = ACPI::getController()->getCPUID();
-  Thread nullThread;
-  asm volatile("movq %%rsp, %0":"=m"(nullThread.regs.rsp));
-  asm volatile("leaq _loop(%%rip), %0":"=r"(nullThread.regs.rip));
-  ProcessManager::getManager()->createNullThread(cpuid, nullThread);
-  asm volatile("_loop:");
-  for (;;) asm volatile("hlt");
+  asm volatile(
+      "_loop:"
+      "hlt;"
+      "jmp _loop;"
+      "_loop_top:"
+      );
+  for (;;) {}
 }
 
 Mutex ProcessManager::managerMutex;
@@ -48,8 +48,6 @@ ProcessManager::ProcessManager() {
   cpuThreads = new QueuedThread*[cpus]();
   for (uint64_t c = 0; c < cpus; c++)
     cpuThreads[c] = 0;
-  nullThreads = new Thread[cpus]();
-
   Interrupts::addCallback(0x20, &ProcessManager::TimerHandler);
   for (int i = 0; i < 0x20; i++) {
     Interrupts::addCallback(i, &ProcessManager::FaultHandler);
@@ -62,16 +60,15 @@ bool ProcessManager::FaultHandler(
     uint32_t intr, uint32_t code, intcb_regs *regs) {
   return getManager()->HandleFault(intr, code, regs);
 }
-void ProcessManager::createNullThread(uint32_t cpuid, Thread thread) {
-  uint64_t t = EnterCritical();
-  processSwitchMutex.lock();
-  nullThreads[cpuid] = thread;
-  processSwitchMutex.release();
-  LeaveCritical(t);
-}
 bool ProcessManager::SwitchProcess(intcb_regs *regs) {
   processSwitchMutex.lock();
-  if (nullThreads[regs->cpuid].regs.rip == 0) {
+  uintptr_t loopbase, looptop;
+  asm volatile(
+      "lea _loop(%%rip), %0;"
+      "lea _loop_top(%%rip), %1":
+               "=r"(loopbase),"=r"(looptop));
+  if (regs->dpl == 0 &&
+      (regs->rip < loopbase || regs->rip >= looptop)) {
     processSwitchMutex.release();
     return false;
   }
@@ -144,20 +141,11 @@ bool ProcessManager::HandleFault(
     return true;
   t = EnterCritical();
   processSwitchMutex.lock();
-  Thread *th = &nullThreads[regs->cpuid];
-  uintptr_t pagetable = 0;
-  asm volatile("mov %%cr3, %0":"=r"(pagetable));
-  *regs = {
-    regs->cpuid, pagetable,
-    th->regs.rip, 0x08,
-    th->regs.rflags,
-    th->regs.rsp, 0x10,
-    0,
-    th->regs.rax, th->regs.rcx, th->regs.rdx, th->regs.rbx,
-    th->regs.rbp, th->regs.rsi, th->regs.rdi,
-    th->regs.r8, th->regs.r9, th->regs.r10, th->regs.r11,
-    th->regs.r12, th->regs.r13, th->regs.r14, th->regs.r15
-  };
+  asm volatile("mov %%cr3, %0":"=r"(regs->cr3));
+  asm volatile("lea _loop(%%rip), %0":"=r"(regs->rip));
+  regs->cs = 0x08;
+  regs->ss = 0x10;
+  regs->dpl = 0;
   processSwitchMutex.release();
   LeaveCritical(t);
   return true;

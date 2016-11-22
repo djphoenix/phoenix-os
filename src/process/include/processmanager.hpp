@@ -34,7 +34,6 @@ class ProcessManager {
   ProcessManager();
   QueuedThread *nextThread, *lastThread;
   QueuedThread **cpuThreads;
-  Thread *nullThreads;
   List<Process*> processes;
   Mutex processSwitchMutex;
   bool SwitchProcess(intcb_regs *regs);
@@ -44,7 +43,6 @@ class ProcessManager {
 
  public:
   uint64_t RegisterProcess(Process *process);
-  void createNullThread(uint32_t cpuid, Thread thread);
   void queueThread(Process *process, Thread *thread);
   void dequeueThread(Thread *thread);
   static ProcessManager* getManager();
