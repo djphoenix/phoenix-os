@@ -16,12 +16,9 @@
 
 .code32
 .section .text32
-.extern main
 .global _start
 .global __main
 .global _efi_start
-.global GDT64
-.global GDT64_PTR
 _start:
   jmp multiboot_entry
 
