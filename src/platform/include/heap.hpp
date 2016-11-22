@@ -30,15 +30,6 @@ class Heap {
   static void* realloc(void *addr, size_t size, size_t align = 4);
 
   static void free(void* addr);
-
-  template<typename T> static inline T* alloc(
-      size_t size = sizeof(T), size_t align = 4) {
-    return static_cast<T*>(alloc(size, align));
-  }
-  template<typename T> static inline T* realloc(
-      T *addr, size_t size, size_t align = 4) {
-    return static_cast<T*>(realloc(static_cast<void*>(addr), size, align));
-  }
 };
 
 #define ALIGNED_NEW(align) \

@@ -206,7 +206,7 @@ char* CPU::getFeaturesStr() {
     end--;
   end[0] = 0;
 
-  buf = Heap::realloc(buf, strlen(buf) + 1);
+  buf = static_cast<char*>(Heap::realloc(buf, strlen(buf) + 1));
 
   return buf;
 }
