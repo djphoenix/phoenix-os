@@ -196,11 +196,6 @@ char *Process::readString(uintptr_t address) {
   readData(buf, address, length + 1);
   return buf;
 }
-uintptr_t Process::getVirtualAddress(void* addr) {
-  (void)addr;
-  // TODO: make this work
-  return 0;
-}
 void *Process::getPhysicalAddress(uintptr_t ptr) {
   if (pagetable == 0)
     return 0;

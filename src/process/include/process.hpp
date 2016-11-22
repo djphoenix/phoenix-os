@@ -58,6 +58,5 @@ class Process {
   void readData(void* dst, uintptr_t address, size_t size);
   char* readString(uintptr_t address);
 
-  uintptr_t getVirtualAddress(void* addr) CONST;
   void* getPhysicalAddress(uintptr_t ptr) PURE;
 };
