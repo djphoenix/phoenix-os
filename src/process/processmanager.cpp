@@ -46,8 +46,6 @@ ProcessManager::ProcessManager() {
   nextThread = lastThread = 0;
   uint64_t cpus = ACPI::getController()->getCPUCount();
   cpuThreads = new QueuedThread*[cpus]();
-  for (uint64_t c = 0; c < cpus; c++)
-    cpuThreads[c] = 0;
   Interrupts::addCallback(0x20, &ProcessManager::TimerHandler);
   for (int i = 0; i < 0x20; i++) {
     Interrupts::addCallback(i, &ProcessManager::FaultHandler);
