@@ -7,6 +7,8 @@ CFLAGS += -Wcast-qual -Wcast-align -Wuseless-cast -Winline
 CFLAGS += -ffreestanding -fno-exceptions -fno-rtti -fshort-wchar
 CFLAGS += -ffunction-sections -fdata-sections -fpic -fpie
 
+LDFLAGS := -g -nostdlib -O2
+
 ODIR=.output
 OOBJDIR=$(ODIR)/obj
 OMODDIR=$(ODIR)/mod

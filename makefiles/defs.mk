@@ -46,5 +46,5 @@ MODOBJS += $(OOBJDIR)/mod_$$(LIBNAME_$(1)).o
 $(OOBJDIR)/mod_$$(LIBNAME_$(1)).o: $$(OBJS_$(1))
 	@ mkdir -p $$(dir $$@)
 	$(QECHO) MODLD $$(patsubst %/,%,$(1))
-	$(Q) $(LD) $(CFLAGS) -r -o $$@ $$?
+	$(Q) $(LD) $(LDFLAGS) -r -o $$@ $$?
 endef
