@@ -42,3 +42,14 @@ void Memory::fill(void *addr, uint8_t value, size_t size) {
       ::"D"(addr),"a"(value),"c"(size)
   );
 }
+
+extern "C" {
+  void memcpy(void *dest, const void *src, size_t count)
+    __attribute((alias("_ZN6Memory4copyEPvPKvm")));
+  void memmove(void *dest, const void *src, size_t count)
+    __attribute((alias("_ZN6Memory4copyEPvPKvm")));
+  void memset(void *addr, uint8_t value, size_t size)
+    __attribute((alias("_ZN6Memory4fillEPvhm")));
+  void bzero(void *addr, size_t size)
+    __attribute((alias("_ZN6Memory4zeroEPvm")));
+}
