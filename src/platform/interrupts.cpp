@@ -321,7 +321,7 @@ void Interrupts::init() {
       "mov %%ax, %%gs;"
       ::"r"(&gdtreg):"rax", "rcx");
 
-  const char* addr;
+  uintptr_t addr;
   char *lapic_eoi =
       reinterpret_cast<char*>(ACPI::getController()->getLapicAddr());
   if (lapic_eoi) lapic_eoi += LAPIC_EOI;
@@ -334,8 +334,7 @@ void Interrupts::init() {
       );
   for (int i = 0; i < 256; i++) {
     uintptr_t jmp_from = (uintptr_t)&(handlers[i].reljmp);
-    uintptr_t jmp_to = (uintptr_t)addr;
-    uintptr_t diff = jmp_to - jmp_from - 5;
+    uintptr_t diff = addr - jmp_from - 5;
     handlers[i] = int_handler(i, diff);
 
     uintptr_t hptr = (uintptr_t)(&handlers[i]);

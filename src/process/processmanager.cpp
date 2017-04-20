@@ -18,14 +18,11 @@
 
 #include "acpi.hpp"
 
-void ProcessManager::process_loop() {
+void __attribute((naked)) ProcessManager::process_loop() {
   asm volatile(
-      "_loop:"
-      "hlt;"
-      "jmp _loop;"
-      "_loop_top:"
+      "1: hlt; jmp 1b;"
+      "process_loop_top:"
       );
-  for (;;) {}
 }
 
 Mutex ProcessManager::managerMutex;
@@ -60,11 +57,8 @@ bool ProcessManager::FaultHandler(
 }
 bool ProcessManager::SwitchProcess(intcb_regs *regs) {
   processSwitchMutex.lock();
-  uintptr_t loopbase, looptop;
-  asm volatile(
-      "lea _loop(%%rip), %0;"
-      "lea _loop_top(%%rip), %1":
-               "=r"(loopbase),"=r"(looptop));
+  uintptr_t loopbase = (uintptr_t)&process_loop, looptop;
+  asm volatile("lea process_loop_top(%%rip), %q0":"=r"(looptop));
   if (regs->dpl == 0 &&
       (regs->rip < loopbase || regs->rip >= looptop)) {
     processSwitchMutex.release();
@@ -140,7 +134,7 @@ bool ProcessManager::HandleFault(
   t = EnterCritical();
   processSwitchMutex.lock();
   asm volatile("mov %%cr3, %0":"=r"(regs->cr3));
-  asm volatile("lea _loop(%%rip), %0":"=r"(regs->rip));
+  regs->rip = (uintptr_t)&process_loop;
   regs->cs = 0x08;
   regs->ss = 0x10;
   regs->dpl = 0;

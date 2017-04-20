@@ -21,17 +21,22 @@
 class SMP {
  private:
   static Mutex startupMutex;
+  static void setup();
   static void NORETURN startup();
   static void init();
 };
 
 Mutex SMP::startupMutex;
 
-void SMP::startup() {
+void SMP::setup() {
   Interrupts::loadVector();
   ACPI::getController()->activateCPU();
   startupMutex.lock();
   startupMutex.release();
+}
+
+void SMP::startup() {
+  setup();
   ProcessManager::process_loop();
 }
 
