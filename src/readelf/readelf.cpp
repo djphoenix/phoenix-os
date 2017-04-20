@@ -15,295 +15,376 @@
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "readelf.hpp"
+#include "./readelf_internal.h"
 
-struct ELF_HDR {
+static uintptr_t readelf_find_load_addr(Process *process,
+                                   uintptr_t start,
+                                   uintptr_t faddr) {
+  ELF_HDR elf;
+  process->readData(&elf, start, sizeof(elf));
+  uintptr_t phdr_base = start + elf.phoff, phdr;
+  uintptr_t phdr_top = phdr_base + elf.phnum * sizeof(ELF64_PROG);
+  ELF64_PROG prog;
+  for (phdr = phdr_base; phdr < phdr_top; phdr += sizeof(ELF64_PROG)) {
+    process->readData(&prog, phdr, sizeof(ELF64_PROG));
+    if ((prog.type == PT_LOAD) &&
+        (prog.offset <= faddr) &&
+        (prog.offset + prog.filesz > faddr)) break;
+  }
+  if (phdr == phdr_top) return 0;
+  return faddr + prog.vaddr - prog.offset;
+}
+
+static bool readelf_dylink_fix_phdr(Process *process, uintptr_t start) {
+  ELF_HDR elf;
+  process->readData(&elf, start, sizeof(elf));
+
+  uintptr_t phdr_base = start + elf.phoff, phdr;
+  uintptr_t phdr_top = phdr_base + elf.phnum * sizeof(ELF64_PROG);
+  ELF64_PROG prog;
+
+  for (phdr = phdr_base; phdr < phdr_top; phdr += sizeof(ELF64_PROG)) {
+    process->readData(&prog, phdr, sizeof(ELF64_PROG));
+    if (prog.type == PT_NULL) continue;
+    switch (prog.type) {
+      case PT_NULL:
+      case PT_LOAD:
+        break;
+      default:
+        prog.vaddr = readelf_find_load_addr(process, start, prog.offset);
+        if (prog.vaddr == 0) return 0;
+        process->writeData(phdr, &prog, sizeof(ELF64_PROG));
+        break;
+    }
+  }
+
+  return 1;
+}
+
+static bool readelf_dylink_fix_entry(Process *process, uintptr_t start) {
+  ELF_HDR elf;
+  process->readData(&elf, start, sizeof(elf));
+  elf.entry = readelf_find_load_addr(process, start, elf.entry);
+  if (elf.entry == 0) return 0;
+  process->writeData(start, &elf, sizeof(elf));
+  process->setEntryAddress(elf.entry);
+  return 1;
+}
+
+static bool readelf_dylink_fix_dynamic_table(Process *process,
+                                                uintptr_t start,
+                                                uintptr_t dyntbl,
+                                                size_t dynsz) {
+  uintptr_t dyntop = dyntbl + dynsz, dynptr;
+  ELF64_DYN dyn;
+  for (dynptr = dyntbl; dynptr < dyntop; dynptr += sizeof(ELF64_DYN)) {
+    process->readData(&dyn, dynptr, sizeof(ELF64_DYN));
+    switch (dyn.tag) {
+      case DT_PLTGOT:
+      case DT_HASH:
+      case DT_STRTAB:
+      case DT_SYMTAB:
+      case DT_RELA:
+      case DT_INIT:
+      case DT_FINI:
+      case DT_REL:
+      case DT_DEBUG:
+      case DT_JMPREL:
+      case DT_INIT_ARRAY:
+      case DT_FINI_ARRAY:
+        dyn.val = readelf_find_load_addr(process, start, dyn.val);
+        if (dyn.val == 0) return 0;
+        process->writeData(dynptr, &dyn, sizeof(dyn));
+        break;
+      default:
+        break;
+    }
+  }
+  return 1;
+}
+
+static uint64_t readelf_dylink_dynamic_find(Process *process,
+                                            uintptr_t dyntbl,
+                                            size_t dynsz,
+                                            ELF64_DYN_TAG tag) {
+  uintptr_t dyntop = dyntbl + dynsz, dynptr;
+  ELF64_DYN dyn;
+  for (dynptr = dyntbl; dynptr < dyntop; dynptr += sizeof(ELF64_DYN)) {
+    process->readData(&dyn, dynptr, sizeof(ELF64_DYN));
+    if (dyn.tag != tag) continue;
+    return dyn.val;
+  }
+  return 0;
+}
+
+static bool readelf_dylink_handle_dynamic_jmprel(Process *process,
+                                                 uintptr_t start,
+                                                 uintptr_t dyntbl,
+                                                 size_t dynsz,
+                                                 uintptr_t jmprel) {
+  uintptr_t symtab =
+      readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_SYMTAB);
+  uintptr_t pltrel =
+      readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_PLTREL);
+  uintptr_t pltrelsz =
+      readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_PLTRELSZ);
+  uintptr_t syment =
+      readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_SYMENT);
+  uintptr_t strtab =
+      readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_STRTAB);
+  if (syment == 0) syment = sizeof(ELF64SYM);
+  if (jmprel == 0 || symtab == 0) return 0;
+  switch (pltrel) {
+    case DT_REL:
+      if ((pltrelsz % sizeof(ELF64REL)) != 0) return 0;
+      break;
+    case DT_RELA:
+      if ((pltrelsz % sizeof(ELF64RELA)) != 0) return 0;
+      break;
+    default: return 0;
+  }
+  ELF64RELA rel;
+  ELF64SYM sym;
+  Memory::zero(&rel, sizeof(rel));
+  while (pltrelsz) {
+    switch (pltrel) {
+      case DT_REL:
+        process->readData(&rel, jmprel, sizeof(ELF64REL));
+        jmprel += sizeof(ELF64REL);
+        pltrelsz -= sizeof(ELF64REL);
+        break;
+      case DT_RELA:
+        process->readData(&rel, jmprel, sizeof(ELF64RELA));
+        jmprel += sizeof(ELF64RELA);
+        pltrelsz -= sizeof(ELF64RELA);
+        break;
+      default: return 0;
+    }
+    uintptr_t addr = 0;
+    if (rel.sym != 0) {
+      process->readData(&sym, symtab + syment * rel.sym, sizeof(sym));
+      if (sym.name) {
+        char *name = process->readString(strtab + sym.name);
+        addr = process->linkLibrary(name);
+        delete name;
+        if (addr == 0) {
+          printf("Cannot link symbol: %s\n", name);
+          return 0;
+        }
+      } else {
+        return 0;
+      }
+    } else {
+      printf("SYM=%016lx n=%x i=%x s=%x sz=%lx\n",
+             sym.value, sym.name, sym.info, sym.shndx, sym.size);
+      return 0;
+    }
+    addr += rel.add;
+    uintptr_t ptr = readelf_find_load_addr(process, start, rel.addr);
+    switch (rel.type) {
+      case R_X86_64_JUMP_SLOT:
+        process->writeData(ptr, &addr, sizeof(addr));
+        break;
+      default:
+        printf("UNHANDLED REL@%#lx: %x/%x+%#lx\n",
+               rel.addr, rel.type, rel.sym, rel.add);
+        return 0;
+    }
+  }
+  return 1;
+}
+
+static bool readelf_dylink_handle_dynamic_symtab(Process *process,
+                                                 uintptr_t start,
+                                                 uintptr_t dyntbl,
+                                                 size_t dynsz,
+                                                 uintptr_t symtab) {
+  uintptr_t syment =
+      readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_SYMENT);
+  uintptr_t strtab =
+      readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_STRTAB);
+  uintptr_t hashtab =
+      readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_HASH);
+  if (syment == 0 || strtab == 0 || hashtab == 0) return 0;
+  ELF64SYM sym;
   struct {
-    uint32_t magic;
-    uint8_t eclass, data, version, osabi, abiversion, pad, rsvd[6];
-  } ident;
-  uint16_t type, machine;
-  uint32_t version;
-  uint64_t entry, phoff, shoff;
-  uint32_t flags;
-  uint16_t ehsize, phentsize, phnum, shentsize, shnum, shstrndx;
-} PACKED;
-enum ELF64_SECT_TYPE: uint32_t {
-    SHT_NULL,
-  SHT_PROGBITS,
-  SHT_SYMTAB,
-  SHT_STRTAB,
-  SHT_RELA,
-  SHT_HASH,
-  SHT_DYNAMIC,
-  SHT_NOTE,
-  SHT_NOBITS,
-  SHT_REL,
-  SHT_SHLIB,
-  SHT_DYNSYM
-};
-enum ELF64_SECT_FLAGS: uint64_t {
-    SHF_WRITE = 1, SHF_ALLOC = 2, SHF_EXECINSTR = 4
-};
-struct ELF64SECT {
-  uint32_t name;
-  ELF64_SECT_TYPE type;
-  uint64_t flags, addr, offset, size;
-  uint32_t link, info;
-  uint64_t addralign, entsize;
-} PACKED;
-struct ELF64SYM {
-  uint32_t name;
-  uint8_t info, other;
-  uint16_t shndx;
-  uint64_t value;
-  uint64_t size;
-} PACKED;
-struct ELF64RELA {
-  uint64_t addr;
-  struct {
-    uint32_t type, sym;
-  } info;
-  uint64_t add;
-} PACKED;
-struct ELF64REL {
-  uint64_t addr;
-  struct {
-    uint32_t type, sym;
-  } info;
-} PACKED;
+    uint32_t nbucket, nchain;
+  } PACKED hashhdr;
+  process->readData(&hashhdr, hashtab, sizeof(hashhdr));
+  hashtab += sizeof(hashhdr);
+  for (uint32_t si = 0; si < hashhdr.nbucket + hashhdr.nchain; si++) {
+    uint32_t idx;
+    process->readData(&idx, hashtab, sizeof(idx));
+    hashtab += sizeof(idx);
+    if (idx == 0) continue;
+    process->readData(&sym, symtab + syment * idx, sizeof(ELF64SYM));
+    if (sym.value == 0) continue;
+    if (sym.name == 0) continue;
+    uintptr_t ptr = readelf_find_load_addr(process, start, sym.value);
+    if (ptr == 0) continue;
+    char *name = process->readString(strtab + sym.name);
+    if (name && strlen(name) > 0) process->addSymbol(name, ptr);
+    delete name;
+  }
+  return 1;
+}
+
+static bool readelf_dylink_handle_dynamic_table(Process *process,
+                                                uintptr_t start,
+                                                uintptr_t dyntbl,
+                                                size_t dynsz) {
+  uintptr_t dyntop = dyntbl + dynsz, dynptr;
+  ELF64_DYN dyn;
+  for (dynptr = dyntbl; dynptr < dyntop; dynptr += sizeof(ELF64_DYN)) {
+    process->readData(&dyn, dynptr, sizeof(ELF64_DYN));
+    switch (dyn.tag) {
+      case DT_JMPREL:
+        if (!readelf_dylink_handle_dynamic_jmprel(
+            process, start, dyntbl, dynsz, dyn.val)) return 0;
+        break;
+      case DT_PLTGOT:
+      case DT_PLTREL:
+      case DT_PLTRELSZ:
+      case DT_SYMENT:
+      case DT_HASH:
+      case DT_STRTAB:
+      case DT_STRSZ:
+        break;
+      case DT_SYMTAB:
+        if (!readelf_dylink_handle_dynamic_symtab(
+            process, start, dyntbl, dynsz, dyn.val)) return 0;
+        break;
+      case DT_NULL: break;
+      default:
+        printf("DYN%03lu: %016lx\n", dyn.tag, dyn.val);
+        break;
+    }
+  }
+  return 1;
+}
+
+static bool readelf_dylink_handle_dynamic(Process *process, uintptr_t start) {
+  ELF_HDR elf;
+  process->readData(&elf, start, sizeof(elf));
+
+  uintptr_t phdr_base = start + elf.phoff;
+  uintptr_t phdr_top = phdr_base + elf.phnum * sizeof(ELF64_PROG);
+  uintptr_t phdr;
+  ELF64_PROG prog;
+
+  for (phdr = phdr_base; phdr < phdr_top; phdr += sizeof(ELF64_PROG)) {
+    process->readData(&prog, phdr, sizeof(ELF64_PROG));
+    if (prog.type != PT_DYNAMIC) continue;
+    if (!readelf_dylink_fix_dynamic_table(
+        process, start, prog.vaddr, prog.filesz) ||
+        !readelf_dylink_handle_dynamic_table(
+            process, start, prog.vaddr, prog.filesz))
+      return 0;
+  }
+
+  return 1;
+}
+
+static bool readelf_dylink(Process *process, uintptr_t start) {
+  return
+      readelf_dylink_fix_phdr(process, start) &&
+      readelf_dylink_fix_entry(process, start) &&
+      readelf_dylink_handle_dynamic(process, start);
+}
 
 size_t readelf(Process *process, Stream *stream) {
-  ELF_HDR *elf = new ELF_HDR();
+  ELF_HDR elf;
   size_t size = 0;
-  ELF64SECT *sections = 0;
-  uintptr_t *sectmap = 0;
+  ELF64_PROG *progs = 0, *progs_top, *prog;
   char *buf = 0;
-  ELF64SYM *symbols = 0;
-  ELF64RELA *relocs = 0;
-  ELF64REL *relocs_buf = 0;
+  SectionType type;
+  uintptr_t vaddr, offset_load, vaddr_start = 0;
 
-  ELF64SECT *sectnamesect = 0;
+  // Read ELF header
+  size_t off = 0;
+  if (stream->read(&elf, sizeof(ELF_HDR)) != sizeof(ELF_HDR)) goto err;
+  off += sizeof(ELF_HDR);
 
-  // Read and check header
-  if ((stream->read(elf, sizeof(ELF_HDR)) != sizeof(ELF_HDR))
-      || (elf->ident.magic != 0x464C457F)  // '\x7FELF'
-      || (elf->ident.eclass != 2) || (elf->ident.data != 1)
-      || (elf->ident.version != 1) || (elf->ident.osabi != 0)
-      || (elf->ident.abiversion != 0)
-      || (elf->type != 1) || (elf->version != 1)
-      || (elf->ehsize != sizeof(ELF_HDR))) goto err;
+  // Identify ELF
+  if ((elf.ident.magic != ELF_MAGIC)  // '\x7FELF'
+      || (elf.ident.eclass != EC_64)
+      || (elf.ident.data != ED_2LSB)
+      || (elf.ident.version != EVF_CURRENT)
+      || (elf.ident.osabi != 0)
+      || (elf.ident.abiversion != 0)) goto err;
+  // Check ELF type
+  if ((elf.machine != EM_AMD64)
+      || (elf.type != ET_DYN)
+      || (elf.version != EV_CURRENT)
+      || (elf.flags != 0)
+      || (elf.ehsize != sizeof(ELF_HDR))
+      || (elf.phoff != sizeof(ELF_HDR))) goto err;
 
   // Init variables
-  size = MAX(elf->phoff + elf->phentsize * elf->phnum,
-             elf->shoff + elf->shentsize * elf->shnum);
-  sections = new ELF64SECT[elf->shnum]();
-  sectmap = new uintptr_t[elf->shnum]();
+  size = elf.shoff + elf.shentsize * elf.shnum;
+  progs = new ELF64_PROG[elf.phnum]();
+  progs_top = progs + elf.phnum;
 
-  // Read section headers
-  stream->seek(elf->shoff);
-  if (stream->read(sections, sizeof(ELF64SECT) * elf->shnum)
-      != sizeof(ELF64SECT) * elf->shnum)
+  // Read linker program
+  if (stream->read(progs, sizeof(ELF64_PROG) * elf.phnum)
+      != sizeof(ELF64_PROG) * elf.phnum)
     goto err;
+  off += sizeof(ELF64_PROG) * elf.phnum;
 
-  // Read section names
-  sectnamesect = sections + elf->shstrndx;
-
-  // Read section contents
-  for (uint32_t s = 0; s < elf->shnum; s++) {
-    ELF64SECT *sect = sections + s;
-    // Check elf size
-    if (sect->offset + sect->size > size)
-      size = sect->offset + sect->size;
-    // Skip null sections
-    if (sect->type == SHT_NULL) continue;
-    if ((sect->flags & SHF_ALLOC) == 0) continue;
-    // Skip SYMTAB sections
-    if (sect->type == SHT_SYMTAB) continue;
-    // Skip empty sections
-    if (sect->flags & SHT_NOBITS) continue;
-    if (sect->size == 0) continue;
-    // Section type
-    SectionType type = SectionTypeData;
-    if ((sect->flags & SHF_EXECINSTR) != 0)
-      type = SectionTypeCode;
-    else if (sect->type == SHT_NOBITS)
-      type = SectionTypeBSS;
-    // Add section
-    uintptr_t vaddr = process->addSection(type, sect->size);
-    sectmap[s] = vaddr;
-    if (sect->type != SHT_NOBITS) {
-      // Copy section data
-      stream->seek(sect->offset, -1);
-      buf = new char[sect->size]();
-      if (stream->read(buf, sect->size) != sect->size)
+  for (prog = progs; prog < progs_top; prog++) {
+    switch (prog->type) {
+      case PT_NULL: break;
+      case PT_PHDR:
+        if ((prog->offset != elf.phoff) ||
+            (prog->filesz != sizeof(ELF64_PROG) * elf.phnum))
+          goto err;
+        break;
+      case PT_LOAD:
+        type = SectionTypeData;
+        if (prog->flags & PF_X)
+          type = SectionTypeCode;
+        vaddr = process->addSection(type, prog->memsz);
+        if (prog->memsz > 0) {
+          offset_load = 0;
+          if (prog->offset == 0) {
+            vaddr_start = vaddr;
+            process->writeData(vaddr, &elf, sizeof(ELF_HDR));
+            offset_load = sizeof(ELF_HDR) + sizeof(ELF64_PROG) * elf.phnum;
+          }
+          if (prog->offset + offset_load < off) goto err;
+          if (prog->offset + offset_load > off) {
+            stream->seek(prog->offset + offset_load - off, 0);
+            off = prog->offset + offset_load;
+          }
+          buf = new char[prog->filesz - offset_load]();
+          if (stream->read(buf, prog->filesz - offset_load) !=
+              prog->filesz - offset_load) goto err;
+          off += prog->filesz - offset_load;
+          process->writeData(vaddr + offset_load, buf,
+                             prog->filesz - offset_load);
+          delete buf; buf = 0;
+          prog->vaddr = vaddr;
+        }
+        break;
+      case PT_DYNAMIC: break;
+      default:
+        if (prog->type >= PT_LOOS && prog->type <= PT_HIOS) break;
+        if (prog->type >= PT_LOPROC && prog->type <= PT_HIPROC) break;
         goto err;
-      process->writeData(vaddr, buf, sect->size);
-      delete buf; buf = 0;
     }
   }
 
-  // Fill symbol table
-  for (uint32_t s = 0; s < elf->shnum; s++) {
-    ELF64SECT *sect = sections + s;
-    // Skip non-symtab sections
-    if (sect->type != SHT_SYMTAB) continue;
-    // Calculate symbol count
-    uint32_t symcount = sect->size / sizeof(ELF64SYM);
-    // Read symbol table
-    symbols = new ELF64SYM[symcount];
-    stream->seek(sect->offset, -1);
-    if (stream->read(symbols, sect->size) != sect->size) goto err;
-    // Read symbol name table
-    ELF64SECT *namesect = sections + sect->link;
-    // Enumerate symbols
-    for (uint32_t i = 0; i < symcount; i++) {
-      ELF64SYM *sym = symbols + i;
-      stream->seek(namesect->offset + sym->name, -1);
-      char *name = namesect ? stream->readstr() : 0;
-      // Skip unnamed symbols
-      if (name == 0 || name[0] == 0) continue;
-      // Skip symbols in undefined sections
-      if (sym->shndx > elf->shnum) continue;
-      // Find symbol section
-      ELF64SECT *symsect = sections + sym->shndx;
-      // Skip undefined symbols
-      if (symsect->type == SHT_NULL) continue;
-      // Skip non-existing sections
-      if (sym->shndx >= elf->shnum) continue;
-      // Find vaddr of symbol section
-      uintptr_t symbase = sectmap[sym->shndx];
-      // Skip non-allocated symbols
-      if (symbase == 0) continue;
-      // Add symbol to internal table
-      uintptr_t offset = symbase + sym->value;
-      process->addSymbol(name, offset);
-    }
-    // Free buffers
-    delete symbols; symbols = 0;
-  }
+  process->writeData(vaddr_start + sizeof(ELF_HDR),
+                     progs, sizeof(ELF64_PROG) * elf.phnum);
 
-  // Process relocations
-  for (uint32_t rs = 0; rs < elf->shnum; rs++) {
-    ELF64SECT *relsect = sections + rs;
-    // Skip non-reloc sections
-    if (relsect->type != SHT_RELA && relsect->type != SHT_REL)
-      continue;
-    // Find symbol section
-    ELF64SECT *symsect = sections + relsect->link;
-    // Find section base
-    uintptr_t sectbase = sectmap[relsect->info];
-    // Skip non-allocated sections
-    if (sectbase == 0) continue;
-    // Skip invalid symbol sections
-    if (symsect->type != SHT_SYMTAB) continue;
-    // Calculate relocation count
-    size_t relcnt = 0;
-    if (relsect->type == SHT_RELA)
-      relcnt = relsect->size / sizeof(ELF64RELA);
-    if (relsect->type == SHT_REL)
-      relcnt = relsect->size / sizeof(ELF64REL);
-    // Skip empty reloc sections
-    if (relcnt == 0) continue;
-    // Alloc reloc buffer
-    relocs = new ELF64RELA[relcnt]();
-    // Read reloc list
-    stream->seek(relsect->offset, -1);
-    if (relsect->type == SHT_RELA) {
-      if (stream->read(relocs, relsect->size) != relsect->size)
-        goto err;
-    } else {
-      // Convert ELF64REL to ELF64RELA
-      relocs_buf = new ELF64REL[relcnt]();
-      if (stream->read(relocs_buf, relsect->size) != relsect->size)
-        goto err;
-      for (size_t r = 0; r < relcnt; r++)
-        relocs[r] = {
-                     relocs_buf[r].addr,
-                     { relocs_buf[r].info.type, relocs_buf[r].info.sym },
-                     0
-        };
-      delete relocs_buf; relocs_buf = 0;
-    }
-    // Read symbol table
-    size_t symcnt = symsect->size / sizeof(ELF64SYM);
-    symbols = new ELF64SYM[symcnt]();
-    stream->seek(symsect->offset, -1);
-    if (stream->read(symbols, symsect->size) != symsect->size)
-      goto err;
-    // Read symbol name table
-    ELF64SECT *namesect = sections + symsect->link;
-    // Process relocations
-    for (size_t r = 0; r < relcnt; r++) {
-      ELF64RELA *rel = relocs + r;
-      ELF64SYM *relsym = symbols + rel->info.sym;
-      ELF64SECT *relsymsect = sections + relsym->shndx;
-
-      char *symname;
-      uintptr_t addr, offset;
-
-      offset = sectmap[relsym->shndx] + relsym->value;
-
-      if (relsym->info == 3) {  // Point to section
-        stream->seek(sectnamesect->offset + relsymsect->name, -1);
-        symname = sectnamesect != 0 ? stream->readstr() : 0;
-      } else {
-        stream->seek(namesect->offset + relsym->name, -1);
-        symname = namesect ? stream->readstr() : 0;
-      }
-
-      if (relsymsect->type == SHT_NULL) {
-        // Link library
-        offset = process->linkLibrary(symname);
-      }
-
-      addr = sectbase + rel->addr;
-      offset += rel->add;
-
-      uint64_t diff64 = offset - addr;
-      uint32_t diff32 = diff64;
-
-      switch (rel->info.type) {
-        case 0:   // R_X86_64_NONE
-          break;
-        case 1:   // R_X86_64_64
-          process->writeData(addr, &offset, sizeof(uintptr_t));
-          break;
-        case 2:   // R_X86_64_PC32
-        case 3:   // R_X86_64_GOT32
-        case 4:   // R_X86_64_PLT32
-          process->writeData(addr, &diff32, sizeof(uint32_t));
-          break;
-        case 5:   // R_X86_64_COPY
-        case 6:   // R_X86_64_GLOB_DAT
-        case 7:   // R_X86_64_JUMP_SLOT
-        case 8:   // R_X86_64_RELATIVE
-        case 9:   // R_X86_64_GOTPCREL
-        case 10:  // R_X86_64_32
-        case 11:  // R_X86_64_32S
-        case 12:  // R_X86_64_16
-        case 13:  // R_X86_64_PC16
-        case 14:  // R_X86_64_8
-        case 15:  // R_X86_64_PC8
-        case 16:  // R_X86_64_NUM
-        default:
-          printf("Unhandled reloc type=%x addr=%#zx name=%s%+ld = %#zx\n",
-                 rel->info.type, addr, symname, rel->add, offset);
-          break;
-      }
-    }
-    delete relocs; relocs = 0;
-    delete symbols; symbols = 0;
-  }
   goto done;
 err:
   size = 0;
 done:
-  delete elf;
-  delete sections;
-  delete sectmap;
+  delete progs;
   delete buf;
-  delete symbols;
-  delete relocs;
-  delete relocs_buf;
+  if (size != 0) {
+    if (!readelf_dylink(process, vaddr_start)) size = 0;
+  }
   return size;
 }
