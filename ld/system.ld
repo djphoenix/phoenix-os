@@ -28,30 +28,21 @@ SECTIONS
     .reloc 0x400FE0 : ALIGN(1) {}
     .text 0x401000 : ALIGN(1) {
         __text_start__ = . ;
-        *(.text32)
-        *(.init)
-        
-        . = ALIGN(64);
-        
+        *boot.a:bootstrap.o(.text .text.*)
         *(.text .text.*)
         *(.gnu.linkonce.t.*)
         PROVIDE (etext = .);
-        *(.fini)
         . = ALIGN(64);
         __text_end__ = . ;
     }
-    .data BLOCK(1) : ALIGN(1) {
+    .data : ALIGN(1) {
         __data_start__ = . ;
         *(.rodata .rodata.*)
-         . = ALIGN(8);
-        
+        . = ALIGN(8);
         __VTABLE_START__ = . ;
-        ___INIT_LIST__ = .; __INIT_LIST__ = . ;
-        LONG (0); LONG (0); *(.init_array*) LONG (0); LONG (0);
-        ___CTOR_LIST__ = .; __CTOR_LIST__ = . ;
-        LONG (0); LONG (0); *(.ctors); *(.ctor); *(SORT(.ctors.*));  LONG (0); LONG (0);
-        ___DTOR_LIST__ = .; __DTOR_LIST__ = . ;
-        LONG (0); LONG (0); *(.dtors); *(.dtor); *(SORT(.dtors.*));  LONG (0); LONG (0);
+        __INIT_LIST__ = . ; QUAD(0) *(.init_array*) QUAD(0)
+        __CTOR_LIST__ = . ; QUAD(0) *(.ctor*) QUAD(0)
+        __DTOR_LIST__ = . ; QUAD(0) *(.dtor*) QUAD(0)
         *(.data.rel.*)
         __VTABLE_END__ = . ;
         *(.got .got.*)
@@ -63,7 +54,7 @@ SECTIONS
         . = ALIGN(64);
         __modules_end__ = . ;
     }
-    .bss BLOCK(1) : ALIGN(1) {
+    .bss : ALIGN(1) {
         __bss_start__ = . ;
         *(.bss .bss.*)
         *(COMMON)

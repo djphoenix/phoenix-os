@@ -15,7 +15,7 @@
 #    along with this program.  If not, see <http:#www.gnu.org/licenses/>.
 
 .code32
-.section .text32
+.section .text
 .global _start
 .global __main
 .global _efi_start
@@ -227,7 +227,7 @@ x64_entry:
   jmp _ZN14ProcessManager12process_loopEv
   
 reloc_vtables:
-  lea -_start(%rip), %rcx
+  lea reloc_vtables-reloc_vtables(%rip), %rcx
   lea __VTABLE_START__(%rip), %rbp
   lea __VTABLE_END__(%rip), %rdx
 1:
