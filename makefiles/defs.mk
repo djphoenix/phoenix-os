@@ -32,7 +32,7 @@ KERNOBJS += $(OLIBDIR)/$$(LIBNAME_$(1)).a
 $(OLIBDIR)/$$(LIBNAME_$(1)).a: $$(OBJS_$(1))
 	@ mkdir -p $$(dir $$@)
 	$(QECHO) AR $$(subst $(OLIBDIR)/,,$$@)
-	$(Q) $(AR) -cru $$@ $$?
+	$(Q) $(AR) cru $$@ $$?
 endef
 
 define LIBRULES

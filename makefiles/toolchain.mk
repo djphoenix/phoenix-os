@@ -1,5 +1,7 @@
 PREFIX=x86_64-linux-gnu-
 NPROC=1
+CLANG_BIN=$(dir $(shell which clang-5.0))
+CLANG_BIN ?= /usr/bin
 
 ifeq ($(OS),Windows_NT)
   PREFIX=x86_64-w64-mingw32-
@@ -7,6 +9,7 @@ else
   UNAME_S=$(shell uname -s)
   ifeq ($(UNAME_S),Darwin)
     PREFIX=x86_64-elf-
+    CLANG_BIN=/usr/local/opt/llvm/bin
 	  NPROC=$(shell sysctl -n hw.ncpu)
   else
 	  NPROC=$(shell grep -c ^processor /proc/cpuinfo)
@@ -25,9 +28,9 @@ else
   QECHO=@ echo
 endif
 
-CC=$(PREFIX)g++
-LD=$(PREFIX)g++
-AR=$(PREFIX)ar
+CC=$(CLANG_BIN)/clang-5.0 --target=x86_64-none-elf
+LD=$(firstword $(wildcard $(CLANG_BIN)/ld.lld-5.0 $(CLANG_BIN)/ld.lld))
+AR=$(firstword $(wildcard $(CLANG_BIN)/llvm-ar-5.0 $(CLANG_BIN)/llvm-ar))
 OBJCOPY=$(PREFIX)objcopy
 STRIP=$(PREFIX)strip
 
