@@ -118,6 +118,7 @@ uintptr_t Process::addSection(SectionType type, size_t size) {
     uint8_t flags = 4;
     switch (type) {
       case SectionTypeCode:
+      case SectionTypeROData:
         break;
       case SectionTypeData:
       case SectionTypeBSS:

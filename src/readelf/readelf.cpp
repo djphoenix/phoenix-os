@@ -340,9 +340,15 @@ size_t readelf(Process *process, Stream *stream) {
           goto err;
         break;
       case PT_LOAD:
-        type = SectionTypeData;
-        if (prog->flags & PF_X)
+        if (prog->flags & PF_X) {
+          if (prog->flags & PF_W) goto err;
           type = SectionTypeCode;
+        } else {
+          if (prog->flags & PF_W)
+            type = SectionTypeData;
+          else
+            type = SectionTypeROData;
+        }
         vaddr = process->addSection(type, prog->memsz);
         if (prog->memsz > 0) {
           offset_load = 0;

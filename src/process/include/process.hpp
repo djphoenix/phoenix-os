@@ -27,7 +27,11 @@ struct ProcessSymbol {
 };
 
 enum SectionType: uint8_t {
-    SectionTypeCode, SectionTypeData, SectionTypeBSS, SectionTypeStack,
+  SectionTypeCode,
+  SectionTypeData,
+  SectionTypeROData,
+  SectionTypeBSS,
+  SectionTypeStack
 };
 
 class Process {
