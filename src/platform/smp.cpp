@@ -17,6 +17,7 @@
 #include "kernlib.hpp"
 #include "acpi.hpp"
 #include "processmanager.hpp"
+#include "syscall.hpp"
 
 class SMP {
  private:
@@ -31,6 +32,7 @@ Mutex SMP::startupMutex;
 void SMP::setup() {
   Interrupts::loadVector();
   ACPI::getController()->activateCPU();
+  Syscall::setup();
   startupMutex.lock();
   startupMutex.release();
 }

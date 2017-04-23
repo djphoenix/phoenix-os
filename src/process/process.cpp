@@ -150,7 +150,10 @@ uintptr_t Process::linkLibrary(const char* funcname) {
   ptr = addSection(SectionTypeCode, 0x100);
 
   // TODO: actual link
-  uint8_t _stub[] = {0xc3};  // RET
+  uint8_t _stub[] = {
+    0x0f, 0x05,  // SYSCALL
+    0xc3         // RET
+  };
   writeData(ptr, _stub, sizeof(_stub));
   addSymbol(funcname, ptr);
 
@@ -240,10 +243,13 @@ void Process::startup() {
       addPage(page, reinterpret_cast<void*>(page), 5);
     }
   }
-  uintptr_t handler;
+  uintptr_t handler, sc_wrapper;
   asm volatile("lea __interrupt_wrap(%%rip), %q0":"=r"(handler));
+  asm volatile("lea _ZN7Syscall7wrapperEv(%%rip), %q0":"=r"(sc_wrapper));
   handler &= KB4;
+  sc_wrapper &= KB4;
   addPage(handler, reinterpret_cast<void*>(handler), 5);
+  addPage(sc_wrapper, reinterpret_cast<void*>(sc_wrapper), 5);
   GDT_ENT *gdt_ent = reinterpret_cast<GDT_ENT*>(
       (uintptr_t)gdt.addr + 8 * 3);
   GDT_ENT *gdt_top = reinterpret_cast<GDT_ENT*>(
