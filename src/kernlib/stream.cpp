@@ -38,6 +38,7 @@ size_t MemoryStream::read(void* dest, size_t size) {
   if (offset + size >= limit)
     size = limit - offset;
   Memory::copy(dest, memory + offset, size);
+  offset += size;
   return size;
 }
 Stream* MemoryStream::substream(int64_t offset, size_t limit) {
