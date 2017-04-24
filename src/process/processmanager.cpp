@@ -194,3 +194,13 @@ void ProcessManager::dequeueThread(Thread *thread) {
   processSwitchMutex.release();
   LeaveCritical(t);
 }
+
+Process *ProcessManager::currentProcess() {
+  uint64_t cpuid = ACPI::getController()->getCPUID();
+  uint64_t t = EnterCritical();
+  processSwitchMutex.lock();
+  QueuedThread *curr = cpuThreads[cpuid];
+  processSwitchMutex.release();
+  LeaveCritical(t);
+  return curr ? curr->process : 0;
+}

@@ -45,6 +45,7 @@ class ProcessManager {
   uint64_t RegisterProcess(Process *process);
   void queueThread(Process *process, Thread *thread);
   void dequeueThread(Thread *thread);
+  Process *currentProcess();
   static ProcessManager* getManager();
   static void NORETURN process_loop();
 };
