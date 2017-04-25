@@ -15,31 +15,127 @@
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "syscall.hpp"
+#include "processmanager.hpp"
 
-static const uint32_t MSR_EFER = 0xC0000080;
-static const uint32_t MSR_STAR = 0xC0000081;
-static const uint32_t MSR_LSTAR = 0xC0000082;
-static const uint64_t MSR_EFER_SCE = 1 << 0;
-static const uint16_t KERNEL_CS = 8;
-static const uint16_t USER_CS = 24;
+#include "./syscall_hash.hpp"
+#include "./syscall_setup.hpp"
 
-static inline void wrmsr(uint32_t msr_id, uint64_t msr_value) {
-  asm volatile("wrmsr"::"c"(msr_id), "A"(msr_value), "d"(msr_value >> 32));
+static void syscall_puts(uintptr_t strptr) {
+  Process *process = ProcessManager::getManager()->currentProcess();
+  const char *str = process->readString(strptr);
+  Display::getInstance()->write(str);
+  delete str;
 }
 
-static inline uint64_t rdmsr(uint32_t msr_id) {
-  uint64_t msr_hi, msr_lo;
-  asm volatile("rdmsr":"=A"(msr_lo), "=d"(msr_hi):"c"(msr_id));
-  return (msr_hi << 32) | msr_lo;
+#define SYSCALL_ENT(name) { \
+  syscall_hash(#name), \
+  reinterpret_cast<void*>(syscall_ ## name) \
+}
+
+static const struct {
+  uint64_t hash;
+  void *entry;
+} PACKED syscall_map[] = {
+  SYSCALL_ENT(puts),
+  {0, 0}
+};
+
+#undef SYSCALL_ENT
+
+static uint64_t syscall_index(uint64_t hash) {
+  static const size_t num = sizeof(syscall_map) / sizeof(*syscall_map);
+  for (uint64_t idx = 0; idx < num - 1; idx++) {
+    if (syscall_map[idx].hash == hash) return idx;
+  }
+  return -1;
+}
+
+uint64_t Syscall::callByName(const char *name) {
+  uint64_t hash = syscall_hash(name);
+  if (syscall_index(hash) == (uint64_t)-1) return 0;
+  return hash;
 }
 
 void __attribute((naked)) Syscall::wrapper() {
   asm volatile(
+      // Save registers
+      "push %rax;"
+      "push %rcx;"
+      "push %rdx;"
+      "push %rbx;"
+      "push %rbp;"
+      "push %rsi;"
+      "push %rdi;"
+      "push %r8;"
+      "push %r9;"
+      "push %r10;"
+      "push %r11;"
+      "push %r12;"
+      "push %r13;"
+      "push %r14;"
+      "push %r15;"
+
+      // Save pagetable & stack
+      "mov %cr3, %rax; mov %rsp, %rbx; push %rax; push %rbx;"
+
+      // Set stack to absolute address
+      "sub $16, %rbx; ror $48, %rbx;"
+      "mov $4, %rcx;"
+      "1:"
+      "rol $9, %rbx;"
+      "mov %rbx, %rdx;"
+      "and $0x1FF, %rdx;"
+      "mov (%rax,%rdx,8), %rax;"
+      "and $~0xFFF, %rax;"
+      "loop 1b;"
+      "rol $12, %rbx; and $0xFFF, %rbx; add %rax, %rbx; mov %rbx, %rsp;"
+
+      // Set kernel pagetable
+      "_wrapper_mov_cr3: movabsq $0, %rax; mov %rax, %cr3;"
+
+      // Find syscall handler
+      "mov 128(%rsp), %rdx;"
+      "lea _ZL11syscall_map(%rip), %rax;"
+      "1:"
+      "cmp %rdx, (%rax);"
+      "je 1f;"
+      "cmpq $0, (%rax);"
+      "je 2f;"
+      "add $16, %rax;"
+      "jmp 1b;"
+      "1: mov 8(%rax), %rax; callq *%rax; jmp 3f;"
+      "2: ud2;"
+      "3:"
+
+      // Restore process stack & pagetable
+      "pop %rcx; pop %rax; mov %rcx, %rsp; mov %rax, %cr3;"
+
+      // Restore registers
+      "pop %r15;"
+      "pop %r14;"
+      "pop %r13;"
+      "pop %r12;"
+      "pop %r11;"
+      "pop %r10;"
+      "pop %r9;"
+      "pop %r8;"
+      "pop %rdi;"
+      "pop %rsi;"
+      "pop %rbp;"
+      "pop %rbx;"
+      "pop %rdx;"
+      "pop %rcx;"
+      "pop %rax;"
+
+      // Return to ring3
       "sysretq;"
   );
 }
 
 void Syscall::setup() {
+  asm volatile(
+      "mov %%cr3, %%rax; mov %%rax, 2 + _wrapper_mov_cr3(%%rip)":::"%rax"
+      );
   wrmsr(MSR_STAR,
       ((uint64_t)USER_CS) << 48 |
       ((uint64_t)KERNEL_CS) << 32);

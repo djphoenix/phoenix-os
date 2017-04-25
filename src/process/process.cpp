@@ -17,6 +17,7 @@
 #include "process.hpp"
 
 #include "processmanager.hpp"
+#include "syscall.hpp"
 
 Process::Process() {
   id = -1;
@@ -147,15 +148,24 @@ uintptr_t Process::getSymbolByName(const char* name) {
 uintptr_t Process::linkLibrary(const char* funcname) {
   uintptr_t ptr = getSymbolByName(funcname);
   if (ptr != 0) return ptr;
-  ptr = addSection(SectionTypeCode, 0x100);
 
-  // TODO: actual link
-  uint8_t _stub[] = {
-    0x0f, 0x05,  // SYSCALL
-    0xc3         // RET
-  };
-  writeData(ptr, _stub, sizeof(_stub));
-  addSymbol(funcname, ptr);
+  uint64_t syscall_id;
+  if ((syscall_id = Syscall::callByName(funcname)) != 0) {
+    struct {
+      uint8_t movabs[2];
+      uint64_t syscall_id;
+      uint8_t syscall[2];
+      uint8_t ret;
+    } PACKED call = {
+      { 0x48, 0xb8 },
+      syscall_id,
+      { 0x0f, 0x05 },
+      0xc3
+    };
+    ptr = addSection(SectionTypeCode, sizeof(call));
+    writeData(ptr, &call, sizeof(call));
+    addSymbol(funcname, ptr);
+  }
 
   return ptr;
 }

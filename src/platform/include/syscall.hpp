@@ -20,6 +20,7 @@
 class Syscall {
  public:
   static void setup();
+  static uint64_t callByName(const char *name);
  private:
   static void wrapper();
 };
