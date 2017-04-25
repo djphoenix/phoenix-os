@@ -56,10 +56,11 @@ bool ProcessManager::FaultHandler(
   return getManager()->HandleFault(intr, code, regs);
 }
 bool ProcessManager::SwitchProcess(intcb_regs *regs) {
-  processSwitchMutex.lock();
   uintptr_t loopbase = (uintptr_t)&process_loop, looptop;
   asm volatile("lea process_loop_top(%%rip), %q0":"=r"(looptop));
+  processSwitchMutex.lock();
   if (regs->dpl == 0 &&
+      cpuThreads[regs->cpuid] == 0 &&
       (regs->rip < loopbase || regs->rip >= looptop)) {
     processSwitchMutex.release();
     return false;
@@ -108,25 +109,14 @@ bool ProcessManager::SwitchProcess(intcb_regs *regs) {
 
 bool ProcessManager::HandleFault(
     uint32_t intr, uint32_t code, intcb_regs *regs) {
-  if (regs->dpl != 3)
-    return false;
   uint64_t t = EnterCritical();
   processSwitchMutex.lock();
   QueuedThread *thread = cpuThreads[regs->cpuid];
   cpuThreads[regs->cpuid] = 0;
   processSwitchMutex.release();
   LeaveCritical(t);
-  uint8_t instrbuf[3];
-  thread->process->readData(instrbuf, regs->rip, 3);
-  if ((intr != 0x0E) || (regs->rsp != thread->thread->stack_top)
-      || !((instrbuf[0] == 0xF3 && instrbuf[1] == 0xC3) ||  // repz ret
-          (instrbuf[0] == 0xC3) ||  // ret
-          false)
-      || false) {
-    Interrupts::print(intr, regs, code);
-  } else {
-    printf("Exit\n");
-  }
+  if (!thread) return false;
+  Interrupts::print(intr, regs, code);
   delete thread->process;
   delete thread;
   if (SwitchProcess(regs))
@@ -190,6 +180,12 @@ void ProcessManager::dequeueThread(Thread *thread) {
       lastThread = prev;
     delete next;
     next = prev ? prev->next : nextThread;
+  }
+  for (size_t cpu = 0; cpu < ACPI::getController()->getCPUCount(); cpu++) {
+    if (!cpuThreads[cpu]) continue;
+    if (cpuThreads[cpu]->thread != thread) continue;
+    delete cpuThreads[cpu];
+    cpuThreads[cpu] = 0;
   }
   processSwitchMutex.release();
   LeaveCritical(t);

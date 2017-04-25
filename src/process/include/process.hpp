@@ -46,6 +46,7 @@ class Process {
   Process();
   ~Process();
   void startup();
+  void exit(int code);
   void addThread(Thread *thread, bool suspended);
 
   uint64_t getId() { return id; }

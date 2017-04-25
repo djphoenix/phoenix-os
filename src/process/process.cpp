@@ -291,3 +291,11 @@ void Process::startup() {
   id = (ProcessManager::getManager())->RegisterProcess(this);
   addThread(thread, false);
 }
+
+void Process::exit(int code) {
+  printf("EXIT %d\n", code);
+  for (size_t i = 0; i < threads.getCount(); i++) {
+    ProcessManager::getManager()->dequeueThread(threads[i]);
+  }
+  delete this;
+}

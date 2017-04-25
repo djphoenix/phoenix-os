@@ -27,6 +27,13 @@ static void syscall_puts(uintptr_t strptr) {
   delete str;
 }
 
+static void syscall_exit(int code) {
+  ProcessManager *manager = ProcessManager::getManager();
+  Process *process = manager->currentProcess();
+  process->exit(code);
+  ProcessManager::process_loop();
+}
+
 #define SYSCALL_ENT(name) { \
   syscall_hash(#name), \
   reinterpret_cast<void*>(syscall_ ## name) \
@@ -37,6 +44,7 @@ static const struct {
   void *entry;
 } PACKED syscall_map[] = {
   SYSCALL_ENT(puts),
+  SYSCALL_ENT(exit),
   {0, 0}
 };
 
