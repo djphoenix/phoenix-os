@@ -1,5 +1,6 @@
 stages:
   - build
+  - docs
 
 build:
   stage: build
@@ -12,3 +13,17 @@ build:
     name: "$CI_BUILD_REF_NAME"
     paths:
       - bin
+
+pages:
+  stage: docs
+  environment:
+    name: production
+    url: https://os.phoenix.dj
+  script:
+    - mkdocs build
+  artifacts:
+    paths:
+      - public
+    expire_in: 1h
+  only:
+    - master@phoenix/phoenix-os

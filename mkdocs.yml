@@ -1,0 +1,14 @@
+site_name: PhoeniX OS
+site_description: PhoeniX OS Documentation
+docs_dir: docs
+site_dir: public
+theme: readthedocs
+markdown_extensions:
+    - admonition:
+    - tables:
+    - toc:
+        permalink: true
+        anchorlink: true
+pages:
+  - Overview: index.md
+  - License: license.md
