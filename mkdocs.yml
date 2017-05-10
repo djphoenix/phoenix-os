@@ -10,5 +10,25 @@ markdown_extensions:
         permalink: true
         anchorlink: true
 pages:
-  - Overview: index.md
-  - License: license.md
+    - Overview: index.md
+    - License: license.md
+    - Build: build.md
+    - Bootup:
+        - Process: boot.md
+        - Multiboot: multiboot.md
+        - EFI: efi.md
+    - Subsystems:
+        - ACPI: acpi.md
+        - CPUID: cpuid.md
+        - Interrupts: interrupts.md
+        - Memory: memory.md
+        - Modules: modules.md
+        - Process manager: process-manager.md
+        - SMP: smp.md
+        - System calls: syscall.md
+    - Kernel library:
+        - Display: display.md
+        - Utilities: library.md
+    - Install:
+        - On real PC: run-pc.md
+        - On virtual machine: run-vm.md
