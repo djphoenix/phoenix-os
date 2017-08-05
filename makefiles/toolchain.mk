@@ -1,7 +1,7 @@
 PREFIX=x86_64-linux-gnu-
 NPROC=1
-CLANG_BIN=$(dir $(shell which clang-5.0))
-CLANG_BIN ?= /usr/bin
+CLANG_BIN?=$(dir $(shell which clang))
+CLANG_BIN?=/usr/bin
 
 ifeq ($(OS),Windows_NT)
   PREFIX=x86_64-w64-mingw32-
@@ -28,11 +28,22 @@ else
   QECHO=@ echo
 endif
 
-CC=$(CLANG_BIN)/clang-5.0 --target=x86_64-none-elf
-LD=$(firstword $(wildcard $(CLANG_BIN)/ld.lld-5.0 $(CLANG_BIN)/ld.lld))
-AR=$(firstword $(wildcard $(CLANG_BIN)/llvm-ar-5.0 $(CLANG_BIN)/llvm-ar))
+ifeq ($(wildcard $(CLANG_BIN)/clang),)
+$(error CLANG not found in $(CLANG_BIN), make sure that it is installed and set CLANG_BIN environment variable)
+endif
+
+CC=$(CLANG_BIN)/clang --target=x86_64-none-elf
+LD=$(CLANG_BIN)/ld.lld
+AR=$(CLANG_BIN)/llvm-ar
 OBJCOPY=$(PREFIX)objcopy
 STRIP=$(PREFIX)strip
+
+CLANG_VER=$(shell $(CLANG_BIN)/clang -v 2>&1 | head -n1 | perl -p -e 's/.*clang version (\d+)(\.\d+)*.*/$$1/g')
+CLANG_5_GT=$(shell [ $(CLANG_VER) -gt 4 ] && echo true)
+
+ifneq ($(CLANG_5_GT),true)
+$(error CLANG v$(CLANG_VER) is not supported, use v5 or later)
+endif
 
 ifeq ($(UNAME_S),Darwin)
   OBJCOPY=gobjcopy
