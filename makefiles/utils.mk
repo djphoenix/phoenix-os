@@ -21,7 +21,7 @@ all: check
 
 $(EFIBIOS): deps/$(DEP_OVMF_FILE)
 	@ mkdir -p $(dir $@)
-	$(Q) unzip -p deps/$(DEP_OVMF_FILE) OVMF.fd > $@
+	$(Q) tar xOf deps/$(DEP_OVMF_FILE) data.tar.xz | tar xO './usr/share/ovmf/OVMF.fd' > $@
 
 $(EFIKERN): $(BIN)
 	@ mkdir -p $(dir $@)
@@ -31,4 +31,4 @@ launch: $(BIN)
 	$(QEMU) -kernel $< -smp cores=2,threads=2 -cpu Broadwell -serial stdio
 
 launch-efi: $(EFIKERN) $(EFIBIOS)
-	$(QEMU) -drive file=fat:$(EFIROOT) -smp cores=2,threads=2 -cpu Broadwell -bios $(EFIBIOS) -serial stdio
+	$(QEMU) -drive file=fat:rw:$(EFIROOT),format=raw,media=disk -smp cores=2,threads=2 -cpu Broadwell -bios $(EFIBIOS) -serial stdio
