@@ -234,6 +234,7 @@ static bool readelf_dylink_handle_dynamic_table(Process *process,
       case DT_PLTRELSZ:
       case DT_SYMENT:
       case DT_HASH:
+      case DT_GNU_HASH:
       case DT_STRTAB:
       case DT_STRSZ:
         break;
