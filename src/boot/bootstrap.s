@@ -27,23 +27,23 @@ multiboot_entry:
 
   # Load stack pointer
   lea __stack_end__, %esp
-  
+
   # Check for multiboot
   cmp $0x2BADB002, %eax
   jne 2f
 
   # Save current value on stack
   mov -4(%esp), %eax
-  
+
   # Get base pointer
   call 1f
 1:
   pop %ebp
   sub $1b - _start, %ebp
-  
+
   # Fix stack value
   mov %eax, -4(%esp)
-  
+
   cld
 
   # Clear BSS
@@ -128,7 +128,7 @@ multiboot_entry:
   add $0x1000, %esi; mov %esi, 0x2008(%edi)
   add $0x1000, %esi; mov %esi, 0x2010(%edi)
   add $0x1000, %esi; mov %esi, 0x2018(%edi)
-  
+
   add $0x3000, %edi
 
   mov $0x00000007, %ebx
@@ -192,7 +192,7 @@ multiboot_entry:
 7:
   hlt
   jmp 7b
-  
+
 .code64
 
 _efi_start: # EFI
@@ -213,7 +213,7 @@ x64_entry:
   call _ZN7Syscall5setupEv
   mov %rsp, %rbp
   jmp _ZN14ProcessManager12process_loopEv
-  
+
 reloc_vtables:
   lea reloc_vtables-reloc_vtables(%rip), %rcx
   lea __VTABLE_START__(%rip), %rbp
@@ -253,12 +253,12 @@ static_init:
 4:
   pop %rax
   pop %rbp
-  ret  
+  ret
 
 __main: # Fix for Windows builds
   ret
-  
-  .data
+
+  .rodata
 
 aNoMultiboot: .ascii "This kernel can boot only from multiboot-compatible bootloader\0"
 aNoLongMode: .ascii "Your CPU are not support x86_64 mode\0"
