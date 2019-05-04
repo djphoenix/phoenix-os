@@ -1,9 +1,9 @@
 ### Source download
 * [GIT](https://en.wikipedia.org/wiki/Git_(software)): `git clone https://git.phoenix.dj/phoenix/phoenix-os/`
-* [ZIP file](https://git.phoenix.dj/phoenix/phoenix-os/builds/artifacts/master/download?job=build) from master branch.
+* [ZIP file](https://git.phoenix.dj/phoenix/phoenix-os/repository/archive.zip) from master branch.
 
 ### Build prerequisites
-* [CLANG](https://clang.llvm.org/) 5
+* [CLANG](https://clang.llvm.org/) 5 or later
 * [GNU make](http://www.gnu.org/software/make/)
 
 ### Build on GNU/Linux
@@ -25,7 +25,7 @@ make all
 # Install homebrew (if not installed)
 /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 # Install GIT, GIT-LFS, MAKE, CLANG 5
-brew install git git-lfs make llvm@5
+brew install git git-lfs make llvm
 # Get source code
 git clone https://git.phoenix.dj/phoenix/phoenix-os.git
 # Build

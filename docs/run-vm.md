@@ -6,4 +6,4 @@ In Virtual Machine configuration select ISO image as bootable CD.
 ### [QEMU](http://wiki.qemu.org/Main_Page)
 Get binary kernel [from CI](https://git.phoenix.dj/phoenix/phoenix-os/builds/artifacts/master/download?job=build) or [build it from source](build.md)
 
-Launch QEMU with `-kernel phoenixos` option.
+Launch QEMU with `-kernel phoenixos` option (or use `make launch` or `make launch-efi` command in source directory, see [build it from source](build) section for details)
