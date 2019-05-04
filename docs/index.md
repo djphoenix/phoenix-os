@@ -1,5 +1,5 @@
 > PhoeniX OS [![build status](https://git.phoenix.dj/phoenix/phoenix-os/badges/master/build.svg)](https://git.phoenix.dj/phoenix/phoenix-os/builds) [![download](https://img.shields.io/badge/download-latest-blue.svg)](https://git.phoenix.dj/phoenix/phoenix-os/builds/artifacts/master/download?job=build)<br>
-> © PhoeniX, 2012-2017<br>
+> © PhoeniX, 2012-2019<br>
 > [https://git.phoenix.dj/phoenix/phoenix-os](https://git.phoenix.dj/phoenix/phoenix-os)
 
 PhoeniX OS is [open-source](https://en.wikipedia.org/wiki/Open-source_software) ([MIT](license.md)) [64-bit](https://en.wikipedia.org/wiki/64-bit_computing) [operating system](https://en.wikipedia.org/wiki/Operating_system).

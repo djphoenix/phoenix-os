@@ -1,5 +1,5 @@
 #    PhoeniX OS Makefile
-#    Copyright © 2017 Yury Popov a.k.a. PhoeniX
+#    Copyright © 2017-2019 Yury Popov a.k.a. PhoeniX
 
 .PHONY: all
 
