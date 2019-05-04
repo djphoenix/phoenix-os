@@ -218,11 +218,15 @@ reloc_vtables:
   lea reloc_vtables-reloc_vtables(%rip), %rcx
   lea __VTABLE_START__(%rip), %rbp
   lea __VTABLE_END__(%rip), %rdx
+  lea __text_start__, %rax
+  lea __bss_end__, %r8
 1:
   cmp %rbp, %rdx
   je 3f
-  cmpq $0, (%rbp)
-  je 2f
+  cmpq %rax, (%rbp)
+  jl 2f
+  cmpq %r8, (%rbp)
+  jg 2f
   add %rcx, (%rbp)
 2:
   add $8, %rbp
