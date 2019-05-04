@@ -85,9 +85,11 @@ void Pagetable::init() {
   const EFI_SYSTEM_TABLE *ST = EFI::getSystemTable();
   MULTIBOOT_PAYLOAD *multiboot = Multiboot::getPayload();
 
+  static const size_t stack_size = 0x1000;
+
   asm volatile("mov %%cr3, %q0":"=r"(pagetable));
-  asm volatile("lea __stack_start__(%%rip), %q0":"=r"(stack_start));
   asm volatile("lea __stack_end__(%%rip), %q0":"=r"(stack_top));
+  stack_start = stack_top - stack_size;
   asm volatile("lea __text_start__(%%rip), %q0":"=r"(text_start));
   asm volatile("lea __data_end__(%%rip), %q0":"=r"(data_top));
   asm volatile("lea __modules_start__(%%rip), %q0":"=r"(modules_start));

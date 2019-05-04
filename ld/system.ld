@@ -5,7 +5,6 @@
 OUTPUT_FORMAT(elf64-x86-64)
 ENTRY(_efi_start)
 
-PROVIDE(__stack_start__ = 0x1000);
 PROVIDE(__stack_end__ = 0x2000);
 PROVIDE(__first_page__ = 0x2000);
 PROVIDE(__pagetable__ = 0x20000);
