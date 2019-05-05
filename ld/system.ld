@@ -8,9 +8,19 @@ ENTRY(_efi_start)
 PROVIDE(__stack_end__ = 0x2000);
 PROVIDE(__pagetable__ = 0x20000);
 
+PHDRS
+{
+  headers PT_PHDR PHDRS;
+  text PT_LOAD FILEHDR;
+  rodata PT_LOAD;
+  data PT_LOAD;
+}
+
 SECTIONS
 {
-    .reloc 0x400FE0 : ALIGN(1) {}
+    .reloc 0x400FE0 (NOLOAD) : ALIGN(1) {
+    	LONG(0) LONG(10) SHORT(0)
+    } :text
     .text 0x401000 : ALIGN(1) {
         __text_start__ = . ;
         *boot.a:bootstrap.o(.text .text.*)
@@ -19,31 +29,35 @@ SECTIONS
         PROVIDE (etext = .);
         . = ALIGN(64);
         __text_end__ = . ;
-    }
-    .data : ALIGN(1) {
+    } :text
+    .rodata : ALIGN(1) {
+        . = ALIGN(8);
+        __modules_start__ = . ;
+        *(.modules)
+        . = ALIGN(64);
+        __modules_end__ = . ;
+
+        . = ALIGN(8);
         __data_start__ = . ;
         *(.rodata .rodata.*)
+    } :rodata
+    .data : ALIGN(1) {
         . = ALIGN(8);
         __VTABLE_START__ = . ;
-        __INIT_LIST__ = . ; QUAD(0) *(.init_array*) QUAD(0)
-        __CTOR_LIST__ = . ; QUAD(0) *(.ctor*) QUAD(0)
+        __CTOR_LIST__ = . ; QUAD(0) *(.init_array*) *(.ctor*) QUAD(0)
         __DTOR_LIST__ = . ; QUAD(0) *(.dtor*) QUAD(0)
+        *(.data.rel.ro.*)
         *(.data.rel.*)
         __VTABLE_END__ = . ;
         *(.got .got.*)
         *(.data .data.*)
         __data_end__ = . ;
-
-        __modules_start__ = . ;
-        *(.modules)
-        . = ALIGN(64);
-        __modules_end__ = . ;
-    }
-    .bss : ALIGN(1) {
+    } :data
+    .bss (NOLOAD) : ALIGN(1) {
         __bss_start__ = . ;
         *(.bss .bss.*)
         *(COMMON)
         __bss_end__ = . ;
-    }
+    } :data
     /DISCARD/ : { *(.comment) *(.eh_frame) *(.note*) }
 }

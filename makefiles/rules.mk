@@ -49,4 +49,4 @@ $(BIN): $(BIN).elf.strip
 $(OOBJDIR)/modules-linked.o: $(MODOBJS)
 	@ mkdir -p $(dir $@)
 	$(Q) cat $^ > $(@:.o=.b); echo -n ' ' >> $(@:.o=.b)
-	$(Q) $(OBJCOPY) -Oelf64-x86-64 -Bi386 -Ibinary --rename-section .data=.modules $(@:.o=.b) $@
+	$(Q) $(OBJCOPY) -Oelf64-x86-64 -Bi386 -Ibinary --rename-section .data=.modules --set-section-flags .data=alloc,load,data,readonly $(@:.o=.b) $@

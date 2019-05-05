@@ -17,7 +17,7 @@ multiboot_header:
 
   .long multiboot_header
   .long __text_start__
-  .long __modules_end__
+  .long __bss_start__
   .long __bss_end__ + 0x80000
   .long multiboot_entry
 
@@ -48,7 +48,6 @@ multiboot_entry:
 
   # Clear BSS
   lea __bss_start__-_start(%ebp), %edi
-  xor %ecx, %ecx
   lea __bss_end__-_start(%ebp), %ecx
   sub %edi, %ecx
   xor %eax, %eax
@@ -150,7 +149,7 @@ multiboot_entry:
   or $0x100, %eax
   wrmsr
 
-  # Enable pading
+  # Enable paging
   mov %cr0, %eax
   or $0x80000000, %eax
   mov %eax, %cr0
@@ -237,7 +236,7 @@ reloc_vtables:
 static_init:
   push %rbp
   push %rax
-  lea __INIT_LIST__(%rip), %rbp
+  lea __CTOR_LIST__(%rip), %rbp
 1:
   add $8, %rbp
   mov (%rbp), %rax
@@ -246,15 +245,6 @@ static_init:
   callq *%rax
   jmp 1b
 2:
-  lea __CTOR_LIST__(%rip), %rbp
-3:
-  add $8, %rbp
-  mov (%rbp), %rax
-  test %rax, %rax
-  je 4f
-  callq *%rax
-  jmp 3b
-4:
   pop %rax
   pop %rbp
   ret
@@ -282,8 +272,3 @@ GDT64.Code:
 GDT64.Data:
   .quad 0x00CF92000000FFFF
 GDT64.End:
-
-  .section .reloc, "a"
-  .long 0
-  .long 10
-  .word 0
