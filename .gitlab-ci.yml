@@ -6,13 +6,17 @@ build:
   stage: build
   cache:
     paths:
-      - deps
+      - build/*-prefix
   script:
-    - make images
+    - mkdir -p build
+    - cd build
+    - cmake ..
+    - make all iso VERBOSE=1
   artifacts:
     name: "$CI_BUILD_REF_NAME"
     paths:
-      - bin
+      - build/pxkrnl
+      - build/phoenixos.iso
 
 pages:
   stage: docs

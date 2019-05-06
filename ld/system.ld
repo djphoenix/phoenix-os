@@ -32,10 +32,7 @@ SECTIONS
     } :text
     .rodata : ALIGN(1) {
         . = ALIGN(8);
-        __modules_start__ = . ;
         *(.modules)
-        . = ALIGN(64);
-        __modules_end__ = . ;
 
         . = ALIGN(8);
         __data_start__ = . ;
