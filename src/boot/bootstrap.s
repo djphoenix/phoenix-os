@@ -113,25 +113,31 @@ multiboot_entry:
   mov %eax, %cr0
 
   # Fill pagetable
-  lea __pagetable__-_start(%ebp), %edi
+  lea -0x203000+_start(%ebp), %edi
   mov %edi, %cr3
   xor %eax, %eax
-  mov $0x1C00, %ecx
+  mov $0x400, %ecx
   rep stosl
   mov %cr3, %edi
 
-  lea __pagetable__-_start+0x1007(%ebp), %esi
-                     mov %esi, 0x0000(%edi)
-  add $0x1000, %esi; mov %esi, 0x1000(%edi)
-  add $0x1000, %esi; mov %esi, 0x2000(%edi)
-  add $0x1000, %esi; mov %esi, 0x2008(%edi)
-  add $0x1000, %esi; mov %esi, 0x2010(%edi)
-  add $0x1000, %esi; mov %esi, 0x2018(%edi)
+  lea -0x203000+0x3+_start(%ebp), %esi
 
-  add $0x3000, %edi
+  add $0x1000, %esi
+  mov %esi, 0x0000(%edi)
+  add $0x1000, %esi
+  mov %esi, 0x1000(%edi)
 
-  mov $0x00000007, %ebx
-  mov $0x800, %ecx
+  mov $0x200, %ecx
+1:
+  add $0x1000, %esi
+  mov %esi, 0x2000(%edi)
+  add $8, %edi
+  loop 1b
+
+  add $0x2000, %edi
+
+  mov $0x00000003, %ebx
+  mov $0x1000, %ecx
 1:
   mov %ebx, (%edi)
   add $0x1000, %ebx

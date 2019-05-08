@@ -13,8 +13,8 @@ uintptr_t Pagetable::last_page = 1;
 static void fillPages(uintptr_t low, uintptr_t top, PTE *pagetable) {
   low &= 0xFFFFFFFFFFFFF000;
   top = ALIGN(top, 0x1000);
-  for (; low < top; low += 0x1000) \
-    PTE::find(low, pagetable)->user = 0; \
+  for (; low < top; low += 0x1000)
+    *PTE::find(low, pagetable) = PTE(low, 3);
 }
 
 static inline void fillPages(void *low, void *top, PTE *pagetable) {
@@ -79,7 +79,6 @@ static void efiMapPage(PTE *pagetable, const void *page,
 void Pagetable::init() {
   char *stack_start, *stack_top;
   char *text_start, *data_top;
-  char *modules_start, *modules_top;
   char *bss_start, *bss_top;
 
   const EFI_SYSTEM_TABLE *ST = EFI::getSystemTable();
@@ -92,8 +91,6 @@ void Pagetable::init() {
   stack_start = stack_top - stack_size;
   asm volatile("lea __text_start__(%%rip), %q0":"=r"(text_start));
   asm volatile("lea __data_end__(%%rip), %q0":"=r"(data_top));
-  asm volatile("lea __modules_start__(%%rip), %q0":"=r"(modules_start));
-  asm volatile("lea __modules_end__(%%rip), %q0":"=r"(modules_top));
   asm volatile("lea __bss_start__(%%rip), %q0":"=r"(bss_start));
   asm volatile("lea __bss_end__(%%rip), %q0":"=r"(bss_top));
 
@@ -105,7 +102,9 @@ void Pagetable::init() {
         EFI::getImageHandle(), &EFI_LOADED_IMAGE_PROTOCOL,
         reinterpret_cast<void**>(&loaded_image));
 
-    pagetable = static_cast<PTE*>(efiAllocatePage(0x20000, ST));
+    uintptr_t ptbase = 0x600000 + (RAND::get<uintptr_t>() & 0x3FFF000);
+
+    pagetable = static_cast<PTE*>(efiAllocatePage(ptbase, ST));
     efiMapPage(pagetable, pagetable, ST);
 
     size_t mapSize = 0, entSize = 0;
@@ -131,58 +130,39 @@ void Pagetable::init() {
     ST->BootServices->ExitBootServices(EFI::getImageHandle(), mapKey);
     asm volatile("mov %q0, %%cr3"::"r"(pagetable));
   } else {
-    // BIOS Data
     PTE::find((uintptr_t)0, pagetable)->present = 0;
+    fillPages(0x1000, 0x3FFFF000, pagetable);
 
-    fillPages(0x09F000, 0x0A0000, pagetable);  // Extended BIOS Data
-    fillPages(0x0A0000, 0x0C8000, pagetable);  // Video data & VGA BIOS
-    fillPages(0x0C8000, 0x0F0000, pagetable);  // Reserved for many systems
-    fillPages(0x0F0000, 0x100000, pagetable);  // BIOS Code
+    static const size_t pdpe_num = 64;
+    static const size_t ptsz = (3 + pdpe_num) * 0x1000;
 
-    fillPages(stack_start, stack_top, pagetable);  // PXOS Stack
-    fillPages(text_start, data_top, pagetable);  // PXOS Code & Data
-    fillPages(modules_start, modules_top, pagetable);  // PXOS Modules
-    fillPages(bss_start, bss_top, pagetable);  // PXOS BSS
+    uintptr_t ptbase = 0x600000 - ptsz + ((RAND::get<uintptr_t>() & 0x3FFF) << 12);
+
+    PTE *newpt = reinterpret_cast<PTE*>(ptbase);
+    Memory::fill(newpt, 0, ptsz);
+    newpt[0] = PTE { ptbase + 0x1000, 3 };
+    PTE *pde = newpt->getPTE();
+    pde[0] = PTE { ptbase + 0x2000, 3 };
+    PTE *pdpe = pde->getPTE();
+    for (size_t i = 0; i < pdpe_num; i++) {
+      pdpe[i] = PTE { ptbase + (3+i) * 0x1000, 3 };
+    }
+
+    fillPages(ptbase, ptbase + ptsz, newpt);
+    fillPages(0x09F000, 0x0A0000, newpt);  // Extended BIOS Data
+    fillPages(0x0A0000, 0x0C8000, newpt);  // Video data & VGA BIOS
+    fillPages(0x0C8000, 0x0F0000, newpt);  // Reserved for many systems
+    fillPages(0x0F0000, 0x100000, newpt);  // BIOS Code
+
+    fillPages(stack_start, stack_top, newpt);  // PXOS Stack
+    fillPages(text_start, data_top, newpt);    // PXOS Code & Data
+    fillPages(bss_start, bss_top, newpt);      // PXOS BSS
+
     if (multiboot)
-      fillPages(multiboot, multiboot+1, pagetable);
+      *PTE::find(multiboot, newpt) = PTE { multiboot, 3 };
 
-    // Page table
-    PTE::find(pagetable, pagetable)->user = 0;
-
-    for (uint16_t i = 0; i < 512; i++) {
-      if (!pagetable[i].present) continue;
-      PTE *pde = pagetable[i].getPTE();
-      PTE::find(pde, pagetable)->user = 0;
-      for (uint32_t j = 0; j < 512; j++) {
-        if (!pde[j].present) continue;
-        PTE *pdpe = pde[j].getPTE();
-        PTE::find(pdpe, pagetable)->user = 0;
-        for (uint16_t k = 0; k < 512; k++) {
-          if (!pdpe[k].present) continue;
-          PTE *pml4e = pdpe[k].getPTE();
-          PTE::find(pml4e, pagetable)->user = 0;
-        }
-      }
-    }
-    // Clearing unused pages
-    for (uint16_t i = 0; i < 512; i++) {
-      if (!pagetable[i].present) continue;
-      PTE *pde = pagetable[i].getPTE();
-      PTE::find(pde, pagetable)->user = 0;
-      for (uint32_t j = 0; j < 512; j++) {
-        if (!pde[j].present) continue;
-        PTE *pdpe = pde[j].getPTE();
-        PTE::find(pdpe, pagetable)->user = 0;
-        for (uint16_t k = 0; k < 512; k++) {
-          if (!pdpe[k].present) continue;
-          PTE *pml4e = pdpe[k].getPTE();
-          for (uint16_t l = 0; l < 512; l++) {
-            if (pml4e[l].user)
-              pml4e[l].present = 0;
-          }
-        }
-      }
-    }
+    pagetable = newpt;
+    asm volatile("mov %q0, %%cr3"::"r"(pagetable));
   }
 
   if (multiboot) {
