@@ -10,6 +10,8 @@ Process::Process() {
   id = -1;
   pagetable = 0;
   entry = 0;
+  _aslrCode = ((RAND::get<uintptr_t>() << 12) & 0x7FFFFFFF000) | 0x40000000000;
+  _aslrStack = ((RAND::get<uintptr_t>() << 12) & 0x7FFFFFFF000) | 0x80000000000;
 }
 Process::~Process() {
   if (pagetable != 0) {
@@ -92,9 +94,13 @@ uintptr_t Process::addSection(SectionType type, size_t size) {
   if (size == 0)
     return 0;
   size_t pages = (size >> 12) + 1;
-  uintptr_t vaddr = 0xF000000000;
-  if (type == SectionTypeStack)
-    vaddr = 0xA000000000;
+  uintptr_t vaddr;
+  if (type != SectionTypeStack) {
+    vaddr = _aslrCode;
+  } else {
+    vaddr = _aslrStack;
+  }
+
   for (uintptr_t caddr = vaddr; caddr < vaddr + size; caddr += 0x1000) {
     if (getPhysicalAddress(vaddr) != 0) {
       vaddr += 0x1000;

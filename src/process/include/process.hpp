@@ -28,6 +28,7 @@ class Process {
   List<ProcessSymbol> symbols;
   uintptr_t entry;
   void addPage(uintptr_t vaddr, void* paddr, uint8_t flags);
+  uintptr_t _aslrCode, _aslrStack;
 
  public:
   Process();
