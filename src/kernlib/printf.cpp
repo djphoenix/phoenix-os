@@ -10,7 +10,7 @@ static inline char *longlong_to_string(
   int pos = len;
   char table_start = fl_caps ? 'A' : 'a';
   bool negative = 0;
-  if (fl_signed && (int64_t)n < 0) {
+  if (fl_signed && int64_t(n) < 0) {
     negative = 1;
     n = -n;
   }
@@ -243,7 +243,7 @@ parse_size:
       case 'p':
         flags.fl_altfmt = 1;
         numsig = 0;
-        numval = (uintptr_t)va_arg(ap, void*);
+        numval = uintptr_t(va_arg(ap, void*));
         numbase = 16;
         goto out_num;
       case 'x':

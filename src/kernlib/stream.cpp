@@ -31,9 +31,9 @@ size_t MemoryStream::read(void* dest, size_t size) {
 Stream* MemoryStream::substream(int64_t offset, size_t limit) {
   if (offset == -1)
     offset = this->offset;
-  if ((limit == (size_t)-1) || (limit > this->limit - offset))
+  if ((limit == size_t(-1)) || (limit > this->limit - offset))
     limit = this->limit - offset;
-  return new MemoryStream(memory + (size_t)offset, limit);
+  return new MemoryStream(memory + size_t(offset), limit);
 }
 char* MemoryStream::readstr() {
   size_t len = strlen(memory + offset, limit - offset);

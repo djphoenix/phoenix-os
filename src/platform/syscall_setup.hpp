@@ -12,5 +12,5 @@ static inline void wrmsr(uint32_t msr_id, uint64_t msr_value) {
 static inline uint64_t rdmsr(uint32_t msr_id) {
   uint32_t msr_hi, msr_lo;
   asm volatile("rdmsr":"=A"(msr_lo), "=d"(msr_hi):"c"(msr_id));
-  return ((uint64_t)msr_hi << 32) | (uint64_t)msr_lo;
+  return (uint64_t(msr_hi) << 32) | uint64_t(msr_lo);
 }

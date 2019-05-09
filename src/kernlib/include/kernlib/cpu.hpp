@@ -7,7 +7,7 @@
 inline static uint64_t rdtsc() {
   uint32_t eax, edx;
   asm volatile("rdtsc":"=a"(eax), "=d"(edx));
-  return (((uint64_t)edx << 32) | eax);
+  return ((uint64_t(edx) << 32) | eax);
 }
 
 inline static uint64_t __attribute__((always_inline)) EnterCritical() {

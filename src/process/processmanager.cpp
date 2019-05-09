@@ -43,7 +43,7 @@ bool ProcessManager::FaultHandler(
   return getManager()->HandleFault(intr, code, regs);
 }
 bool ProcessManager::SwitchProcess(intcb_regs *regs) {
-  uintptr_t loopbase = (uintptr_t)&process_loop, looptop;
+  uintptr_t loopbase = uintptr_t(&process_loop), looptop;
   asm volatile("lea process_loop_top(%%rip), %q0":"=r"(looptop));
   processSwitchMutex.lock();
   if (regs->dpl == 0 &&
@@ -80,7 +80,7 @@ bool ProcessManager::SwitchProcess(intcb_regs *regs) {
   cpuThreads[regs->cpuid] = thread;
   Thread *th = thread->thread;
   *regs = {
-    regs->cpuid, (uintptr_t)thread->process->pagetable,
+    regs->cpuid, uintptr_t(thread->process->pagetable),
     th->regs.rip, 0x18,
     th->regs.rflags,
     th->regs.rsp, 0x20,
@@ -111,7 +111,7 @@ bool ProcessManager::HandleFault(
   t = EnterCritical();
   processSwitchMutex.lock();
   asm volatile("mov %%cr3, %0":"=r"(regs->cr3));
-  regs->rip = (uintptr_t)&process_loop;
+  regs->rip = uintptr_t(&process_loop);
   regs->cs = 0x08;
   regs->ss = 0x10;
   regs->dpl = 0;

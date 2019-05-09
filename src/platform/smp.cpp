@@ -57,7 +57,7 @@ void SMP::init() {
   info = reinterpret_cast<StartupInfo*>(startupCode + ALIGN(smp_init_size, 8));
 
   Memory::copy(startupCode, smp_init, smp_init_size);
-  char smp_init_vector = (((uintptr_t)startupCode) >> 12) & 0xFF;
+  char smp_init_vector = (uintptr_t(startupCode) >> 12) & 0xFF;
 
   info->lapicAddr = acpi->getLapicAddr();
   info->cpuids = new uint64_t[cpuCount]();

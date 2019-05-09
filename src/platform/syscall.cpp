@@ -47,7 +47,7 @@ static uint64_t syscall_index(uint64_t hash) {
 
 uint64_t Syscall::callByName(const char *name) {
   uint64_t hash = syscall_hash(name);
-  if (syscall_index(hash) == (uint64_t)-1) return 0;
+  if (syscall_index(hash) == uint64_t(-1)) return 0;
   return hash;
 }
 
@@ -132,8 +132,8 @@ void Syscall::setup() {
       "mov %%cr3, %%rax; mov %%rax, 2 + _wrapper_mov_cr3(%%rip)":::"%rax"
       );
   wrmsr(MSR_STAR,
-      ((uint64_t)USER_CS) << 48 |
-      ((uint64_t)KERNEL_CS) << 32);
-  wrmsr(MSR_LSTAR, (uintptr_t)wrapper);
+      uint64_t(USER_CS) << 48 |
+      uint64_t(KERNEL_CS) << 32);
+  wrmsr(MSR_LSTAR, uintptr_t(wrapper));
   wrmsr(MSR_EFER, rdmsr(MSR_EFER) | MSR_EFER_SCE);
 }

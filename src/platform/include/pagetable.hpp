@@ -31,10 +31,10 @@ struct PTE {
     flags(flags), rsvd(0), avl(avl), _ptr(ptr >> 12) {}
   PTE(uintptr_t ptr, uint8_t flags):
     flags(flags), rsvd(0), avl(0), _ptr(ptr >> 12) {}
-  PTE(void *ptr, uint8_t avl, uint8_t flags):
-    flags(flags), rsvd(0), avl(avl), _ptr((uintptr_t)ptr >> 12) {}
-  PTE(void *ptr, uint8_t flags):
-    flags(flags), rsvd(0), avl(0), _ptr((uintptr_t)ptr >> 12) {}
+  PTE(const void *ptr, uint8_t avl, uint8_t flags):
+    flags(flags), rsvd(0), avl(avl), _ptr(uintptr_t(ptr) >> 12) {}
+  PTE(const void *ptr, uint8_t flags):
+    flags(flags), rsvd(0), avl(0), _ptr(uintptr_t(ptr) >> 12) {}
 
   static PTE* find(uintptr_t ptr, PTE *pagetable) {
     uint16_t ptx = (ptr >> (12 + 9 + 9 + 9)) & 0x1FF;
@@ -52,7 +52,7 @@ struct PTE {
     return &page[pml4x];
   }
   static PTE* find(void *addr, PTE *pagetable) {
-    return find((uintptr_t)addr, pagetable);
+    return find(uintptr_t(addr), pagetable);
   }
 } PACKED;
 
@@ -71,9 +71,9 @@ class Pagetable {
 
 inline static void MmioWrite32(void *p, uint32_t data) {
   Pagetable::map(p);
-  *(volatile uint32_t *)(p) = data;
+  *reinterpret_cast<volatile uint32_t *>(p) = data;
 }
 inline static uint32_t MmioRead32(const void *p) {
   Pagetable::map(p);
-  return *(const volatile uint32_t *)(p);
+  return *reinterpret_cast<const volatile uint32_t *>(p);
 }

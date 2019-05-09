@@ -84,7 +84,7 @@ class FramebufferDisplay: public Display {
     } else if (c == '\t') {
       offset += 8 - ((offset % charWidth()) % 8);
     } else {
-      const uint8_t *fontsym = fb_font_8x16 + ((size_t)c * 16);
+      const uint8_t *fontsym = fb_font_8x16 + (size_t(c) * 16);
       size_t offsetX = offset % charWidth();
       size_t offsetY = offset / charWidth();
       size_t pb = pixelBytes();
@@ -123,8 +123,8 @@ class FramebufferDisplay: public Display {
                      PixelFormat pixelFormat):
     framebuffer(framebuffer), width(width), height(height),
     pixelFormat(pixelFormat), offset(0) {
-    for (uintptr_t ptr = (uintptr_t)framebuffer;
-        ptr < (uintptr_t)framebuffer + bufferSize() + 0xFFF;
+    for (uintptr_t ptr = uintptr_t(framebuffer);
+        ptr < uintptr_t(framebuffer) + bufferSize() + 0xFFF;
         ptr += 0x1000) {
       Pagetable::map(reinterpret_cast<void*>(ptr));
     }

@@ -105,7 +105,7 @@ uint64_t CPU::getFeatures() {
     asm volatile("cpuid" :
         "=a"(eax), "=c"(ecx), "=d"(edx) :
         "a"(eax) :"ebx");
-    features = ((uint64_t)edx << 32) | (uint64_t)ecx;
+    features = (uint64_t(edx) << 32) | uint64_t(ecx);
     struct CPUID_INFO {
       uint32_t stepping:3;
       uint32_t model:4;
@@ -133,7 +133,7 @@ uint64_t CPU::getFeaturesExt() {
     asm volatile("cpuid" :
         "=a"(eax), "=b"(ebx), "=c"(ecx) :
         "a"(eax), "c"(ecx): "edx");
-    features_ext = (uint64_t)ebx | ((uint64_t)ecx << 32);
+    features_ext = uint64_t(ebx) | (uint64_t(ecx) << 32);
   }
   return features_ext;
 }
@@ -144,7 +144,7 @@ uint64_t CPU::getExtFeatures() {
     asm volatile("cpuid" :
         "=a"(eax), "=c"(ecx), "=d"(edx) :
         "a"(eax): "ebx");
-    ext_features = (uint64_t)edx | ((uint64_t)ecx << 32);
+    ext_features = uint64_t(edx) | (uint64_t(ecx) << 32);
   }
   return ext_features;
 }

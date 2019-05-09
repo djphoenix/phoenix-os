@@ -16,29 +16,29 @@ Process::Process() {
 Process::~Process() {
   if (pagetable != 0) {
     PTE addr;
-    for (uint16_t ptx = 0; ptx < 512; ptx++) {
+    for (uintptr_t ptx = 0; ptx < 512; ptx++) {
       addr = pagetable[ptx];
       if (!addr.present)
         continue;
       PTE *ppde = addr.getPTE();
-      for (uint16_t pdx = 0; pdx < 512; pdx++) {
+      for (uintptr_t pdx = 0; pdx < 512; pdx++) {
         addr = ppde[pdx];
         if (!addr.present)
           continue;
         PTE *pppde = addr.getPTE();
-        for (uint16_t pdpx = 0; pdpx < 512; pdpx++) {
+        for (uintptr_t pdpx = 0; pdpx < 512; pdpx++) {
           addr = pppde[pdpx];
           if (!addr.present)
             continue;
           PTE *ppml4e = addr.getPTE();
-          for (uint16_t pml4x = 0; pml4x < 512; pml4x++) {
+          for (uintptr_t pml4x = 0; pml4x < 512; pml4x++) {
             addr = ppml4e[pml4x];
             if (!addr.present)
               continue;
             void *page = addr.getPtr();
-            if ((uintptr_t)page == (((uintptr_t)ptx << (12 + 9 + 9 + 9))
-                | ((uintptr_t)pdx << (12 + 9 + 9))
-                | ((uintptr_t)pdpx << (12 + 9)) | ((uintptr_t)pml4x << (12))))
+            if (uintptr_t(page) == ((ptx << (12 + 9 + 9 + 9))
+                | (pdx << (12 + 9 + 9))
+                | (pdpx << (12 + 9)) | (pml4x << (12))))
               continue;
             Pagetable::free(page);
           }
@@ -66,7 +66,7 @@ void Process::addPage(uintptr_t vaddr, void* paddr, uint8_t flags) {
   uint16_t pml4x = (vaddr >> (12)) & 0x1FF;
   if (pagetable == 0) {
     pagetable = static_cast<PTE*>(Pagetable::alloc());
-    addPage((uintptr_t)pagetable, pagetable, 5);
+    addPage(uintptr_t(pagetable), pagetable, 5);
   }
   PTE pte = pagetable[ptx];
   if (!pte.present) {
@@ -166,7 +166,7 @@ void Process::writeData(uintptr_t address, void* src, size_t size) {
   char *ptr = static_cast<char*>(src);
   while (size > 0) {
     void *dest = getPhysicalAddress(address);
-    size_t limit = 0x1000 - ((uintptr_t)dest & 0xFFF);
+    size_t limit = 0x1000 - (uintptr_t(dest) & 0xFFF);
     size_t count = MIN(size, limit);
     Memory::copy(dest, ptr, count);
     size -= count;
@@ -178,7 +178,7 @@ void Process::readData(void* dst, uintptr_t address, size_t size) {
   char *ptr = static_cast<char*>(dst);
   while (size > 0) {
     void *src = getPhysicalAddress(address);
-    size_t limit = 0x1000 - ((uintptr_t)src & 0xFFF);
+    size_t limit = 0x1000 - (uintptr_t(src) & 0xFFF);
     size_t count = MIN(size, limit);
     Memory::copy(ptr, src, count);
     size -= count;
@@ -189,7 +189,7 @@ void Process::readData(void* dst, uintptr_t address, size_t size) {
 char *Process::readString(uintptr_t address) {
   size_t length = 0;
   const char *src = static_cast<const char*>(getPhysicalAddress(address));
-  size_t limit = 0x1000 - ((uintptr_t)src & 0xFFF);
+  size_t limit = 0x1000 - (uintptr_t(src) & 0xFFF);
   while (limit-- && src[length] != 0) {
     length++;
     if (limit == 0) {
@@ -227,20 +227,20 @@ void Process::startup() {
   asm volatile("sgdtq %0; sidtq %1":"=m"(gdt), "=m"(idt));
 
   static const uintptr_t KB4 = 0xFFFFFFFFFFFFF000;
-  for (uintptr_t addr = (uintptr_t)gdt.addr & KB4;
-      addr < ((uintptr_t)gdt.addr + gdt.limit); addr += 0x1000) {
+  for (uintptr_t addr = uintptr_t(gdt.addr) & KB4;
+      addr < (uintptr_t(gdt.addr) + gdt.limit); addr += 0x1000) {
     addPage(addr, reinterpret_cast<void*>(addr), 5);
   }
-  for (uintptr_t addr = (uintptr_t)idt.addr & KB4;
-      addr < ((uintptr_t)idt.addr + idt.limit); addr += 0x1000) {
+  for (uintptr_t addr = uintptr_t(idt.addr) & KB4;
+      addr < (uintptr_t(idt.addr) + idt.limit); addr += 0x1000) {
     addPage(addr, reinterpret_cast<void*>(addr), 5);
   }
   INTERRUPT64 *recs = static_cast<INTERRUPT64*>(idt.addr);
   uintptr_t page = 0;
   for (uint16_t i = 0; i < 0x100; i++) {
-    uintptr_t handler = ((uintptr_t)recs[i].offset_low
-        | ((uintptr_t)recs[i].offset_middle << 16)
-        | ((uintptr_t)recs[i].offset_high << 32));
+    uintptr_t handler = (uintptr_t(recs[i].offset_low)
+        | (uintptr_t(recs[i].offset_middle) << 16)
+        | (uintptr_t(recs[i].offset_high) << 32));
     if (page != (handler & KB4)) {
       page = handler & KB4;
       addPage(page, reinterpret_cast<void*>(page), 5);
@@ -254,9 +254,9 @@ void Process::startup() {
   addPage(handler, reinterpret_cast<void*>(handler), 5);
   addPage(sc_wrapper, reinterpret_cast<void*>(sc_wrapper), 5);
   GDT_ENT *gdt_ent = reinterpret_cast<GDT_ENT*>(
-      (uintptr_t)gdt.addr + 8 * 3);
+      uintptr_t(gdt.addr) + 8 * 3);
   GDT_ENT *gdt_top = reinterpret_cast<GDT_ENT*>(
-      (uintptr_t)gdt.addr + gdt.limit);
+      uintptr_t(gdt.addr) + gdt.limit);
   while (gdt_ent < gdt_top) {
     uintptr_t base = gdt_ent->getBase();
     size_t limit = gdt_ent->getLimit();

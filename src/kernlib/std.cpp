@@ -12,7 +12,7 @@ extern "C" {
 
 size_t strlen(const char* c, size_t limit) {
   const char *e = c;
-  while (((size_t)(e - c) < limit) && (*e++) != 0) {}
+  while ((size_t(e - c) < limit) && (*e++) != 0) {}
   return e - c - 1;
 }
 

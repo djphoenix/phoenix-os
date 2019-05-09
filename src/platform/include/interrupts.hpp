@@ -86,8 +86,8 @@ struct GDT_ENT {
   bool granularity :1;
   uint64_t base_high :8;
 
-  uint64_t getBase() { return ((uint64_t)base_high << 24) | base_low; }
-  uint64_t getLimit() { return ((uint64_t)seg_lim_high << 16) | seg_lim_low; }
+  uint64_t getBase() { return (uint64_t(base_high) << 24) | base_low; }
+  uint64_t getLimit() { return (uint64_t(seg_lim_high) << 16) | seg_lim_low; }
 
   void setBase(uint64_t base) {
     base_low = base & 0xFFFFFF;
@@ -116,7 +116,7 @@ struct GDT_SYS_ENT {
   uint64_t base_high :32;
   uint32_t rsvd;
 
-  uint64_t getBase() { return ((uintptr_t)base_high << 32) | ent.getBase(); }
+  uint64_t getBase() { return (uintptr_t(base_high) << 32) | ent.getBase(); }
 
   void setBase(uint64_t base) {
     ent.setBase(base);

@@ -18,7 +18,7 @@ static void fillPages(uintptr_t low, uintptr_t top, PTE *pagetable) {
 }
 
 static inline void fillPages(void *low, void *top, PTE *pagetable) {
-  fillPages((uintptr_t)low, (uintptr_t)top, pagetable);
+  fillPages(uintptr_t(low), uintptr_t(top), pagetable);
 }
 
 static void *efiAllocatePage(uintptr_t min, const EFI_SYSTEM_TABLE *ST) {
@@ -34,9 +34,9 @@ static void *efiAllocatePage(uintptr_t min, const EFI_SYSTEM_TABLE *ST) {
   ST->BootServices->GetMemoryMap(&mapSize, map, &mapKey, &entSize, &entVer);
   for (ent = map;
       ent < reinterpret_cast<EFI_MEMORY_DESCRIPTOR*>(
-          (uintptr_t)map + mapSize);
+          uintptr_t(map) + mapSize);
       ent = reinterpret_cast<EFI_MEMORY_DESCRIPTOR*>(
-          (uintptr_t)ent + entSize)) {
+          uintptr_t(ent) + entSize)) {
     if (ent->Type != EFI_MEMORY_TYPE_CONVENTIONAL) continue;
     if (ent->PhysicalStart + ent->NumberOfPages * 0x1000 <= min) continue;
     ptr = reinterpret_cast<void*>(MAX(min, ent->PhysicalStart));
@@ -51,7 +51,7 @@ static void *efiAllocatePage(uintptr_t min, const EFI_SYSTEM_TABLE *ST) {
 
 static void efiMapPage(PTE *pagetable, const void *page,
                        const EFI_SYSTEM_TABLE *ST) {
-  uintptr_t ptr = (uintptr_t)page, min = (uintptr_t)pagetable;
+  uintptr_t ptr = uintptr_t(page), min = uintptr_t(pagetable);
   uint64_t ptx = (ptr >> (12 + 9*3)) & 0x1FF;
   uint64_t pdx = (ptr >> (12 + 9*2)) & 0x1FF;
   uint64_t pdpx = (ptr >> (12 + 9)) & 0x1FF;
@@ -73,7 +73,7 @@ static void efiMapPage(PTE *pagetable, const void *page,
     efiMapPage(pagetable, pdpe->getPtr(), ST);
   }
   PTE *pml4e = pdpe->getPTE() + pml4x;
-  *pml4e = PTE((uintptr_t)page, 3);
+  *pml4e = PTE(page, 3);
 }
 
 void Pagetable::init() {
@@ -117,9 +117,9 @@ void Pagetable::init() {
     ST->BootServices->GetMemoryMap(&mapSize, map, &mapKey, &entSize, &entVer);
     for (ent = map;
         ent < reinterpret_cast<EFI_MEMORY_DESCRIPTOR*>(
-            (uintptr_t)map + mapSize);
+            uintptr_t(map) + mapSize);
         ent = reinterpret_cast<EFI_MEMORY_DESCRIPTOR*>(
-            (uintptr_t)ent + entSize)) {
+            uintptr_t(ent) + entSize)) {
       if (ent->Type == EFI_MEMORY_TYPE_CONVENTIONAL) continue;
       for (uintptr_t ptr = ent->PhysicalStart;
           ptr < ent->PhysicalStart + ent->NumberOfPages * 0x1000;
@@ -130,7 +130,7 @@ void Pagetable::init() {
     ST->BootServices->ExitBootServices(EFI::getImageHandle(), mapKey);
     asm volatile("mov %q0, %%cr3"::"r"(pagetable));
   } else {
-    PTE::find((uintptr_t)0, pagetable)->present = 0;
+    PTE::find(nullptr, pagetable)->present = 0;
     fillPages(0x1000, 0x3FFFF000, pagetable);
 
     static const size_t pdpe_num = 64;
@@ -168,17 +168,17 @@ void Pagetable::init() {
   if (multiboot) {
     if (multiboot->flags & MB_FLAG_CMDLINE) {
       if (multiboot->pcmdline < 0x80000)
-        multiboot->pcmdline += (uintptr_t)bss_top;
+        multiboot->pcmdline += uintptr_t(bss_top);
       map(reinterpret_cast<void*>(multiboot->pcmdline));
     }
 
     if (multiboot->flags & MB_FLAG_MODS) {
       if (multiboot->pmods_addr < 0x80000)
-        multiboot->pmods_addr += (uintptr_t)bss_top;
+        multiboot->pmods_addr += uintptr_t(bss_top);
 
-      uintptr_t low = (uintptr_t)multiboot->pmods_addr & 0xFFFFFFFFFFFFF000;
+      uintptr_t low = uintptr_t(multiboot->pmods_addr) & 0xFFFFFFFFFFFFF000;
       uintptr_t top = ALIGN(
-          (uintptr_t)multiboot->pmods_addr +
+          uintptr_t(multiboot->pmods_addr) +
           multiboot->mods_count * sizeof(MULTIBOOT_MODULE),
           0x1000);
       for (uintptr_t addr = low; addr < top; addr += 0x1000)
@@ -196,7 +196,7 @@ void Pagetable::init() {
 
     if (multiboot->flags & MB_FLAG_MEMMAP) {
       if (multiboot->pmmap_addr < 0x80000)
-        multiboot->pmmap_addr += (uintptr_t)bss_top;
+        multiboot->pmmap_addr += uintptr_t(bss_top);
 
       const char *mmap = reinterpret_cast<const char*>(multiboot->pmmap_addr);
       const char *mmap_top = mmap + multiboot->mmap_length;
@@ -205,8 +205,8 @@ void Pagetable::init() {
             reinterpret_cast<const MULTIBOOT_MMAP_ENT*>(mmap);
         map(ent);
         if (ent->type != 1) {
-          uintptr_t low = (uintptr_t)ent->base & 0xFFFFFFFFFFFFF000;
-          uintptr_t top = ALIGN((uintptr_t)ent->base + ent->length, 0x1000);
+          uintptr_t low = uintptr_t(ent->base) & 0xFFFFFFFFFFFFF000;
+          uintptr_t top = ALIGN(uintptr_t(ent->base) + ent->length, 0x1000);
           for (uintptr_t addr = low; addr < top; addr += 0x1000)
             map(reinterpret_cast<void*>(addr));
         }
@@ -219,7 +219,7 @@ void Pagetable::init() {
 void* Pagetable::map(const void* mem) {
   uint64_t t = EnterCritical();
   page_mutex.lock();
-  uintptr_t i = (uintptr_t)(mem) >> 12;
+  uintptr_t i = uintptr_t(mem) >> 12;
   void *addr = reinterpret_cast<void*>(i << 12);
   PTE pte = pagetable[(i >> 27) & 0x1FF];
   if (!pte.present) {
@@ -298,8 +298,8 @@ void Pagetable::free(void* page) {
   if ((pdata != 0) && pdata->present) {
     pdata->present = 0;
     void *addr = pdata->getPtr();
-    if (((uintptr_t)addr >> 12) < last_page)
-      last_page = (uintptr_t)addr >> 12;
+    if ((uintptr_t(addr) >> 12) < last_page)
+      last_page = uintptr_t(addr) >> 12;
   }
   page_mutex.release();
   LeaveCritical(t);

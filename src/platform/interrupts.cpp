@@ -218,8 +218,8 @@ uint64_t __attribute__((sysv_abi)) Interrupts::handle(
       cpuid, *pagetable,
 
       info->rip,
-      (uint16_t)(info->cs & 0xFFF8), info->rflags, info->rsp,
-      (uint16_t)(info->ss & 0xFFF8), (uint8_t)(info->cs & 7),
+      uint16_t(info->cs & 0xFFF8), info->rflags, info->rsp,
+      uint16_t(info->ss & 0xFFF8), uint8_t(info->cs & 7),
 
       regs->rax,
       regs->rcx, regs->rdx, regs->rbx, regs->rbp, regs->rsi, regs->rdi,
@@ -246,9 +246,9 @@ uint64_t __attribute__((sysv_abi)) Interrupts::handle(
       cb_regs.rbx, cb_regs.rdx, cb_regs.rcx, cb_regs.rax,
     };
     *info = {
-      cb_regs.rip, (uint64_t)(cb_regs.cs | cb_regs.dpl),
+      cb_regs.rip, uint64_t(cb_regs.cs | cb_regs.dpl),
       cb_regs.rflags | 0x202,
-      cb_regs.rsp, (uint64_t)(cb_regs.ss | cb_regs.dpl)
+      cb_regs.rsp, uint64_t(cb_regs.ss | cb_regs.dpl)
     };
     *pagetable = cb_regs.cr3;
     return has_code ? 8 : 0;
@@ -281,15 +281,15 @@ void Interrupts::init() {
   gdt->ents[4] = GDT_ENT(0, 0xFFFFFFFFFFFFFFFF, 0x2, 3, 1, 1, 0, 0, 1, 1);
   for (uint32_t idx = 0; idx < ncpu; idx++) {
     void *stack = Pagetable::alloc();
-    uintptr_t stack_ptr = (uintptr_t)stack + 0x1000;
+    uintptr_t stack_ptr = uintptr_t(stack) + 0x1000;
     Memory::zero(&tss[idx], sizeof(tss[idx]));
     tss[idx].ist[0] = stack_ptr;
     gdt->sys_ents[idx] = GDT_SYS_ENT(
-        (uintptr_t)&tss[idx], sizeof(TSS64_ENT),
+        uintptr_t(&tss[idx]), sizeof(TSS64_ENT),
         0x9, 0, 0, 1, 0, 1, 0, 0);
   }
 
-  DTREG gdtreg = { (uint16_t)(GDT::size(ncpu) -1), &gdt->ents[0] };
+  DTREG gdtreg = { uint16_t(GDT::size(ncpu) -1), &gdt->ents[0] };
 
   asm volatile(
       "mov %%rsp, %%rcx;"
@@ -320,11 +320,11 @@ void Interrupts::init() {
       ::"a"(lapic_eoi)
       );
   for (int i = 0; i < 256; i++) {
-    uintptr_t jmp_from = (uintptr_t)&(handlers[i].reljmp);
+    uintptr_t jmp_from = uintptr_t(&(handlers[i].reljmp));
     uintptr_t diff = addr - jmp_from - 5;
     handlers[i] = int_handler(i, diff);
 
-    uintptr_t hptr = (uintptr_t)(&handlers[i]);
+    uintptr_t hptr = uintptr_t(&handlers[i]);
     idt[i] = INTERRUPT64(hptr, 8, 1, 0xE, 0, true);
   }
   callbacks = new List<intcb*>[256]();

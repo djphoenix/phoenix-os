@@ -46,7 +46,7 @@ find_page:
   uintptr_t page = 0xFFFFFFFFFFFFFFFF;
   while (pages) {
     for (size_t i = 0; i < 511; i++) {
-      uintptr_t paddr = (uintptr_t)pages->pages[i];
+      uintptr_t paddr = uintptr_t(pages->pages[i]);
       if (paddr == 0) continue;
       if (page > paddr && paddr >= ptr) {
         page = paddr;
@@ -79,15 +79,15 @@ check_ptr:
     pages = heap_pages;
     while (pages) {
       for (size_t i = 0; i < 511; i++) {
-        if ((uintptr_t)pages->pages[i] == pg) goto next_page;
+        if (uintptr_t(pages->pages[i]) == pg) goto next_page;
       }
       pages = pages->next;
     }
     pages = heap_pages;
     while (pages) {
       for (size_t i = 0; i < 511; i++) {
-        if ((uintptr_t)pages->pages[i] > ptr) {
-          ptr = (uintptr_t)pages->pages[i];
+        if (uintptr_t(pages->pages[i]) > ptr) {
+          ptr = uintptr_t(pages->pages[i]);
           goto check_ptr;
         }
       }
@@ -100,7 +100,7 @@ next_page:
   table = allocs;
   while (table) {
     for (size_t i = 0; i < 255; i++) {
-      uintptr_t alloc_base = (uintptr_t)table->allocs[i].addr;
+      uintptr_t alloc_base = uintptr_t(table->allocs[i].addr);
       uintptr_t alloc_top = alloc_base + table->allocs[i].size;
       if (ptr >= alloc_top || ptr_top < alloc_base) continue;
       ptr = alloc_top;
