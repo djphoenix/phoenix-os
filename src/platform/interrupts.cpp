@@ -4,6 +4,7 @@
 #include "interrupts.hpp"
 #include "acpi.hpp"
 #include "pagetable.hpp"
+#include "process.hpp"
 
 INTERRUPT64 *Interrupts::idt = 0;
 GDT *Interrupts::gdt = 0;
@@ -158,7 +159,7 @@ struct int_info {
   uint64_t rip, cs, rflags, rsp, ss;
 } PACKED;
 
-void Interrupts::print(uint8_t num, intcb_regs *regs, uint32_t code) {
+void Interrupts::print(uint8_t num, intcb_regs *regs, uint32_t code, const Process *process) {
   uint64_t cr2;
   asm volatile("mov %%cr2, %0":"=a"(cr2));
   uint32_t cpuid = ACPI::getController()->getCPUID();
@@ -197,6 +198,8 @@ void Interrupts::print(uint8_t num, intcb_regs *regs, uint32_t code) {
          regs->rax, regs->rcx, regs->rdx, regs->rbx,
          regs->r8, regs->r9, regs->r10, regs->r11,
          regs->r12, regs->r13, regs->r14, regs->r15);
+
+  Process::print_stacktrace(regs->rbp, process);
 }
 
 uint64_t __attribute__((sysv_abi)) Interrupts::handle(

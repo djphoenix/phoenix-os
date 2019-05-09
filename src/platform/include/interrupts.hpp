@@ -158,6 +158,7 @@ struct intcb_regs {
 
 typedef bool intcb(uint32_t intr, uint32_t code, intcb_regs *regs);
 
+class Process;
 class Interrupts {
  private:
   static List<intcb*> *callbacks;
@@ -171,7 +172,7 @@ class Interrupts {
   static uint64_t handle(uint8_t intr, uint64_t stack, uint64_t *cr3);
 
  public:
-  static void print(uint8_t num, intcb_regs *regs, uint32_t code);
+  static void print(uint8_t num, intcb_regs *regs, uint32_t code, const Process *process = nullptr);
   static void maskIRQ(uint16_t mask);
   static uint16_t getIRQmask();
   static void addCallback(uint8_t intr, intcb* cb);

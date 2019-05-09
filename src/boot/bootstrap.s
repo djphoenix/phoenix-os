@@ -210,6 +210,7 @@ _efi_start: # EFI
 x64_entry:
   call reloc_vtables
   call static_init
+  xor %rbp, %rbp
   call _ZN9Pagetable4initEv
   call _ZN7Display5setupEv
   call _ZN10Interrupts4initEv

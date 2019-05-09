@@ -103,7 +103,7 @@ bool ProcessManager::HandleFault(
   processSwitchMutex.release();
   LeaveCritical(t);
   if (!thread) return false;
-  Interrupts::print(intr, regs, code);
+  Interrupts::print(intr, regs, code, thread->process);
   delete thread->process;
   delete thread;
   if (SwitchProcess(regs))

@@ -174,7 +174,7 @@ void Process::writeData(uintptr_t address, void* src, size_t size) {
     address += count;
   }
 }
-void Process::readData(void* dst, uintptr_t address, size_t size) {
+void Process::readData(void* dst, uintptr_t address, size_t size) const {
   char *ptr = static_cast<char*>(dst);
   while (size > 0) {
     void *src = getPhysicalAddress(address);
@@ -186,7 +186,7 @@ void Process::readData(void* dst, uintptr_t address, size_t size) {
     address += count;
   }
 }
-char *Process::readString(uintptr_t address) {
+char *Process::readString(uintptr_t address) const {
   size_t length = 0;
   const char *src = static_cast<const char*>(getPhysicalAddress(address));
   size_t limit = 0x1000 - (uintptr_t(src) & 0xFFF);
@@ -203,7 +203,7 @@ char *Process::readString(uintptr_t address) {
   readData(buf, address, length + 1);
   return buf;
 }
-void *Process::getPhysicalAddress(uintptr_t ptr) {
+void *Process::getPhysicalAddress(uintptr_t ptr) const {
   if (pagetable == 0)
     return 0;
   uintptr_t off = ptr & 0xFFF;
@@ -291,4 +291,35 @@ void Process::exit(int code) {
     ProcessManager::getManager()->dequeueThread(threads[i]);
   }
   delete this;
+}
+
+void Process::print_stacktrace(uintptr_t base, const Process *process) {
+  struct stackframe {
+    struct stackframe* rbp;
+    uintptr_t rip;
+  } __attribute__((packed));
+
+  printf("STACK TRACE:");
+  struct stackframe tmpframe;
+  const struct stackframe *frame;
+  if (base) {
+    frame = reinterpret_cast<struct stackframe*>(base);
+  } else {
+    asm volatile("mov %%rbp, %q0":"=r"(frame)::);
+  }
+  size_t lim = 10;
+  while (lim-- && frame != NULL) {
+    if (process) {
+      process->readData(&tmpframe.rbp, uintptr_t(frame), sizeof(uintptr_t));
+      if (tmpframe.rbp) {
+        process->readData(&tmpframe.rip, uintptr_t(frame)+sizeof(uintptr_t), sizeof(uintptr_t));
+      } else {
+        break;
+      }
+      frame = &tmpframe;
+    }
+    printf(" [%p]:%p", frame->rbp, reinterpret_cast<void*>(frame->rip));
+    frame = frame->rbp;
+  }
+  printf("\n");
 }
