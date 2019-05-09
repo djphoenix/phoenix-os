@@ -21,7 +21,7 @@ class List {
     return items[count++];
   }
 
-  void add(const Item item) { insert() = item; }
+  void add(const Item &item) { insert() = item; }
 
   size_t getCount() { return count; }
 

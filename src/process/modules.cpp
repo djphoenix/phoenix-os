@@ -85,10 +85,10 @@ void ModuleManager::parseInitRD() {
   MULTIBOOT_PAYLOAD *multiboot = Multiboot::getPayload();
   if (!multiboot || (multiboot->flags & MB_FLAG_MODS) == 0) return;
   const MULTIBOOT_MODULE *mods =
-      reinterpret_cast<const MULTIBOOT_MODULE*>(multiboot->pmods_addr);
+      reinterpret_cast<const MULTIBOOT_MODULE*>(uintptr_t(multiboot->pmods_addr));
   for (uint32_t i = 0; i < multiboot->mods_count; i++) {
-    const char *base = reinterpret_cast<const char*>(mods[i].start);
-    const char *top = reinterpret_cast<const char*>(mods[i].end);
+    const char *base = reinterpret_cast<const char*>(uintptr_t(mods[i].start));
+    const char *top = reinterpret_cast<const char*>(uintptr_t(mods[i].end));
     size_t length = top - base;
     MemoryStream ms(base, length);
     loadStream(&ms, 1);

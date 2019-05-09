@@ -21,6 +21,7 @@ class ConsoleDisplay: public Display {
       do {
         *(display++) = ' ';
         *(display++) = 0x0F;
+        pos += 2;
       } while (pos % 8 != 0);
     } else {
       *(display++) = c;
@@ -67,8 +68,7 @@ class FramebufferDisplay: public Display {
 
   size_t pixelBytes() {
     switch (pixelFormat) {
-      case PixelFormatRGBX: return 4;
-      case PixelFormatBGRX: return 4;
+      case PixelFormatRGBX: case PixelFormatBGRX: return 4;
     }
     return 0;
   }
@@ -89,12 +89,12 @@ class FramebufferDisplay: public Display {
       size_t offsetY = offset / charWidth();
       size_t pb = pixelBytes();
 
-      char *fbptr = static_cast<char*>(framebuffer)
+      uint8_t *fbptr = static_cast<uint8_t*>(framebuffer)
           + offsetY * 16 * width * pb
           + offsetX * 8 * pb;
 
       for (size_t y = 0; y < 16; y++) {
-        char *line = fbptr + y * width * pb;
+        uint8_t *line = fbptr + y * width * pb;
         uint8_t fontline = fontsym[y];
         for (size_t x = 0; x < 8; x++) {
           if (fontline & (1 << (8 - x))) {

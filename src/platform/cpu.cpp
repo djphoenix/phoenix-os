@@ -172,19 +172,19 @@ char* CPU::getFeaturesStr() {
   char *end = buf;
 
   for (int i = 0; i < 64; i++) {
-    if (((f & (1 << i)) != 0) && CPUID_FEAT_STR[i][0]) {
+    if (((f & (1ll << i)) != 0) && CPUID_FEAT_STR[i][0]) {
       end += snprintf(end, bufsize - (end - buf), "%s ", CPUID_FEAT_STR[i]);
     }
   }
 
   for (int i = 0; i < 64; i++) {
-    if (((ef & (1 << i)) != 0) && CPUID_EXT_FEAT_STR[i][0]) {
+    if (((ef & (1ll << i)) != 0) && CPUID_EXT_FEAT_STR[i][0]) {
       end += snprintf(end, bufsize - (end - buf), "%s ", CPUID_EXT_FEAT_STR[i]);
     }
   }
 
   for (int i = 0; i < 64; i++) {
-    if (((fe & (1 << i)) != 0) && CPUID_FEAT_EXT_STR[i][0]) {
+    if (((fe & (1ll << i)) != 0) && CPUID_FEAT_EXT_STR[i][0]) {
       end += snprintf(end, bufsize - (end - buf), "%s ", CPUID_FEAT_EXT_STR[i]);
     }
   }

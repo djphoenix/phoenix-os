@@ -84,7 +84,7 @@ ACPI::ACPI() {
   LapicOut(LAPIC_TMRINITCNT, -1);
   while ((inportb(0x61) & 0x20) == (t & 0x20)) {}
   LapicOut(LAPIC_LVT_TMR, LAPIC_DISABLE);
-  busfreq = ((-1 - LapicIn(LAPIC_TMRCURRCNT)) << 4) * 100;
+  busfreq = (static_cast<uint64_t>(-1 - LapicIn(LAPIC_TMRCURRCNT)) << 4) * 100;
 }
 void ACPI::ParseDT(const AcpiHeader *header) {
   Pagetable::map(header);
@@ -119,7 +119,7 @@ void ACPI::ParseXsdt(const AcpiHeader *xsdt) {
 void ACPI::ParseApic(const AcpiMadt *madt) {
   Pagetable::map(madt);
 
-  localApicAddr = reinterpret_cast<char*>(madt->localApicAddr);
+  localApicAddr = reinterpret_cast<char*>(uintptr_t(madt->localApicAddr));
   Pagetable::map(localApicAddr);
 
   const uint8_t *p = reinterpret_cast<const uint8_t*>(madt + 1);
@@ -137,7 +137,7 @@ void ACPI::ParseApic(const AcpiMadt *madt) {
       acpiCpuIds[acpiCpuCount++] = s->apicId;
     } else if (type == 1) {
       const ApicIoApic *s = reinterpret_cast<const ApicIoApic*>(p);
-      ioApicAddr = reinterpret_cast<char*>(s->ioApicAddress);
+      ioApicAddr = reinterpret_cast<char*>(uintptr_t(s->ioApicAddress));
       Pagetable::map(ioApicAddr);
     } else if (type == 2) {
       const ApicInterruptOverride *s =
@@ -171,7 +171,7 @@ bool ACPI::ParseRsdp(const void *ptr) {
   Pagetable::map(rsdtPtr + 1);
   uint32_t rsdtAddr = *rsdtPtr;
   if (revision == 0) {
-    ParseRsdt(reinterpret_cast<AcpiHeader*>(rsdtAddr));
+    ParseRsdt(reinterpret_cast<AcpiHeader*>(uintptr_t(rsdtAddr)));
   } else if (revision == 2) {
     Pagetable::map(xsdtPtr);
     Pagetable::map(xsdtPtr + 1);
@@ -180,7 +180,7 @@ bool ACPI::ParseRsdp(const void *ptr) {
     if (xsdtAddr)
       ParseXsdt(reinterpret_cast<AcpiHeader*>(xsdtAddr));
     else
-      ParseRsdt(reinterpret_cast<AcpiHeader*>(rsdtAddr));
+      ParseRsdt(reinterpret_cast<AcpiHeader*>(uintptr_t(rsdtAddr)));
   }
 
   return true;

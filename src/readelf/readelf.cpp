@@ -153,17 +153,16 @@ static bool readelf_dylink_handle_dynamic_jmprel(Process *process,
       if (sym.name) {
         char *name = process->readString(strtab + sym.name);
         addr = process->linkLibrary(name);
-        delete name;
         if (addr == 0) {
           printf("Cannot link symbol: %s\n", name);
+          delete name;
           return 0;
         }
+        delete name;
       } else {
         return 0;
       }
     } else {
-      printf("SYM=%016lx n=%x i=%x s=%x sz=%lx\n",
-             sym.value, sym.name, sym.info, sym.shndx, sym.size);
       return 0;
     }
     addr += rel.add;
@@ -210,7 +209,7 @@ static bool readelf_dylink_handle_dynamic_symtab(Process *process,
     uintptr_t ptr = readelf_find_load_addr(process, start, sym.value);
     if (ptr == 0) continue;
     char *name = process->readString(strtab + sym.name);
-    if (name && strlen(name) > 0) process->addSymbol(name, ptr);
+    if (name && name[0] != 0) process->addSymbol(name, ptr);
     delete name;
   }
   return 1;
@@ -356,7 +355,7 @@ size_t readelf(Process *process, Stream *stream) {
           off += prog->filesz - offset_load;
           process->writeData(vaddr + offset_load, buf,
                              prog->filesz - offset_load);
-          delete buf; buf = 0;
+          delete[] buf; buf = 0;
           prog->vaddr = vaddr;
         }
         break;

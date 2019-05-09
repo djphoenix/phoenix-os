@@ -299,7 +299,7 @@ struct EFI_CONFIGURATION_TABLE {
   const void *VendorTable;
 };
 
-static inline bool operator ==(const EFI_GUID lhs, const EFI_GUID rhs) {
+static inline bool operator ==(const EFI_GUID &lhs, const EFI_GUID &rhs) {
   return
       lhs.Data1 == rhs.Data1 &&
       lhs.Data2 == rhs.Data2 &&
