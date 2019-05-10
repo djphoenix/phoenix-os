@@ -209,7 +209,7 @@ uint64_t __attribute__((sysv_abi)) Interrupts::handle(
   uint64_t *rsp = reinterpret_cast<uint64_t*>(stack);
   bool has_code = (intr < 0x20) && FAULTS[intr].has_error_code;
   uint64_t error_code = 0;
-  int_regs *regs = reinterpret_cast<int_regs*>(rsp - (12 + 3));
+  int_regs *regs = reinterpret_cast<int_regs*>(rsp - (12 + 3) - 1);
   if (has_code)
     error_code = *(rsp++);
   int_info *info = reinterpret_cast<int_info*>(rsp);
@@ -224,10 +224,11 @@ uint64_t __attribute__((sysv_abi)) Interrupts::handle(
       uint16_t(info->cs & 0xFFF8), info->rflags, info->rsp,
       uint16_t(info->ss & 0xFFF8), uint8_t(info->cs & 7),
 
-      regs->rax,
-      regs->rcx, regs->rdx, regs->rbx, regs->rbp, regs->rsi, regs->rdi,
-      regs->r8, regs->r9, regs->r10, regs->r11, regs->r12, regs->r13, regs->r14,
-      regs->r15 };
+      regs->rax, regs->rcx, regs->rdx, regs->rbx,
+      regs->rbp, regs->rsi, regs->rdi,
+      regs->r8, regs->r9, regs->r10, regs->r11,
+      regs->r12, regs->r13, regs->r14, regs->r15
+  };
 
   size_t idx = 0;
   intcb *cb;
