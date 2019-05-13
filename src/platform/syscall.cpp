@@ -17,8 +17,12 @@ static void syscall_puts(uintptr_t strptr) {
 static void syscall_exit(int code) {
   ProcessManager *manager = ProcessManager::getManager();
   Process *process = manager->currentProcess();
-  process->exit(code);
-  ProcessManager::process_loop();
+  asm volatile(
+      "callq _ZN7Process4exitEi;"
+      "sti;"
+      "jmp _ZN14ProcessManager12process_loopEv"
+      ::"D"(process), "S"(code)
+      );
 }
 
 #define SYSCALL_ENT(name) { \
@@ -131,9 +135,8 @@ void Syscall::setup() {
   asm volatile(
       "mov %%cr3, %%rax; mov %%rax, 2 + _wrapper_mov_cr3(%%rip)":::"%rax"
       );
-  wrmsr(MSR_STAR,
-      uint64_t(USER_CS) << 48 |
-      uint64_t(KERNEL_CS) << 32);
+  wrmsr(MSR_STAR, uint64_t(0x10) << 48 | uint64_t(0x8) << 32);
   wrmsr(MSR_LSTAR, uintptr_t(wrapper));
+  wrmsr(MSR_SFMASK, MSR_SFMASK_IE);
   wrmsr(MSR_EFER, rdmsr(MSR_EFER) | MSR_EFER_SCE);
 }

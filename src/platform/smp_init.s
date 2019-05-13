@@ -70,7 +70,7 @@ x64_entry:
   mov (%rcx,%r9,8), %rsp
 
   # Jump back to SMP initializer
-  mov %rsp, %rbp
+  xor %rbp, %rbp
   jmpq *%rdx
 
 .align 8

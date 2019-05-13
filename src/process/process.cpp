@@ -145,14 +145,20 @@ uintptr_t Process::linkLibrary(const char* funcname) {
   uint64_t syscall_id;
   if ((syscall_id = Syscall::callByName(funcname)) != 0) {
     struct {
+      uint8_t sbp[4];
+      uint8_t pushac11[4];
       uint8_t movabs[2];
       uint64_t syscall_id;
       uint8_t syscall[2];
+      uint8_t popac11b[5];
       uint8_t ret;
     } PACKED call = {
+      { 0x55, 0x48, 0x89, 0xe5 },
+      { 0x50, 0x51, 0x41, 0x53 },
       { 0x48, 0xb8 },
       syscall_id,
       { 0x0f, 0x05 },
+      { 0x41, 0x5b, 0x59, 0x58, 0x5d },
       0xc3
     };
     ptr = addSection(SectionTypeCode, sizeof(call));

@@ -47,7 +47,6 @@ bool ProcessManager::SwitchProcess(intcb_regs *regs) {
   asm volatile("lea process_loop_top(%%rip), %q0":"=r"(looptop));
   processSwitchMutex.lock();
   if (regs->dpl == 0 &&
-      cpuThreads[regs->cpuid] == 0 &&
       (regs->rip < loopbase || regs->rip >= looptop)) {
     processSwitchMutex.release();
     return false;
@@ -81,9 +80,9 @@ bool ProcessManager::SwitchProcess(intcb_regs *regs) {
   Thread *th = thread->thread;
   *regs = {
     regs->cpuid, uintptr_t(thread->process->pagetable),
-    th->regs.rip, 0x18,
+    th->regs.rip, 0x20,
     th->regs.rflags,
-    th->regs.rsp, 0x20,
+    th->regs.rsp, 0x18,
     3,
     th->regs.rax, th->regs.rcx, th->regs.rdx, th->regs.rbx,
     th->regs.rbp, th->regs.rsi, th->regs.rdi,
@@ -96,6 +95,7 @@ bool ProcessManager::SwitchProcess(intcb_regs *regs) {
 
 bool ProcessManager::HandleFault(
     uint32_t intr, uint32_t code, intcb_regs *regs) {
+  if (regs->dpl == 0) return false;
   uint64_t t = EnterCritical();
   processSwitchMutex.lock();
   QueuedThread *thread = cpuThreads[regs->cpuid];
