@@ -31,18 +31,18 @@ ACPI::ACPI() {
   acpiCpuCount = 0;
   activeCpuCount = 1;
 
-  if (!(CPU::getFeatures() & CPUID_FEAT_APIC)) {
+  if (!(CPU::getFeatures() & CPU::CPUID_FEAT_APIC)) {
     acpiCpuCount = 1;
     return;
   }
 
-  const EFI_SYSTEM_TABLE *ST = EFI::getSystemTable();
+  const struct EFI::SystemTable *ST = EFI::getSystemTable();
   if (ST && ST->ConfigurationTable) {
-    const EFI_CONFIGURATION_TABLE *acpi1 = 0, *acpi2 = 0;
+    const EFI::ConfigurationTable *acpi1 = 0, *acpi2 = 0;
     for (uint64_t i = 0; i < ST->NumberOfTableEntries; i++) {
-      const EFI_CONFIGURATION_TABLE *tbl = ST->ConfigurationTable + i;
-      if (tbl->VendorGuid == EFI_CONF_TABLE_GUID_ACPI1) acpi1 = tbl;
-      if (tbl->VendorGuid == EFI_CONF_TABLE_GUID_ACPI2) acpi2 = tbl;
+      const EFI::ConfigurationTable *tbl = ST->ConfigurationTable + i;
+      if (tbl->VendorGuid == EFI::GUID_ConfigTableACPI1) acpi1 = tbl;
+      if (tbl->VendorGuid == EFI::GUID_ConfigTableACPI2) acpi2 = tbl;
     }
 
     bool found = 0;
@@ -73,26 +73,26 @@ ACPI::ACPI() {
 
   LapicOut(LAPIC_TMRDIV, 3);
   LapicOut(LAPIC_LVT_TMR, 0x20 | LAPIC_SW_ENABLE);
-  outportb(0x61, (inportb(0x61) & 0xFD) | 1);
-  outportb(0x43, 0xB2);
-  outportb(0x42, 0x9B);
-  inportb(0x60);
-  outportb(0x42, 0x2E);
-  uint8_t t = inportb(0x61) & 0xFE;
-  outportb(0x61, t);
-  outportb(0x61, t | 1);
+  Port<0x61>::out<uint8_t>((Port<0x61>::in<uint8_t>() & 0xFD) | 1);
+  Port<0x43>::out<uint8_t>(0xB2);
+  Port<0x42>::out<uint8_t>(0x9B);
+  Port<0x60>::in<uint8_t>();
+  Port<0x42>::out<uint8_t>(0x2E);
+  uint8_t t = Port<0x61>::in<uint8_t>() & 0xFE;
+  Port<0x61>::out<uint8_t>(t);
+  Port<0x61>::out<uint8_t>(t | 1);
   LapicOut(LAPIC_TMRINITCNT, -1);
-  while ((inportb(0x61) & 0x20) == (t & 0x20)) {}
+  while ((Port<0x61>::in<uint8_t>() & 0x20) == (t & 0x20)) {}
   LapicOut(LAPIC_LVT_TMR, LAPIC_DISABLE);
   busfreq = (static_cast<uint64_t>(-1 - LapicIn(LAPIC_TMRCURRCNT)) << 4) * 100;
 }
-void ACPI::ParseDT(const AcpiHeader *header) {
+void ACPI::ParseDT(const Header *header) {
   Pagetable::map(header);
 
   if (header->signature == 0x43495041)  // 'CIPA'
-    ParseApic(reinterpret_cast<const AcpiMadt*>(header));
+    ParseApic(reinterpret_cast<const Madt*>(header));
 }
-void ACPI::ParseRsdt(const AcpiHeader *rsdt) {
+void ACPI::ParseRsdt(const Header *rsdt) {
   Pagetable::map(rsdt);
   const uint32_t *p = reinterpret_cast<const uint32_t*>(rsdt + 1);
   const uint32_t *end = p + (rsdt->length - sizeof(*rsdt)) / sizeof(uint32_t);
@@ -101,10 +101,10 @@ void ACPI::ParseRsdt(const AcpiHeader *rsdt) {
     Pagetable::map(p);
     Pagetable::map(p + 1);
     uintptr_t address = ((*p++) & 0xFFFFFFFF);
-    ParseDT(reinterpret_cast<AcpiHeader*>(address));
+    ParseDT(reinterpret_cast<Header*>(address));
   }
 }
-void ACPI::ParseXsdt(const AcpiHeader *xsdt) {
+void ACPI::ParseXsdt(const Header *xsdt) {
   Pagetable::map(xsdt);
   const uint64_t *p = reinterpret_cast<const uint64_t*>(xsdt + 1);
   const uint64_t *end = p + (xsdt->length - sizeof(*xsdt)) / sizeof(uint64_t);
@@ -113,17 +113,17 @@ void ACPI::ParseXsdt(const AcpiHeader *xsdt) {
     Pagetable::map(p);
     Pagetable::map(p + 1);
     uint64_t address = *p++;
-    ParseDT(reinterpret_cast<AcpiHeader*>(address));
+    ParseDT(reinterpret_cast<Header*>(address));
   }
 }
-void ACPI::ParseApic(const AcpiMadt *madt) {
+void ACPI::ParseApic(const Madt *madt) {
   Pagetable::map(madt);
 
   localApicAddr = reinterpret_cast<char*>(uintptr_t(madt->localApicAddr));
   Pagetable::map(localApicAddr);
 
   const uint8_t *p = reinterpret_cast<const uint8_t*>(madt + 1);
-  const uint8_t *end = p + (madt->header.length - sizeof(AcpiMadt));
+  const uint8_t *end = p + (madt->header.length - sizeof(Madt));
 
   while (p < end) {
     const ApicHeader *header = reinterpret_cast<const ApicHeader*>(p);
@@ -171,16 +171,16 @@ bool ACPI::ParseRsdp(const void *ptr) {
   Pagetable::map(rsdtPtr + 1);
   uint32_t rsdtAddr = *rsdtPtr;
   if (revision == 0) {
-    ParseRsdt(reinterpret_cast<AcpiHeader*>(uintptr_t(rsdtAddr)));
+    ParseRsdt(reinterpret_cast<Header*>(uintptr_t(rsdtAddr)));
   } else if (revision == 2) {
     Pagetable::map(xsdtPtr);
     Pagetable::map(xsdtPtr + 1);
     uint64_t xsdtAddr = *xsdtPtr;
 
     if (xsdtAddr)
-      ParseXsdt(reinterpret_cast<AcpiHeader*>(xsdtAddr));
+      ParseXsdt(reinterpret_cast<Header*>(xsdtAddr));
     else
-      ParseRsdt(reinterpret_cast<AcpiHeader*>(uintptr_t(rsdtAddr)));
+      ParseRsdt(reinterpret_cast<Header*>(uintptr_t(rsdtAddr)));
   }
 
   return true;
@@ -231,20 +231,15 @@ void ACPI::IOapicOut(uint32_t reg, uint32_t data) {
   MmioWrite32(ioApicAddr + IOAPIC_REGSEL, reg);
   MmioWrite32(ioApicAddr + IOAPIC_REGWIN, data);
 }
-union ioapic_redir_ints {
-  ioapic_redir r;
-  uint32_t i[2];
-};
-void ACPI::IOapicMap(uint32_t idx, ioapic_redir r) {
-  ioapic_redir_ints a = { .r = r };
-  IOapicOut(IOAPIC_REDTBL + idx * 2 + 0, a.i[0]);
-  IOapicOut(IOAPIC_REDTBL + idx * 2 + 1, a.i[1]);
+void ACPI::IOapicMap(uint32_t idx, IOApicRedir r) {
+  IOapicOut(IOAPIC_REDTBL + idx * 2 + 0, r.raw[0]);
+  IOapicOut(IOAPIC_REDTBL + idx * 2 + 1, r.raw[1]);
 }
-ioapic_redir ACPI::IOapicReadMap(uint32_t idx) {
-  ioapic_redir_ints a;
-  a.i[0] = IOapicIn(IOAPIC_REDTBL + idx * 2 + 0);
-  a.i[1] = IOapicIn(IOAPIC_REDTBL + idx * 2 + 1);
-  return a.r;
+ACPI::IOApicRedir ACPI::IOapicReadMap(uint32_t idx) {
+  IOApicRedir a;
+  a.raw[0] = IOapicIn(IOAPIC_REDTBL + idx * 2 + 0);
+  a.raw[1] = IOapicIn(IOAPIC_REDTBL + idx * 2 + 1);
+  return a;
 }
 void* ACPI::getLapicAddr() {
   return localApicAddr;
@@ -313,7 +308,7 @@ void ACPI::initIOAPIC() {
   if (ioApicAddr == 0)
     return;
   ioApicMaxCount = (IOapicIn(IOAPIC_VER) >> 16) & 0xFF;
-  ioapic_redir kbd;
+  IOApicRedir kbd;
   kbd.vector = 0x21;
   kbd.deliveryMode = 1;
   kbd.destinationMode = 0;

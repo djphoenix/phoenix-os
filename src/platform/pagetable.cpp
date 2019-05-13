@@ -6,13 +6,15 @@
 #include "multiboot_info.hpp"
 #include "interrupts.hpp"
 
+using PTE = Pagetable::Entry;
+
 PTE *Pagetable::pagetable;
 Mutex Pagetable::page_mutex;
 uintptr_t Pagetable::last_page = 1;
 
 static void fillPages(uintptr_t low, uintptr_t top, PTE *pagetable, uint8_t flags = 3) {
   low &= 0xFFFFFFFFFFFFF000;
-  top = ALIGN(top, 0x1000);
+  top = klib::__align(top, 0x1000);
   for (; low < top; low += 0x1000)
     *PTE::find(low, pagetable) = PTE(low, flags);
 }
@@ -21,34 +23,34 @@ static inline void fillPages(void *low, void *top, PTE *pagetable, uint8_t flags
   fillPages(uintptr_t(low), uintptr_t(top), pagetable, flags);
 }
 
-static void *efiAllocatePage(uintptr_t min, const EFI_SYSTEM_TABLE *ST) {
+static void *efiAllocatePage(uintptr_t min, const struct EFI::SystemTable *ST) {
   size_t mapSize = 0, entSize = 0;
-  EFI_MEMORY_DESCRIPTOR *map = 0, *ent;
+  EFI::MemoryDescriptor *map = 0, *ent;
   uint64_t mapKey;
   uint32_t entVer = 0;
 
   void *ptr = 0;
 
   ST->BootServices->GetMemoryMap(&mapSize, map, &mapKey, &entSize, &entVer);
-  map = static_cast<EFI_MEMORY_DESCRIPTOR*>(alloca(mapSize));
+  map = static_cast<EFI::MemoryDescriptor*>(alloca(mapSize));
   ST->BootServices->GetMemoryMap(&mapSize, map, &mapKey, &entSize, &entVer);
   for (ent = map;
-      ent < reinterpret_cast<EFI_MEMORY_DESCRIPTOR*>(uintptr_t(map) + mapSize);
-      ent = reinterpret_cast<EFI_MEMORY_DESCRIPTOR*>(uintptr_t(ent) + entSize)) {
-    if (ent->Type != EFI_MEMORY_TYPE_CONVENTIONAL) continue;
+      ent < reinterpret_cast<EFI::MemoryDescriptor*>(uintptr_t(map) + mapSize);
+      ent = reinterpret_cast<EFI::MemoryDescriptor*>(uintptr_t(ent) + entSize)) {
+    if (ent->Type != EFI::MEMORY_TYPE_CONVENTIONAL) continue;
     if (ent->PhysicalStart + ent->NumberOfPages * 0x1000 <= min) continue;
-    ptr = reinterpret_cast<void*>(MAX(min, uintptr_t(ent->PhysicalStart)));
+    ptr = reinterpret_cast<void*>(klib::max(min, uintptr_t(ent->PhysicalStart)));
     break;
   }
   ST->BootServices->AllocatePages(
-      ptr ? EFI_ALLOCATE_TYPE_ADDR : EFI_ALLOCATE_TYPE_ANY,
-      EFI_MEMORY_TYPE_DATA, 1, &ptr);
+      ptr ? EFI::ALLOCATE_TYPE_ADDR : EFI::ALLOCATE_TYPE_ANY,
+          EFI::MEMORY_TYPE_DATA, 1, &ptr);
   Memory::zero(ptr, 0x1000);
   return ptr;
 }
 
 static void efiMapPage(PTE *pagetable, const void *page,
-                       const EFI_SYSTEM_TABLE *ST, uint8_t flags = 3) {
+                       const struct EFI::SystemTable *ST, uint8_t flags = 3) {
   uintptr_t ptr = uintptr_t(page), min = uintptr_t(pagetable);
   uint64_t ptx = (ptr >> (12 + 9*3)) & 0x1FF;
   uint64_t pdx = (ptr >> (12 + 9*2)) & 0x1FF;
@@ -79,8 +81,8 @@ void Pagetable::init() {
   char *text_start, *data_top;
   char *bss_start, *bss_top;
 
-  const EFI_SYSTEM_TABLE *ST = EFI::getSystemTable();
-  MULTIBOOT_PAYLOAD *multiboot = Multiboot::getPayload();
+  const struct EFI::SystemTable *ST = EFI::getSystemTable();
+  Multiboot::Payload *multiboot = Multiboot::getPayload();
 
   static const size_t stack_size = 0x1000;
 
@@ -95,9 +97,9 @@ void Pagetable::init() {
   // Initialization of pagetables
 
   if (ST) {
-    EFI_LOADED_IMAGE *loaded_image = 0;
+    EFI::LoadedImage *loaded_image = 0;
     ST->BootServices->HandleProtocol(
-        EFI::getImageHandle(), &EFI_LOADED_IMAGE_PROTOCOL,
+        EFI::getImageHandle(), &EFI::GUID_LoadedImageProtocol,
         reinterpret_cast<void**>(&loaded_image));
 
     uintptr_t ptbase = 0x600000 + (RAND::get<uintptr_t>() & 0x3FFF000);
@@ -108,15 +110,15 @@ void Pagetable::init() {
     size_t mapSize = 0, entSize = 0;
     uint64_t mapKey = 0;
     uint32_t entVer = 0;
-    EFI_MEMORY_DESCRIPTOR *map = 0, *ent;
+    EFI::MemoryDescriptor *map = 0, *ent;
 
     ST->BootServices->GetMemoryMap(&mapSize, map, &mapKey, &entSize, &entVer);
-    map = static_cast<EFI_MEMORY_DESCRIPTOR*>(alloca(mapSize));
+    map = static_cast<EFI::MemoryDescriptor*>(alloca(mapSize));
     ST->BootServices->GetMemoryMap(&mapSize, map, &mapKey, &entSize, &entVer);
     for (ent = map;
-        ent < reinterpret_cast<EFI_MEMORY_DESCRIPTOR*>(uintptr_t(map) + mapSize);
-        ent = reinterpret_cast<EFI_MEMORY_DESCRIPTOR*>(uintptr_t(ent) + entSize)) {
-      if (ent->Type == EFI_MEMORY_TYPE_CONVENTIONAL) continue;
+        ent < reinterpret_cast<EFI::MemoryDescriptor*>(uintptr_t(map) + mapSize);
+        ent = reinterpret_cast<EFI::MemoryDescriptor*>(uintptr_t(ent) + entSize)) {
+      if (ent->Type == EFI::MEMORY_TYPE_CONVENTIONAL) continue;
       for (uintptr_t ptr = ent->PhysicalStart;
           ptr < ent->PhysicalStart + ent->NumberOfPages * 0x1000;
           ptr += 0x1000) {
@@ -162,47 +164,47 @@ void Pagetable::init() {
   }
 
   if (multiboot) {
-    if (multiboot->flags & MB_FLAG_CMDLINE) {
+    if (multiboot->flags & Multiboot::MB_FLAG_CMDLINE) {
       if (multiboot->pcmdline < 0x80000)
         multiboot->pcmdline += uintptr_t(bss_top);
       map(reinterpret_cast<void*>(uintptr_t(multiboot->pcmdline)));
     }
 
-    if (multiboot->flags & MB_FLAG_MODS) {
+    if (multiboot->flags & Multiboot::MB_FLAG_MODS) {
       if (multiboot->pmods_addr < 0x80000)
         multiboot->pmods_addr += uintptr_t(bss_top);
 
       uintptr_t low = uintptr_t(multiboot->pmods_addr) & 0xFFFFFFFFFFFFF000;
-      uintptr_t top = ALIGN(
+      uintptr_t top = klib::__align(
           uintptr_t(multiboot->pmods_addr) +
-          multiboot->mods_count * sizeof(MULTIBOOT_MODULE),
+          multiboot->mods_count * sizeof(Multiboot::Module),
           0x1000);
       for (uintptr_t addr = low; addr < top; addr += 0x1000)
         map(reinterpret_cast<void*>(addr));
 
-      const MULTIBOOT_MODULE *mods =
-          reinterpret_cast<MULTIBOOT_MODULE*>(uintptr_t(multiboot->pmods_addr));
+      const Multiboot::Module *mods =
+          reinterpret_cast<Multiboot::Module*>(uintptr_t(multiboot->pmods_addr));
       for (uint32_t i = 0; i < multiboot->mods_count; i++) {
         uintptr_t low = mods[i].start;
-        uintptr_t top = ALIGN(mods[i].end, 0x1000);
+        uintptr_t top = klib::__align(mods[i].end, 0x1000);
         for (uintptr_t addr = low; addr < top; addr += 0x1000)
           map(reinterpret_cast<void*>(addr));
       }
     }
 
-    if (multiboot->flags & MB_FLAG_MEMMAP) {
+    if (multiboot->flags & Multiboot::MB_FLAG_MEMMAP) {
       if (multiboot->pmmap_addr < 0x80000)
         multiboot->pmmap_addr += uintptr_t(bss_top);
 
       const char *mmap = reinterpret_cast<const char*>(uintptr_t(multiboot->pmmap_addr));
       const char *mmap_top = mmap + multiboot->mmap_length;
       while (mmap < mmap_top) {
-        const MULTIBOOT_MMAP_ENT *ent =
-            reinterpret_cast<const MULTIBOOT_MMAP_ENT*>(mmap);
+        const Multiboot::MmapEnt *ent =
+            reinterpret_cast<const Multiboot::MmapEnt*>(mmap);
         map(ent);
         if (ent->type != 1) {
           uintptr_t low = uintptr_t(ent->base) & 0xFFFFFFFFFFFFF000;
-          uintptr_t top = ALIGN(uintptr_t(ent->base) + ent->length, 0x1000);
+          uintptr_t top = klib::__align(uintptr_t(ent->base) + ent->length, 0x1000);
           for (uintptr_t addr = low; addr < top; addr += 0x1000)
             map(reinterpret_cast<void*>(addr));
         }

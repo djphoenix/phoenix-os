@@ -14,16 +14,18 @@
 
 #define alloca(size) __builtin_alloca((size))
 
-template<typename T> inline static T PURE MAX(T a, T b) { return a > b ? a : b; }
-template<typename T> inline static T PURE MIN(T a, T b) { return a < b ? a : b; }
-template<typename T> inline static T PURE ABS(T a) { return a > 0 ? a : -a; }
+namespace klib {
+  template<typename T> inline static T PURE max(T a, T b) { return a > b ? a : b; }
+  template<typename T> inline static T PURE min(T a, T b) { return a < b ? a : b; }
+  template<typename T> inline static T PURE abs(T a) { return a > 0 ? a : -a; }
 
-size_t strlen(const char*, size_t limit = -1) PURE;
-char* strdup(const char*);
-int strcmp(const char*, const char*) PURE;
+  size_t strlen(const char*, size_t limit = -1) PURE;
+  char* strdup(const char*);
+  int strcmp(const char*, const char*) PURE;
 
-inline static uintptr_t ALIGN(uintptr_t base, size_t align) {
-  if (base % align == 0)
-    return base;
-  return base + align - (base % align);
-}
+  inline static uintptr_t __align(uintptr_t base, size_t align) {
+    if (base % align == 0)
+      return base;
+    return base + align - (base % align);
+  }
+}  // namespace klib

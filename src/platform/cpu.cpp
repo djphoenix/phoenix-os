@@ -10,7 +10,7 @@ char CPU::brandString[52] = "";
 uint64_t CPU::features = 0;
 uint64_t CPU::features_ext = 0;
 uint64_t CPU::ext_features = 0;
-struct cpu_info CPU::info = { 0xFFFFFFFF, 0, 0, 0 };
+CPU::Info CPU::info = { 0xFFFFFFFF, 0, 0, 0 };
 uint32_t CPU::maxCPUID = 0;
 
 static const char CPUID_FEAT_STR[64][16] = {
@@ -149,7 +149,7 @@ uint64_t CPU::getExtFeatures() {
   return ext_features;
 }
 
-struct cpu_info CPU::getInfo() {
+CPU::Info CPU::getInfo() {
   if (info.type == 0xFFFFFFFF)
     getFeatures();
   return info;
@@ -193,7 +193,7 @@ char* CPU::getFeaturesStr() {
     end--;
   end[0] = 0;
 
-  buf = static_cast<char*>(Heap::realloc(buf, strlen(buf) + 1));
+  buf = static_cast<char*>(Heap::realloc(buf, klib::strlen(buf) + 1));
 
   return buf;
 }

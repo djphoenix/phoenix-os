@@ -35,14 +35,14 @@ ProcessManager::ProcessManager() {
     Interrupts::addCallback(i, &ProcessManager::FaultHandler);
   }
 }
-bool ProcessManager::TimerHandler(uint32_t, uint32_t, intcb_regs *regs) {
+bool ProcessManager::TimerHandler(uint32_t, uint32_t, Interrupts::CallbackRegs *regs) {
   return getManager()->SwitchProcess(regs);
 }
 bool ProcessManager::FaultHandler(
-    uint32_t intr, uint32_t code, intcb_regs *regs) {
+    uint32_t intr, uint32_t code, Interrupts::CallbackRegs *regs) {
   return getManager()->HandleFault(intr, code, regs);
 }
-bool ProcessManager::SwitchProcess(intcb_regs *regs) {
+bool ProcessManager::SwitchProcess(Interrupts::CallbackRegs *regs) {
   uintptr_t loopbase = uintptr_t(&process_loop), looptop;
   asm volatile("lea process_loop_top(%%rip), %q0":"=r"(looptop));
   processSwitchMutex.lock();
@@ -93,8 +93,7 @@ bool ProcessManager::SwitchProcess(intcb_regs *regs) {
   return true;
 }
 
-bool ProcessManager::HandleFault(
-    uint32_t intr, uint32_t code, intcb_regs *regs) {
+bool ProcessManager::HandleFault(uint32_t intr, uint32_t code, Interrupts::CallbackRegs *regs) {
   if (regs->dpl == 0) return false;
   uint64_t t = EnterCritical();
   processSwitchMutex.lock();
@@ -125,7 +124,7 @@ uint64_t ProcessManager::RegisterProcess(Process *process) {
   processSwitchMutex.lock();
   uint64_t pid = 1;
   for (size_t i = 0; i < processes.getCount(); i++) {
-    pid = MAX(pid, processes[i]->getId());
+    pid = klib::max(pid, processes[i]->getId());
   }
   processes.add(process);
   processSwitchMutex.release();

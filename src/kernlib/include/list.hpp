@@ -15,7 +15,7 @@ class List {
 
   Item& insert() {
     if (count == capacity) {
-      capacity += MAX(256 / sizeof(Item), size_t(1));
+      capacity += klib::max(256 / sizeof(Item), size_t(1));
       items = static_cast<Item*>(Heap::realloc(items, sizeof(Item) * capacity));
     }
     return items[count++];

@@ -8,7 +8,7 @@
 
 Mutex ModuleManager::managerMutex;
 
-bool ModuleManager::parseModuleInfo(MODULEINFO *info, Process *process) {
+bool ModuleManager::parseModuleInfo(ModuleInfo *info, Process *process) {
   struct {
     uintptr_t entry, name, version, desc, reqs, dev;
   } symbols = {
@@ -19,7 +19,7 @@ bool ModuleManager::parseModuleInfo(MODULEINFO *info, Process *process) {
     process->getSymbolByName("module_requirements"),
     process->getSymbolByName("module_developer")
   };
-  MODULEINFO mod = { 0, 0, 0, 0, 0 };
+  ModuleInfo mod = { 0, 0, 0, 0, 0 };
 
   if ((symbols.entry == 0) || (symbols.name == 0) || (symbols.version == 0)
       || (symbols.desc == 0) || (symbols.reqs == 0) || (symbols.dev == 0))
@@ -43,7 +43,7 @@ void ModuleManager::loadStream(Stream *stream, bool start) {
   Stream *sub = stream;
   Process *process;
   size_t size;
-  MODULEINFO mod;
+  ModuleInfo mod;
   for (;;) {
     mod = {0, 0, 0, 0, 0};
     process = new Process();
@@ -82,10 +82,10 @@ void ModuleManager::parseInternal() {
   }
 }
 void ModuleManager::parseInitRD() {
-  MULTIBOOT_PAYLOAD *multiboot = Multiboot::getPayload();
-  if (!multiboot || (multiboot->flags & MB_FLAG_MODS) == 0) return;
-  const MULTIBOOT_MODULE *mods =
-      reinterpret_cast<const MULTIBOOT_MODULE*>(uintptr_t(multiboot->pmods_addr));
+  Multiboot::Payload *multiboot = Multiboot::getPayload();
+  if (!multiboot || (multiboot->flags & Multiboot::MB_FLAG_MODS) == 0) return;
+  const Multiboot::Module *mods =
+      reinterpret_cast<const Multiboot::Module*>(uintptr_t(multiboot->pmods_addr));
   for (uint32_t i = 0; i < multiboot->mods_count; i++) {
     const char *base = reinterpret_cast<const char*>(uintptr_t(mods[i].start));
     const char *top = reinterpret_cast<const char*>(uintptr_t(mods[i].end));

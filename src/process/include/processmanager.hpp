@@ -7,14 +7,14 @@
 #include "process.hpp"
 #include "interrupts.hpp"
 
-struct QueuedThread {
-  Process *process;
-  Thread *thread;
-  QueuedThread* next;
-};
-
 class ProcessManager {
  private:
+  struct QueuedThread {
+    Process *process;
+    Thread *thread;
+    QueuedThread* next;
+  };
+
   static Mutex managerMutex;
   static ProcessManager* manager;
 
@@ -23,10 +23,10 @@ class ProcessManager {
   QueuedThread **cpuThreads;
   List<Process*> processes;
   Mutex processSwitchMutex;
-  bool SwitchProcess(intcb_regs *regs);
-  bool HandleFault(uint32_t intr, uint32_t code, intcb_regs *regs);
-  static bool TimerHandler(uint32_t intr, uint32_t code, intcb_regs *regs);
-  static bool FaultHandler(uint32_t intr, uint32_t code, intcb_regs *regs);
+  bool SwitchProcess(Interrupts::CallbackRegs *regs);
+  bool HandleFault(uint32_t intr, uint32_t code, Interrupts::CallbackRegs *regs);
+  static bool TimerHandler(uint32_t intr, uint32_t code, Interrupts::CallbackRegs *regs);
+  static bool FaultHandler(uint32_t intr, uint32_t code, Interrupts::CallbackRegs *regs);
 
  public:
   uint64_t RegisterProcess(Process *process);

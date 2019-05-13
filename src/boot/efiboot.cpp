@@ -4,7 +4,9 @@
 #include "kernlib.hpp"
 #include "efi.hpp"
 
-const EFI_SYSTEM_TABLE *EFI::SystemTable = 0;
-const void *EFI::ImageHandle = 0;
-const EFI_SYSTEM_TABLE *EFI::getSystemTable() { return SystemTable; }
+namespace EFI {
+  const struct EFI::SystemTable *SystemTable = 0;
+  const void *ImageHandle = 0;
+}
+const struct EFI::SystemTable *EFI::getSystemTable() { return SystemTable; }
 const void *EFI::getImageHandle() { return ImageHandle; }

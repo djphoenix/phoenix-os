@@ -4,12 +4,14 @@
 #pragma once
 #include "kernlib.hpp"
 
-struct ALLOCTABLE;
-struct HEAPPAGES;
-
 class Heap {
-  static ALLOCTABLE *allocs;
-  static HEAPPAGES *heap_pages;
+ private:
+  struct Alloc;
+  struct AllocTable;
+  struct HeapPage;
+
+  static AllocTable *allocs;
+  static HeapPage *heap_pages;
   static Mutex heap_mutex;
 
  public:

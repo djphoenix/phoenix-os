@@ -16,7 +16,7 @@ static uint64_t _genseed() {
     asm volatile("rdrandq %q0":"=r"(val));
     return val;
   }
-  return rdtsc();
+  return klib::rdtsc();
 }
 
 static uint64_t seed = _genseed();

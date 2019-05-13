@@ -153,20 +153,20 @@ class SerialDisplay: public Display {
  public:
   SerialDisplay() {
     // Disable interrupts
-    outportb(port + 1, 0);
+    Port<port + 1>::out<uint8_t>(0);
     // Enable DLAB
-    outportb(port + 3, 0x80);
+    Port<port + 3>::out<uint8_t>(0x80);
     // Set divisor
-    outportb(port + 0, divisor & 0xFF);
-    outportb(port + 1, (divisor >> 16) & 0xFF);
+    Port<port + 0>::out<uint8_t>(divisor & 0xFF);
+    Port<port + 1>::out<uint8_t>((divisor >> 16) & 0xFF);
     // Set port mode (8N1), disable DLAB
-    outportb(port + 3, 0x03);
+    Port<port + 3>::out<uint8_t>(0x03);
   }
   void write(const char *str) {
     uint64_t t = EnterCritical();
     mutex.lock();
     char c;
-    while ((c = *str++) != 0) outportb(port, c);
+    while ((c = *str++) != 0) Port<port>::out<uint8_t>(c);
     mutex.release();
     LeaveCritical(t);
   }
@@ -187,18 +187,18 @@ static Display *getSerialDisplay() { return &serialConsole; }
 
 void Display::setup() {
   if (instance != &serialConsole) return;
-  const EFI_SYSTEM_TABLE *ST = EFI::getSystemTable();
+  const struct EFI::SystemTable *ST = EFI::getSystemTable();
   if (ST) {  // EFI Framebuffer
-    EFI_GRAPHICS_OUTPUT *graphics_output = 0;
+    EFI::GraphicsOutput *graphics_output = 0;
     ST->BootServices->LocateProtocol(
-        &EFI_GRAPHICS_OUTPUT_PROTOCOL, 0,
+        &EFI::GUID_GraphicsOutputProtocol, 0,
         reinterpret_cast<void**>(&graphics_output));
     PixelFormat pixelFormat;
     switch (graphics_output->Mode->Info->PixelFormat) {
-      case EFI_GRAPHICS_PIXEL_FORMAT_RGBX_8BPP:
+      case EFI::GRAPHICS_PIXEL_FORMAT_RGBX_8BPP:
         pixelFormat = PixelFormatRGBX;
         break;
-      case EFI_GRAPHICS_PIXEL_FORMAT_BGRX_8BPP:
+      case EFI::GRAPHICS_PIXEL_FORMAT_BGRX_8BPP:
         pixelFormat = PixelFormatBGRX;
         break;
       default:

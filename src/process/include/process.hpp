@@ -39,7 +39,7 @@ class Process {
 
   uint64_t getId() { return id; }
 
-  PTE *pagetable;
+  Pagetable::Entry *pagetable;
   uintptr_t addSection(SectionType type, size_t size);
   void addSymbol(const char *name, uintptr_t ptr);
   void setEntryAddress(uintptr_t ptr);

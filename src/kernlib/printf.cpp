@@ -326,7 +326,7 @@ out_num:
 
 out_str:
 
-    int pad = width - strlen(strval);
+    int pad = width - klib::strlen(strval);
     if (!flags.fl_leftfmt && (flags.fl_leadzero || flags.fl_leadspace)) {
       c = flags.fl_leadzero ? '0' : ' ';
       while (pad-- > 0) printf_putc(str, &size, &out_len, c);

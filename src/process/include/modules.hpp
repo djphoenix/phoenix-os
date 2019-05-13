@@ -6,17 +6,17 @@
 #include "process.hpp"
 #include "stream.hpp"
 
-struct MODULEINFO {
-  char *name, *version, *description, *requirements, *developer;
-};
 class ModuleManager {
  private:
+  struct ModuleInfo {
+    char *name, *version, *description, *requirements, *developer;
+  };
   static Mutex managerMutex;
   static ModuleManager* manager;
   void parseInternal();
   void parseInitRD();
   void loadStream(Stream *stream, bool start = 0);
-  bool parseModuleInfo(MODULEINFO *info, Process *process);
+  bool parseModuleInfo(ModuleInfo *info, Process *process);
   static void init();
 
  public:

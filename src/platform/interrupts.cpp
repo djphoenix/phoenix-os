@@ -6,13 +6,32 @@
 #include "pagetable.hpp"
 #include "process.hpp"
 
-INTERRUPT64 *Interrupts::idt = 0;
+struct Interrupts::Handler {
+  // 68 04 03 02 01  pushq  ${int_num}
+  // e9 46 ec 3f 00  jmp . + {diff}
+  uint8_t push;  // == 0x68
+  uint32_t int_num;
+  uint8_t reljmp;  // == 0xE9
+  uint32_t diff;
+
+  Handler():
+    push(0x68), int_num(0),
+    reljmp(0xE9), diff(0) {}
+  Handler(uint32_t int_num, uint32_t diff):
+    push(0x68), int_num(int_num),
+    reljmp(0xE9), diff(diff) {}
+
+  ALIGNED_NEWARR(0x1000)
+} PACKED;
+
+Interrupts::REC64 *Interrupts::idt = 0;
 GDT *Interrupts::gdt = 0;
 TSS64_ENT *Interrupts::tss = 0;
-List<intcb*> *Interrupts::callbacks;
+List<Interrupts::Callback*> *Interrupts::callbacks;
 Mutex Interrupts::callback_locks[256];
 Mutex Interrupts::fault;
-int_handler* Interrupts::handlers = 0;
+Interrupts::Handler* Interrupts::handlers = 0;
+
 asm(
     ".global __interrupt_wrap;"
     "__interrupt_wrap:;"
@@ -159,7 +178,7 @@ struct int_info {
   uint64_t rip, cs, rflags, rsp, ss;
 } PACKED;
 
-void Interrupts::print(uint8_t num, intcb_regs *regs, uint32_t code, const Process *process) {
+void Interrupts::print(uint8_t num, CallbackRegs *regs, uint32_t code, const Process *process) {
   uint64_t cr2;
   asm volatile("mov %%cr2, %0":"=a"(cr2));
   uint32_t cpuid = ACPI::getController()->getCPUID();
@@ -217,7 +236,7 @@ uint64_t __attribute__((sysv_abi)) Interrupts::handle(
 
   uint32_t cpuid = ACPI::getController()->getCPUID();
 
-  intcb_regs cb_regs = {
+  CallbackRegs cb_regs = {
       cpuid, *pagetable,
 
       info->rip,
@@ -231,7 +250,7 @@ uint64_t __attribute__((sysv_abi)) Interrupts::handle(
   };
 
   size_t idx = 0;
-  intcb *cb;
+  Callback *cb;
   for (;;) {
     callback_locks[intr].lock();
     cb = (callbacks[intr].getCount() > idx) ? callbacks[intr][idx] : 0;
@@ -264,7 +283,7 @@ uint64_t __attribute__((sysv_abi)) Interrupts::handle(
     for (;;)
       asm volatile("hlt");
   } else if (intr == 0x21) {
-    printf("KBD %02xh\n", inportb(0x60));
+    printf("KBD %02xh\n", Port<0x60>::in<uint8_t>());
   } else if (intr != 0x20) {
     printf("INT %02xh\n", intr);
   }
@@ -275,20 +294,20 @@ void Interrupts::init() {
 
   gdt = new(GDT::size(ncpu)) GDT();
   tss = new TSS64_ENT[ncpu]();
-  idt = new INTERRUPT64[256]();
-  handlers = new int_handler[256]();
+  idt = new REC64[256]();
+  handlers = new Handler[256]();
 
-  gdt->ents[0] = GDT_ENT();
-  gdt->ents[1] = GDT_ENT(0, 0xFFFFFFFFFFFFFFFF, 0xA, 0, 1, 1, 0, 1, 0, 1);
-  gdt->ents[2] = GDT_ENT(0, 0xFFFFFFFFFFFFFFFF, 0x2, 0, 1, 1, 0, 0, 1, 1);
-  gdt->ents[3] = GDT_ENT(0, 0xFFFFFFFFFFFFFFFF, 0x2, 3, 1, 1, 0, 0, 1, 1);
-  gdt->ents[4] = GDT_ENT(0, 0xFFFFFFFFFFFFFFFF, 0xA, 3, 1, 1, 0, 1, 0, 1);
+  gdt->ents[0] = GDT::Entry();
+  gdt->ents[1] = GDT::Entry(0, 0xFFFFFFFFFFFFFFFF, 0xA, 0, 1, 1, 0, 1, 0, 1);
+  gdt->ents[2] = GDT::Entry(0, 0xFFFFFFFFFFFFFFFF, 0x2, 0, 1, 1, 0, 0, 1, 1);
+  gdt->ents[3] = GDT::Entry(0, 0xFFFFFFFFFFFFFFFF, 0x2, 3, 1, 1, 0, 0, 1, 1);
+  gdt->ents[4] = GDT::Entry(0, 0xFFFFFFFFFFFFFFFF, 0xA, 3, 1, 1, 0, 1, 0, 1);
   for (uint32_t idx = 0; idx < ncpu; idx++) {
     void *stack = Pagetable::alloc();
     uintptr_t stack_ptr = uintptr_t(stack) + 0x1000;
     Memory::zero(&tss[idx], sizeof(tss[idx]));
     tss[idx].ist[0] = stack_ptr;
-    gdt->sys_ents[idx] = GDT_SYS_ENT(
+    gdt->sys_ents[idx] = GDT::SystemEntry(
         uintptr_t(&tss[idx]), sizeof(TSS64_ENT),
         0x9, 0, 0, 1, 0, 1, 0, 0);
   }
@@ -315,7 +334,7 @@ void Interrupts::init() {
   uintptr_t addr;
   char *lapic_eoi =
       reinterpret_cast<char*>(ACPI::getController()->getLapicAddr());
-  if (lapic_eoi) lapic_eoi += LAPIC_EOI;
+  if (lapic_eoi) lapic_eoi += ACPI::LAPIC_EOI;
   asm volatile("lea __interrupt_wrap(%%rip), %q0":"=r"(addr));
   asm volatile(
       "mov %%eax, 2+_intr_lapic_eoi(%%rip);"
@@ -326,36 +345,36 @@ void Interrupts::init() {
   for (int i = 0; i < 256; i++) {
     uintptr_t jmp_from = uintptr_t(&(handlers[i].reljmp));
     uintptr_t diff = addr - jmp_from - 5;
-    handlers[i] = int_handler(i, diff);
+    handlers[i] = Handler(i, diff);
 
     uintptr_t hptr = uintptr_t(&handlers[i]);
-    idt[i] = INTERRUPT64(hptr, 8, 1, 0xE, 0, true);
+    idt[i] = REC64(hptr, 8, 1, 0xE, 0, true);
   }
-  callbacks = new List<intcb*>[256]();
+  callbacks = new List<Callback*>[256]();
 
-  outportb(0x20, 0x11);
-  outportb(0xA0, 0x11);
-  outportb(0x21, 0x20);
-  outportb(0xA1, 0x28);
-  outportb(0x21, 0x04);
-  outportb(0xA1, 0x02);
-  outportb(0x21, 0x01);
-  outportb(0xA1, 0x01);
+  Port<0x20>::out<uint8_t>(0x11);
+  Port<0xA0>::out<uint8_t>(0x11);
+  Port<0x21>::out<uint8_t>(0x20);
+  Port<0xA1>::out<uint8_t>(0x28);
+  Port<0x21>::out<uint8_t>(0x04);
+  Port<0xA1>::out<uint8_t>(0x02);
+  Port<0x21>::out<uint8_t>(0x01);
+  Port<0xA1>::out<uint8_t>(0x01);
 
   loadVector();
 
   if (!(ACPI::getController())->initAPIC()) {
-    outportb(0x43, 0x34);
+    Port<0x43>::out<uint8_t>(0x34);
     static const uint16_t rld = 0x000F;
-    outportb(0x40, rld & 0xFF);
-    outportb(0x40, (rld >> 8) & 0xFF);
+    Port<0x40>::out<uint8_t>(rld & 0xFF);
+    Port<0x40>::out<uint8_t>((rld >> 8) & 0xFF);
   }
   maskIRQ(0);
 }
 
 void Interrupts::maskIRQ(uint16_t mask) {
-  outportb(0x21, mask & 0xFF);
-  outportb(0xA1, (mask >> 8) & 0xFF);
+  Port<0x21>::out<uint8_t>(mask & 0xFF);
+  Port<0xA1>::out<uint8_t>((mask >> 8) & 0xFF);
 }
 
 void Interrupts::loadVector() {
@@ -363,9 +382,9 @@ void Interrupts::loadVector() {
     init();
     return;
   }
-  DTREG idtreg = { sizeof(INTERRUPT64) * 256 -1, &idt[0] };
+  DTREG idtreg = { sizeof(REC64) * 256 -1, &idt[0] };
   uint32_t cpuid = ACPI::getController()->getCPUID();
-  uint16_t tr = 5 * sizeof(GDT_ENT) + cpuid * sizeof(GDT_SYS_ENT);
+  uint16_t tr = 5 * sizeof(GDT::Entry) + cpuid * sizeof(GDT::SystemEntry);
   asm volatile(
       "lidtq %0;"
       "ltr %w1;"
@@ -373,10 +392,10 @@ void Interrupts::loadVector() {
 }
 
 uint16_t Interrupts::getIRQmask() {
-  return inportb(0x21) | (inportb(0xA1) << 8);
+  return Port<0x21>::in<uint8_t>() | (static_cast<uint16_t>(Port<0xA1>::in<uint8_t>()) << 8);
 }
 
-void Interrupts::addCallback(uint8_t intr, intcb* cb) {
+void Interrupts::addCallback(uint8_t intr, Callback* cb) {
   uint64_t t = EnterCritical();
   callback_locks[intr].lock();
   callbacks[intr].add(cb);

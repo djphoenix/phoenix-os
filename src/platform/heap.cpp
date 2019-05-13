@@ -5,24 +5,24 @@
 #include "multiboot_info.hpp"
 #include "pagetable.hpp"
 
-struct ALLOC {
+struct Heap::Alloc {
   void* addr;
   size_t size;
 };
 
-struct ALLOCTABLE {
-  ALLOC allocs[255];
-  ALLOCTABLE* next;
+struct Heap::AllocTable {
+  Alloc allocs[255];
+  AllocTable* next;
   int64_t reserved;
 };
 
-struct HEAPPAGES {
+struct Heap::HeapPage {
   void *pages[511];
-  HEAPPAGES *next;
+  HeapPage *next;
 };
 
-ALLOCTABLE *Heap::allocs = 0;
-HEAPPAGES* Heap::heap_pages = 0;
+Heap::AllocTable *Heap::allocs = 0;
+Heap::HeapPage* Heap::heap_pages = 0;
 Mutex Heap::heap_mutex;
 
 void* Heap::alloc(size_t size, size_t align) {
@@ -31,14 +31,14 @@ void* Heap::alloc(size_t size, size_t align) {
   heap_mutex.lock();
 
   if (!heap_pages)
-    heap_pages = reinterpret_cast<HEAPPAGES*>(Pagetable::alloc());
+    heap_pages = reinterpret_cast<HeapPage*>(Pagetable::alloc());
   if (!allocs)
-    allocs = reinterpret_cast<ALLOCTABLE*>(Pagetable::alloc());
+    allocs = reinterpret_cast<AllocTable*>(Pagetable::alloc());
 
   uintptr_t ptr = 0, ptr_top;
 
-  HEAPPAGES *pages;
-  ALLOCTABLE *table;
+  HeapPage *pages;
+  AllocTable *table;
 
 find_page:
   // Find page
@@ -67,13 +67,13 @@ new_page:
         goto find_page;
       }
       if (!pages->next)
-        pages->next = reinterpret_cast<HEAPPAGES*>(Pagetable::alloc());
+        pages->next = reinterpret_cast<HeapPage*>(Pagetable::alloc());
       pages = pages->next;
     }
   }
 check_ptr:
   if (ptr < page) ptr = page;
-  ptr = ALIGN(ptr, align);
+  ptr = klib::__align(ptr, align);
   ptr_top = ptr + size;
   for (uintptr_t pg = ptr & 0xFFFFFFFFFFFF000; pg < ptr_top; pg += 0x1000) {
     pages = heap_pages;
@@ -119,7 +119,7 @@ next_page:
       goto done;
     }
     if (!table->next)
-      table->next = reinterpret_cast<ALLOCTABLE*>(Pagetable::alloc());
+      table->next = reinterpret_cast<AllocTable*>(Pagetable::alloc());
     table = table->next;
   }
 done:
@@ -134,7 +134,7 @@ void Heap::free(void* addr) {
   if (addr == 0)
     return;
   heap_mutex.lock();
-  ALLOCTABLE *t = allocs;
+  AllocTable *t = allocs;
   while (1) {
     for (int i = 0; i < 255; i++) {
       if (t->allocs[i].addr == addr) {
@@ -157,7 +157,7 @@ void *Heap::realloc(void *addr, size_t size, size_t align) {
   if (addr == 0)
     return alloc(size, align);
   heap_mutex.lock();
-  ALLOCTABLE *t = allocs;
+  AllocTable *t = allocs;
   size_t oldsize = 0;
   while (t != 0) {
     for (int i = 0; i < 255; i++) {

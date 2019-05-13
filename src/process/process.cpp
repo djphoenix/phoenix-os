@@ -6,6 +6,8 @@
 #include "processmanager.hpp"
 #include "syscall.hpp"
 
+using PTE = Pagetable::Entry;
+
 Process::Process() {
   id = -1;
   pagetable = 0;
@@ -126,14 +128,14 @@ uintptr_t Process::addSection(SectionType type, size_t size) {
   return addr;
 }
 void Process::addSymbol(const char *name, uintptr_t ptr) {
-  symbols.insert() = { ptr, strdup(name) };
+  symbols.insert() = { ptr, klib::strdup(name) };
 }
 void Process::setEntryAddress(uintptr_t ptr) {
   entry = ptr;
 }
 uintptr_t Process::getSymbolByName(const char* name) {
   for (size_t i = 0; i < symbols.getCount(); i++) {
-    if (strcmp(symbols[i].name, name) == 0)
+    if (klib::strcmp(symbols[i].name, name) == 0)
       return symbols[i].ptr;
   }
   return 0;
@@ -173,7 +175,7 @@ void Process::writeData(uintptr_t address, void* src, size_t size) {
   while (size > 0) {
     void *dest = getPhysicalAddress(address);
     size_t limit = 0x1000 - (uintptr_t(dest) & 0xFFF);
-    size_t count = MIN(size, limit);
+    size_t count = klib::min(size, limit);
     Memory::copy(dest, ptr, count);
     size -= count;
     ptr += count;
@@ -185,7 +187,7 @@ void Process::readData(void* dst, uintptr_t address, size_t size) const {
   while (size > 0) {
     void *src = getPhysicalAddress(address);
     size_t limit = 0x1000 - (uintptr_t(src) & 0xFFF);
-    size_t count = MIN(size, limit);
+    size_t count = klib::min(size, limit);
     Memory::copy(ptr, src, count);
     size -= count;
     ptr += count;
@@ -241,7 +243,7 @@ void Process::startup() {
       addr < (uintptr_t(idt.addr) + idt.limit); addr += 0x1000) {
     addPage(addr, reinterpret_cast<void*>(addr), 5);
   }
-  INTERRUPT64 *recs = static_cast<INTERRUPT64*>(idt.addr);
+  Interrupts::REC64 *recs = static_cast<Interrupts::REC64*>(idt.addr);
   uintptr_t page = 0;
   for (uint16_t i = 0; i < 0x100; i++) {
     uintptr_t handler = (uintptr_t(recs[i].offset_low)
@@ -259,10 +261,8 @@ void Process::startup() {
   sc_wrapper &= KB4;
   addPage(handler, reinterpret_cast<void*>(handler), 5);
   addPage(sc_wrapper, reinterpret_cast<void*>(sc_wrapper), 5);
-  GDT_ENT *gdt_ent = reinterpret_cast<GDT_ENT*>(
-      uintptr_t(gdt.addr) + 8 * 3);
-  GDT_ENT *gdt_top = reinterpret_cast<GDT_ENT*>(
-      uintptr_t(gdt.addr) + gdt.limit);
+  GDT::Entry *gdt_ent = reinterpret_cast<GDT::Entry*>(uintptr_t(gdt.addr) + 8 * 3);
+  GDT::Entry *gdt_top = reinterpret_cast<GDT::Entry*>(uintptr_t(gdt.addr) + gdt.limit);
   while (gdt_ent < gdt_top) {
     uintptr_t base = gdt_ent->getBase();
     size_t limit = gdt_ent->getLimit();
@@ -274,14 +274,14 @@ void Process::startup() {
     uintptr_t page = base & KB4;
     addPage(page, reinterpret_cast<void*>(page), 5);
 
-    GDT_SYS_ENT *sysent = reinterpret_cast<GDT_SYS_ENT*>(gdt_ent);
+    GDT::SystemEntry *sysent = reinterpret_cast<GDT::SystemEntry*>(gdt_ent);
     base = sysent->getBase();
 
     TSS64_ENT *tss = reinterpret_cast<TSS64_ENT*>(base);
     uintptr_t stack = tss->ist[0];
     page = stack - 0x1000;
     addPage(page, reinterpret_cast<void*>(page), 5);
-    gdt_ent = reinterpret_cast<GDT_ENT*>(sysent + 1);
+    gdt_ent = reinterpret_cast<GDT::Entry*>(sysent + 1);
   }
 
   Thread *thread = new Thread();
