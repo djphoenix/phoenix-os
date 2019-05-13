@@ -5,8 +5,8 @@
 #include "kernlib.hpp"
 #include "heap.hpp"
 
-char CPU::vendor[13] = "";
-char CPU::brandString[49] = "";
+char CPU::vendor[16] = "";
+char CPU::brandString[52] = "";
 uint64_t CPU::features = 0;
 uint64_t CPU::features_ext = 0;
 uint64_t CPU::ext_features = 0;
@@ -105,7 +105,7 @@ uint64_t CPU::getFeatures() {
     asm volatile("cpuid" :
         "=a"(eax), "=c"(ecx), "=d"(edx) :
         "a"(eax) :"ebx");
-    features = (uint64_t(edx) << 32) | uint64_t(ecx);
+    features = (uint64_t(ecx) << 32) | uint64_t(edx);
     struct CPUID_INFO {
       uint32_t stepping:3;
       uint32_t model:4;

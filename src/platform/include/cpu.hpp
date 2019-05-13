@@ -184,13 +184,13 @@ struct cpu_info {
 
 class CPU {
  private:
-  static char vendor[13];
+  static char vendor[16];
   static uint64_t features;
   static uint64_t features_ext;
   static uint64_t ext_features;
   static struct cpu_info info;
   static uint32_t maxCPUID;
-  static char brandString[49];
+  static char brandString[52];
  public:
   static char* getVendor();
   static uint64_t getFeatures();
