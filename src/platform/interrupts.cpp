@@ -26,7 +26,7 @@ struct Interrupts::Handler {
 
 Interrupts::REC64 *Interrupts::idt = 0;
 GDT *Interrupts::gdt = 0;
-TSS64_ENT *Interrupts::tss = 0;
+TSS64_ENT **Interrupts::tss = 0;
 List<Interrupts::Callback*> *Interrupts::callbacks;
 Mutex Interrupts::callback_locks[256];
 Mutex Interrupts::fault;
@@ -293,7 +293,7 @@ void Interrupts::init() {
   uint64_t ncpu = ACPI::getController()->getCPUCount();
 
   gdt = new(GDT::size(ncpu)) GDT();
-  tss = new TSS64_ENT[ncpu]();
+  tss = new TSS64_ENT*[ncpu]();
   idt = new REC64[256]();
   handlers = new Handler[256]();
 
@@ -305,10 +305,14 @@ void Interrupts::init() {
   for (uint32_t idx = 0; idx < ncpu; idx++) {
     void *stack = Pagetable::alloc();
     uintptr_t stack_ptr = uintptr_t(stack) + 0x1000;
-    Memory::zero(&tss[idx], sizeof(tss[idx]));
-    tss[idx].ist[0] = stack_ptr;
+    char *entbuf = reinterpret_cast<char*>(Heap::alloc(0x3000, 0x1000));
+    TSS64_ENT *ent = tss[idx] = reinterpret_cast<TSS64_ENT*>(entbuf + (0x1000 - sizeof(TSS64_ENT)));
+    Memory::zero(tss[idx], sizeof(TSS64_ENT) + 0x2000);
+    ent->ist[0] = stack_ptr;
+    ent->iomap_base = sizeof(TSS64_ENT);
+
     gdt->sys_ents[idx] = GDT::SystemEntry(
-        uintptr_t(&tss[idx]), sizeof(TSS64_ENT),
+        uintptr_t(tss[idx]), sizeof(TSS64_ENT) + 0x2000,
         0x9, 0, 0, 1, 0, 1, 0, 0);
   }
 

@@ -263,16 +263,23 @@ void Process::startup() {
   addPage(sc_wrapper, reinterpret_cast<void*>(sc_wrapper), 5);
   GDT::Entry *gdt_ent = reinterpret_cast<GDT::Entry*>(uintptr_t(gdt.addr) + 8 * 3);
   GDT::Entry *gdt_top = reinterpret_cast<GDT::Entry*>(uintptr_t(gdt.addr) + gdt.limit);
+
+  void *iomap1 = Pagetable::alloc();
+  void *iomap2 = Pagetable::alloc();
+  Memory::fill(iomap1, 0xFF, 0x1000);
+  Memory::fill(iomap2, 0xFF, 0x1000);
+
   while (gdt_ent < gdt_top) {
     uintptr_t base = gdt_ent->getBase();
     size_t limit = gdt_ent->getLimit();
-    if (((gdt_ent->type != 0x9) && (gdt_ent->type != 0xB)) || (limit
-        != sizeof(TSS64_ENT))) {
+    if (((gdt_ent->type != 0x9) && (gdt_ent->type != 0xB)) || (limit != sizeof(TSS64_ENT) + 0x2000)) {
       gdt_ent++;
       continue;
     }
     uintptr_t page = base & KB4;
     addPage(page, reinterpret_cast<void*>(page), 5);
+    addPage(page + 0x1000, iomap1, 5);
+    addPage(page + 0x2000, iomap2, 5);
 
     GDT::SystemEntry *sysent = reinterpret_cast<GDT::SystemEntry*>(gdt_ent);
     base = sysent->getBase();

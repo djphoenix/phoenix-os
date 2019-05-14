@@ -151,7 +151,7 @@ class Interrupts {
   static Handler* handlers;
   static REC64 *idt;
   static GDT *gdt;
-  static TSS64_ENT *tss;
+  static TSS64_ENT **tss;
   static void init();
   static uint64_t handle(uint8_t intr, uint64_t stack, uint64_t *cr3);
 
