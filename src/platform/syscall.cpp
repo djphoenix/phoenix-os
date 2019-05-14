@@ -36,7 +36,7 @@ static const struct {
 } PACKED syscall_map[] = {
   SYSCALL_ENT(puts),
   SYSCALL_ENT(exit),
-  {0, 0}
+  {0, nullptr}
 };
 
 #undef SYSCALL_ENT
@@ -46,7 +46,7 @@ static uint64_t syscall_index(uint64_t hash) {
   for (uint64_t idx = 0; idx < num - 1; idx++) {
     if (syscall_map[idx].hash == hash) return idx;
   }
-  return -1;
+  return static_cast<uint64_t>(-1);
 }
 
 uint64_t Syscall::callByName(const char *name) {

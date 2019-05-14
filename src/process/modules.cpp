@@ -19,7 +19,7 @@ bool ModuleManager::parseModuleInfo(ModuleInfo *info, Process *process) {
     process->getSymbolByName("module_requirements"),
     process->getSymbolByName("module_developer")
   };
-  ModuleInfo mod = { 0, 0, 0, 0, 0 };
+  ModuleInfo mod = { nullptr, nullptr, nullptr, nullptr, nullptr };
 
   if ((symbols.entry == 0) || (symbols.name == 0) || (symbols.version == 0)
       || (symbols.desc == 0) || (symbols.reqs == 0) || (symbols.dev == 0))
@@ -38,14 +38,14 @@ bool ModuleManager::parseModuleInfo(ModuleInfo *info, Process *process) {
   return true;
 }
 
-ModuleManager* ModuleManager::manager = 0;
+ModuleManager* ModuleManager::manager = nullptr;
 void ModuleManager::loadStream(Stream *stream, bool start) {
   Stream *sub = stream;
   Process *process;
   size_t size;
   ModuleInfo mod;
   for (;;) {
-    mod = {0, 0, 0, 0, 0};
+    mod = {nullptr, nullptr, nullptr, nullptr, nullptr};
     process = new Process();
     size = readelf(process, sub);
     if (size == 0 || !parseModuleInfo(&mod, process)) {
@@ -58,7 +58,7 @@ void ModuleManager::loadStream(Stream *stream, bool start) {
     delete mod.requirements;
     delete mod.developer;
     if (start) process->startup();
-    sub->seek(size, -1);
+    sub->seek(ptrdiff_t(size), -1);
     if (!stream->eof()) {
       Stream *_sub = sub->substream();
       if (sub != stream)
@@ -74,7 +74,7 @@ void ModuleManager::parseInternal() {
   asm volatile("lea __modules_start__(%%rip), %q0":"=r"(mods_start));
   asm volatile("lea __modules_end__(%%rip), %q0":"=r"(mods_end));
 
-  size_t modules_size = mods_end - mods_start;
+  size_t modules_size = size_t(mods_end - mods_start);
 
   if (modules_size > 1) {
     MemoryStream ms(mods_start, modules_size);
@@ -89,7 +89,7 @@ void ModuleManager::parseInitRD() {
   for (uint32_t i = 0; i < multiboot->mods_count; i++) {
     const char *base = reinterpret_cast<const char*>(uintptr_t(mods[i].start));
     const char *top = reinterpret_cast<const char*>(uintptr_t(mods[i].end));
-    size_t length = top - base;
+    size_t length = size_t(top - base);
     MemoryStream ms(base, length);
     loadStream(&ms, 1);
   }

@@ -25,11 +25,11 @@ static inline void fillPages(void *low, void *top, PTE *pagetable, uint8_t flags
 
 static void *efiAllocatePage(uintptr_t min, const struct EFI::SystemTable *ST) {
   size_t mapSize = 0, entSize = 0;
-  EFI::MemoryDescriptor *map = 0, *ent;
+  EFI::MemoryDescriptor *map = nullptr, *ent;
   uint64_t mapKey;
   uint32_t entVer = 0;
 
-  void *ptr = 0;
+  void *ptr = nullptr;
 
   ST->BootServices->GetMemoryMap(&mapSize, map, &mapKey, &entSize, &entVer);
   map = static_cast<EFI::MemoryDescriptor*>(alloca(mapSize));
@@ -97,7 +97,7 @@ void Pagetable::init() {
   // Initialization of pagetables
 
   if (ST) {
-    EFI::LoadedImage *loaded_image = 0;
+    EFI::LoadedImage *loaded_image = nullptr;
     ST->BootServices->HandleProtocol(
         EFI::getImageHandle(), &EFI::GUID_LoadedImageProtocol,
         reinterpret_cast<void**>(&loaded_image));
@@ -110,7 +110,7 @@ void Pagetable::init() {
     size_t mapSize = 0, entSize = 0;
     uint64_t mapKey = 0;
     uint32_t entVer = 0;
-    EFI::MemoryDescriptor *map = 0, *ent;
+    EFI::MemoryDescriptor *map = nullptr, *ent;
 
     ST->BootServices->GetMemoryMap(&mapSize, map, &mapKey, &entSize, &entVer);
     map = static_cast<EFI::MemoryDescriptor*>(alloca(mapSize));
@@ -242,7 +242,7 @@ void* Pagetable::map(const void* mem) {
 
 void* Pagetable::_alloc(uint8_t avl, bool nolow) {
 start:
-  void *addr = 0;
+  void *addr = nullptr;
   PTE *page;
   uintptr_t i = last_page - 1;
   if (nolow && (i < 0x100))
@@ -251,7 +251,7 @@ start:
     i++;
     addr = reinterpret_cast<void*>(i << 12);
     page = PTE::find(addr, pagetable);
-    if ((page == 0) || !page->present)
+    if ((page == nullptr) || !page->present)
       break;
   }
   if (!nolow)
@@ -293,7 +293,7 @@ void Pagetable::free(void* page) {
   uint64_t t = EnterCritical();
   page_mutex.lock();
   PTE *pdata = PTE::find(page, pagetable);
-  if ((pdata != 0) && pdata->present) {
+  if ((pdata != nullptr) && pdata->present) {
     pdata->present = 0;
     void *addr = pdata->getPtr();
     if ((uintptr_t(addr) >> 12) < last_page)

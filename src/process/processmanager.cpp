@@ -13,7 +13,7 @@ void __attribute((naked)) ProcessManager::process_loop() {
 }
 
 Mutex ProcessManager::managerMutex;
-ProcessManager* ProcessManager::manager = 0;
+ProcessManager* ProcessManager::manager = nullptr;
 
 ProcessManager* ProcessManager::getManager() {
   if (manager) return manager;
@@ -27,19 +27,18 @@ ProcessManager* ProcessManager::getManager() {
 }
 
 ProcessManager::ProcessManager() {
-  nextThread = lastThread = 0;
+  nextThread = lastThread = nullptr;
   uint64_t cpus = ACPI::getController()->getCPUCount();
   cpuThreads = new QueuedThread*[cpus]();
   Interrupts::addCallback(0x20, &ProcessManager::TimerHandler);
-  for (int i = 0; i < 0x20; i++) {
+  for (uint8_t i = 0; i < 0x20; i++) {
     Interrupts::addCallback(i, &ProcessManager::FaultHandler);
   }
 }
-bool ProcessManager::TimerHandler(uint32_t, uint32_t, Interrupts::CallbackRegs *regs) {
+bool ProcessManager::TimerHandler(uint8_t, uint32_t, Interrupts::CallbackRegs *regs) {
   return getManager()->SwitchProcess(regs);
 }
-bool ProcessManager::FaultHandler(
-    uint32_t intr, uint32_t code, Interrupts::CallbackRegs *regs) {
+bool ProcessManager::FaultHandler(uint8_t intr, uint32_t code, Interrupts::CallbackRegs *regs) {
   return getManager()->HandleFault(intr, code, regs);
 }
 bool ProcessManager::SwitchProcess(Interrupts::CallbackRegs *regs) {
@@ -52,14 +51,14 @@ bool ProcessManager::SwitchProcess(Interrupts::CallbackRegs *regs) {
     return false;
   }
   QueuedThread *thread = nextThread;
-  if (thread == 0) {
+  if (thread == nullptr) {
     processSwitchMutex.release();
     return false;
   }
   nextThread = thread->next;
   if (thread == lastThread)
-    lastThread = 0;
-  if (cpuThreads[regs->cpuid] != 0) {
+    lastThread = nullptr;
+  if (cpuThreads[regs->cpuid] != nullptr) {
     QueuedThread *cth = cpuThreads[regs->cpuid];
     Thread *th = cth->thread;
     th->regs = {
@@ -69,7 +68,7 @@ bool ProcessManager::SwitchProcess(Interrupts::CallbackRegs *regs) {
       regs->r8, regs->r9, regs->r10, regs->r11,
       regs->r12, regs->r13, regs->r14, regs->r15
     };
-    if (lastThread != 0) {
+    if (lastThread != nullptr) {
       lastThread->next = cth;
       lastThread = cth;
     } else {
@@ -93,12 +92,12 @@ bool ProcessManager::SwitchProcess(Interrupts::CallbackRegs *regs) {
   return true;
 }
 
-bool ProcessManager::HandleFault(uint32_t intr, uint32_t code, Interrupts::CallbackRegs *regs) {
+bool ProcessManager::HandleFault(uint8_t intr, uint32_t code, Interrupts::CallbackRegs *regs) {
   if (regs->dpl == 0) return false;
   uint64_t t = EnterCritical();
   processSwitchMutex.lock();
   QueuedThread *thread = cpuThreads[regs->cpuid];
-  cpuThreads[regs->cpuid] = 0;
+  cpuThreads[regs->cpuid] = nullptr;
   processSwitchMutex.release();
   LeaveCritical(t);
   if (!thread) return false;
@@ -136,7 +135,7 @@ void ProcessManager::queueThread(Process *process, Thread *thread) {
   QueuedThread *q = new QueuedThread();
   q->process = process;
   q->thread = thread;
-  q->next = 0;
+  q->next = nullptr;
   uint64_t t = EnterCritical();
   processSwitchMutex.lock();
   if (lastThread) {
@@ -151,14 +150,14 @@ void ProcessManager::queueThread(Process *process, Thread *thread) {
 void ProcessManager::dequeueThread(Thread *thread) {
   uint64_t t = EnterCritical();
   processSwitchMutex.lock();
-  QueuedThread *next = nextThread, *prev = 0;
-  while (next != 0) {
+  QueuedThread *next = nextThread, *prev = nullptr;
+  while (next != nullptr) {
     if (next->thread != thread) {
       prev = next;
       next = next->next;
       continue;
     }
-    if (prev == 0)
+    if (prev == nullptr)
       nextThread = next->next;
     else
       prev->next = next->next;
@@ -171,7 +170,7 @@ void ProcessManager::dequeueThread(Thread *thread) {
     if (!cpuThreads[cpu]) continue;
     if (cpuThreads[cpu]->thread != thread) continue;
     delete cpuThreads[cpu];
-    cpuThreads[cpu] = 0;
+    cpuThreads[cpu] = nullptr;
   }
   processSwitchMutex.release();
   LeaveCritical(t);
@@ -184,5 +183,5 @@ Process *ProcessManager::currentProcess() {
   QueuedThread *curr = cpuThreads[cpuid];
   processSwitchMutex.release();
   LeaveCritical(t);
-  return curr ? curr->process : 0;
+  return curr ? curr->process : nullptr;
 }

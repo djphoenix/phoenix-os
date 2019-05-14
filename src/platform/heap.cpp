@@ -21,13 +21,13 @@ struct Heap::HeapPage {
   HeapPage *next;
 };
 
-Heap::AllocTable *Heap::allocs = 0;
-Heap::HeapPage* Heap::heap_pages = 0;
+Heap::AllocTable *Heap::allocs = nullptr;
+Heap::HeapPage* Heap::heap_pages = nullptr;
 Mutex Heap::heap_mutex;
 
 void* Heap::alloc(size_t size, size_t align) {
   if (size == 0)
-    return 0;
+    return nullptr;
   heap_mutex.lock();
 
   if (!heap_pages)
@@ -61,7 +61,7 @@ new_page:
     pages = heap_pages;
     while (pages) {
       for (size_t i = 0; i < 511; i++) {
-        if (pages->pages[i] != 0) continue;
+        if (pages->pages[i] != nullptr) continue;
         pages->pages[i] = Pagetable::alloc();
         ptr = 0;
         goto find_page;
@@ -113,7 +113,7 @@ next_page:
   table = allocs;
   while (table) {
     for (size_t i = 0; i < 255; i++) {
-      if (table->allocs[i].addr != 0) continue;
+      if (table->allocs[i].addr != nullptr) continue;
       table->allocs[i].addr = reinterpret_cast<void*>(ptr);
       table->allocs[i].size = size;
       goto done;
@@ -131,19 +131,19 @@ done:
   return a;
 }
 void Heap::free(void* addr) {
-  if (addr == 0)
+  if (addr == nullptr)
     return;
   heap_mutex.lock();
   AllocTable *t = allocs;
   while (1) {
     for (int i = 0; i < 255; i++) {
       if (t->allocs[i].addr == addr) {
-        t->allocs[i].addr = 0;
+        t->allocs[i].addr = nullptr;
         t->allocs[i].size = 0;
         goto end;
       }
     }
-    if (t->next == 0)
+    if (t->next == nullptr)
       goto end;
     t = t->next;
   }
@@ -152,14 +152,14 @@ void Heap::free(void* addr) {
 void *Heap::realloc(void *addr, size_t size, size_t align) {
   if (size == 0) {
     free(addr);
-    return 0;
+    return nullptr;
   }
-  if (addr == 0)
+  if (addr == nullptr)
     return alloc(size, align);
   heap_mutex.lock();
   AllocTable *t = allocs;
   size_t oldsize = 0;
-  while (t != 0) {
+  while (t != nullptr) {
     for (int i = 0; i < 255; i++) {
       if (t->allocs[i].addr == addr) {
         oldsize = t->allocs[i].size;
@@ -177,7 +177,7 @@ void *Heap::realloc(void *addr, size_t size, size_t align) {
   }
   heap_mutex.release();
   if (oldsize == 0)
-    return 0;
+    return nullptr;
   void *newptr = alloc(size, align);
   Memory::copy(newptr, addr, oldsize);
   free(addr);

@@ -7,7 +7,7 @@
 static inline char *longlong_to_string(
     char *buf, size_t len, uint64_t n, uint8_t base,
     bool fl_signed, bool fl_showsign, bool fl_caps) {
-  int pos = len;
+  size_t pos = len;
   char table_start = fl_caps ? 'A' : 'a';
   bool negative = 0;
   if (fl_signed && int64_t(n) < 0) {
@@ -19,7 +19,7 @@ static inline char *longlong_to_string(
     uint8_t digit = n % base;
     n /= base;
     if (digit < 10) {
-      buf[ --pos] = digit + '0';
+      buf[ --pos] = static_cast<char>(digit + '0');
     } else {
       buf[ --pos] = digit - 10 + table_start;
     }
@@ -33,7 +33,7 @@ static inline char *longlong_to_string(
 static void printf_putc(char *str, size_t *size, int *len, char c) {
   if ((*len) == -1) return;
   (*len)++;
-  if (str == 0) return;
+  if (str == nullptr) return;
   if (*size == 0) {
     *len = -1;
     return;
@@ -71,7 +71,7 @@ int vsnprintf(char *str, size_t size, const char *format, va_list ap) {
   } PACKED;
 
   char c;
-  const char *fmt_start;
+  const char *fmt_start = nullptr;
   int out_len = 0;
 
   flags_t flags;
@@ -205,36 +205,36 @@ parse_size:
         printf_putc(str, &size, &out_len, '%');
         goto next_format;
       case 'c':
-        c = va_arg(ap, /* char */ int) & 0xFF;
+        c = static_cast<char>(va_arg(ap, /* char */ int) & 0xFF);
         numbuf[0] = c;
         numbuf[1] = 0;
         strval = numbuf;
         goto out_str;
       case 's':
         strval = va_arg(ap, const char*);
-        if (strval == 0) strval = "<null>";
+        if (strval == nullptr) strval = "<null>";
         goto out_str;
       case 'd':
       case 'i':
         numsig = 1;
         if (flags.sz_halfhalf)
-          numval = va_arg(ap, /* signed char, int8_t */ int32_t);
+          numval = uintmax_t(va_arg(ap, /* signed char, int8_t */ int32_t));
         else if (flags.sz_half)
-          numval = va_arg(ap, /* short int, int16_t */ int32_t);
+          numval = uintmax_t(va_arg(ap, /* short int, int16_t */ int32_t));
         else if (flags.sz_long)
-          numval = va_arg(ap, int32_t);
+          numval = uintmax_t(va_arg(ap, int32_t));
         else if (flags.sz_longlong)
-          numval = va_arg(ap, int64_t);
+          numval = uintmax_t(va_arg(ap, int64_t));
         else if (flags.sz_max)
-          numval = va_arg(ap, intmax_t);
+          numval = uintmax_t(va_arg(ap, intmax_t));
         else if (flags.sz_sizet)
-          numval = va_arg(ap, size_t);
+          numval = uintmax_t(va_arg(ap, size_t));
         else if (flags.sz_ptrdiff)
-          numval = va_arg(ap, ptrdiff_t);
+          numval = uintmax_t(va_arg(ap, ptrdiff_t));
         else if (flags.sz_longdbl)
           goto invalid_fmt;
         else
-          numval = va_arg(ap, int);
+          numval = uintmax_t(va_arg(ap, int));
         goto out_num;
       case 'X':
         upcaseout = 1;
@@ -268,7 +268,7 @@ get_num:
         else if (flags.sz_sizet)
           numval = va_arg(ap, size_t);
         else if (flags.sz_ptrdiff)
-          numval = va_arg(ap, ptrdiff_t);
+          numval = uintmax_t(va_arg(ap, ptrdiff_t));
         else if (flags.sz_longdbl)
           goto invalid_fmt;
         else
@@ -276,11 +276,11 @@ get_num:
         goto out_num;
       case 'n': {
         void *ptrval = va_arg(ap, void*);
-        if (ptrval == 0) goto next_format;
+        if (ptrval == nullptr) goto next_format;
         if (flags.sz_halfhalf)
-          *static_cast<int8_t*>(ptrval) = out_len;
+          *static_cast<int8_t*>(ptrval) = int8_t(out_len);
         else if (flags.sz_half)
-          *static_cast<int16_t*>(ptrval) = out_len;
+          *static_cast<int16_t*>(ptrval) = int16_t(out_len);
         else if (flags.sz_long)
           *static_cast<int64_t*>(ptrval) = out_len;
         else if (flags.sz_longlong)
@@ -288,7 +288,7 @@ get_num:
         else if (flags.sz_max)
           *static_cast<intmax_t*>(ptrval) = out_len;
         else if (flags.sz_sizet)
-          *static_cast<size_t*>(ptrval) = out_len;
+          *static_cast<size_t*>(ptrval) = size_t(out_len);
         else if (flags.sz_ptrdiff)
           *static_cast<ptrdiff_t*>(ptrval) = out_len;
         else if (flags.sz_longdbl)
@@ -326,7 +326,7 @@ out_num:
 
 out_str:
 
-    int pad = width - klib::strlen(strval);
+    int pad = width - static_cast<int>(klib::strlen(strval));
     if (!flags.fl_leftfmt && (flags.fl_leadzero || flags.fl_leadspace)) {
       c = flags.fl_leadzero ? '0' : ' ';
       while (pad-- > 0) printf_putc(str, &size, &out_len, c);
@@ -338,22 +338,22 @@ out_str:
     goto next_format;
   }
 
-  if (str != 0 && out_len != -1) str[out_len] = 0;
+  if (str != nullptr && out_len != -1) str[out_len] = 0;
   return out_len;
 }
 
 int vprintf(const char *format, va_list ap) {
   va_list tmp;
   va_copy(tmp, ap);
-  int len = vsnprintf(0, 0, format, tmp);
+  int len = vsnprintf(nullptr, 0, format, tmp);
   va_end(tmp);
   char smbuf[512], *buf;
   if (len > 511) {
-    buf = static_cast<char*>(Heap::alloc(len + 1));
+    buf = static_cast<char*>(Heap::alloc(size_t(len) + 1));
   } else {
     buf = smbuf;
   }
-  len = vsnprintf(buf, len, format, ap);
+  len = vsnprintf(buf, size_t(len), format, ap);
   buf[len] = 0;
   Display::getInstance()->write(buf);
   if (len > 511) Heap::free(buf);

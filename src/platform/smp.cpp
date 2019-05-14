@@ -48,7 +48,7 @@ void SMP::init() {
   asm volatile("lea _smp_init(%%rip), %q0":"=r"(smp_init));
   asm volatile("lea _smp_end(%%rip), %q0":"=r"(smp_end));
 
-  const size_t smp_init_size = smp_end - smp_init;
+  const size_t smp_init_size = size_t(smp_end - smp_init);
 
   char *startupCode;
   StartupInfo *info;
@@ -57,7 +57,7 @@ void SMP::init() {
   info = reinterpret_cast<StartupInfo*>(startupCode + klib::__align(smp_init_size, 8));
 
   Memory::copy(startupCode, smp_init, smp_init_size);
-  char smp_init_vector = (uintptr_t(startupCode) >> 12) & 0xFF;
+  uint8_t smp_init_vector = (uintptr_t(startupCode) >> 12) & 0xFF;
 
   info->lapicAddr = acpi->getLapicAddr();
   info->cpuids = new uint64_t[cpuCount]();
@@ -82,13 +82,13 @@ void SMP::init() {
 
   for (uint32_t i = 0; i < cpuCount; i++) {
     if (info->cpuids[i] != localId) {
-      acpi->sendCPUInit(info->cpuids[i]);
+      acpi->sendCPUInit(uint32_t(info->cpuids[i]));
     }
   }
   while (cpuCount - nullcpus != acpi->getActiveCPUCount()) {
     for (uint32_t i = 0; i < cpuCount; i++) {
       if (info->cpuids[i] != localId) {
-        acpi->sendCPUStartup(info->cpuids[i], smp_init_vector);
+        acpi->sendCPUStartup(uint32_t(info->cpuids[i]), smp_init_vector);
       }
     }
     asm volatile("hlt");

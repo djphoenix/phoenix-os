@@ -9,14 +9,14 @@
 using PTE = Pagetable::Entry;
 
 Process::Process() {
-  id = -1;
-  pagetable = 0;
+  id = size_t(-1);
+  pagetable = nullptr;
   entry = 0;
   _aslrCode = ((RAND::get<uintptr_t>() << 12) & 0x7FFFFFFF000) | 0x40000000000;
   _aslrStack = ((RAND::get<uintptr_t>() << 12) & 0x7FFFFFFF000) | 0x80000000000;
 }
 Process::~Process() {
-  if (pagetable != 0) {
+  if (pagetable != nullptr) {
     PTE addr;
     for (uintptr_t ptx = 0; ptx < 512; ptx++) {
       addr = pagetable[ptx];
@@ -66,7 +66,7 @@ void Process::addPage(uintptr_t vaddr, void* paddr, uint8_t flags) {
   uint16_t pdx = (vaddr >> (12 + 9 + 9)) & 0x1FF;
   uint16_t pdpx = (vaddr >> (12 + 9)) & 0x1FF;
   uint16_t pml4x = (vaddr >> (12)) & 0x1FF;
-  if (pagetable == 0) {
+  if (pagetable == nullptr) {
     pagetable = static_cast<PTE*>(Pagetable::alloc());
     addPage(uintptr_t(pagetable), pagetable, 5);
   }
@@ -104,7 +104,7 @@ uintptr_t Process::addSection(SectionType type, size_t size) {
   }
 
   for (uintptr_t caddr = vaddr; caddr < vaddr + size; caddr += 0x1000) {
-    if (getPhysicalAddress(vaddr) != 0) {
+    if (getPhysicalAddress(vaddr) != nullptr) {
       vaddr += 0x1000;
       caddr = vaddr - 0x1000;
     }
@@ -206,17 +206,17 @@ char *Process::readString(uintptr_t address) const {
     }
   }
   if (length == 0)
-    return 0;
+    return nullptr;
   char *buf = new char[length + 1]();
   readData(buf, address, length + 1);
   return buf;
 }
 void *Process::getPhysicalAddress(uintptr_t ptr) const {
-  if (pagetable == 0)
-    return 0;
+  if (pagetable == nullptr)
+    return nullptr;
   uintptr_t off = ptr & 0xFFF;
   PTE *addr = PTE::find(ptr, pagetable);
-  if (!addr || !addr->present) return 0;
+  if (!addr || !addr->present) return nullptr;
   return reinterpret_cast<void*>(addr->getUintPtr() + off);
 }
 void Process::addThread(Thread *thread, bool suspended) {
@@ -224,14 +224,14 @@ void Process::addThread(Thread *thread, bool suspended) {
     thread->stack_top = addSection(SectionTypeStack, 0x7FFF) + 0x8000;
     thread->regs.rsp = thread->stack_top;
   }
-  thread->suspend_ticks = suspended ? -1 : 0;
+  thread->suspend_ticks = suspended ? uint64_t(-1) : 0;
 
   threads.add(thread);
   ProcessManager::getManager()->queueThread(this, thread);
 }
 void Process::startup() {
-  DTREG gdt = { 0, 0 };
-  DTREG idt = { 0, 0 };
+  DTREG gdt = { 0, nullptr };
+  DTREG idt = { 0, nullptr };
   asm volatile("sgdtq %0; sidtq %1":"=m"(gdt), "=m"(idt));
 
   static const uintptr_t KB4 = 0xFFFFFFFFFFFFF000;
@@ -321,7 +321,7 @@ void Process::print_stacktrace(uintptr_t base, const Process *process) {
     asm volatile("mov %%rbp, %q0":"=r"(frame)::);
   }
   size_t lim = 10;
-  while (lim-- && frame != NULL) {
+  while (lim-- && frame != nullptr) {
     if (process) {
       process->readData(&tmpframe.rbp, uintptr_t(frame), sizeof(uintptr_t));
       if (tmpframe.rbp) {

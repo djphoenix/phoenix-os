@@ -5,8 +5,8 @@
 #include "efi.hpp"
 
 namespace EFI {
-  const struct EFI::SystemTable *SystemTable = 0;
-  const void *ImageHandle = 0;
+  const struct EFI::SystemTable *SystemTable = nullptr;
+  const void *ImageHandle = nullptr;
 }
 const struct EFI::SystemTable *EFI::getSystemTable() { return SystemTable; }
 const void *EFI::getImageHandle() { return ImageHandle; }

@@ -107,7 +107,7 @@ class Interrupts {
     uint64_t r8, r9, r10, r11;
     uint64_t r12, r13, r14, r15;
   };
-  typedef bool Callback(uint32_t intr, uint32_t code, CallbackRegs *regs);
+  typedef bool Callback(uint8_t intr, uint32_t code, CallbackRegs *regs);
 
   struct REC32 {
     uint16_t offset_low;
@@ -135,9 +135,9 @@ class Interrupts {
       present(0), offset_middle(0), offset_high(0), rsvd3(0) {}
     REC64(uint64_t offset, uint16_t selector, uint8_t ist, uint8_t type,
                 uint8_t dpl, bool present) :
-        offset_low(offset), selector(selector), ist(ist), rsvd1(0),
+        offset_low(uint16_t(offset)), selector(selector), ist(ist), rsvd1(0),
         type(type), rsvd2(0), dpl(dpl), present(present),
-        offset_middle(offset >> 16), offset_high(offset >> 32), rsvd3(0) {}
+        offset_middle(uint16_t(offset >> 16)), offset_high(offset >> 32), rsvd3(0) {}
 
     ALIGNED_NEWARR(0x1000)
   } PACKED;

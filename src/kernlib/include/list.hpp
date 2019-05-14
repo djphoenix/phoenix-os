@@ -7,7 +7,7 @@
 template<typename Item>
 class List {
  private:
-  Item *items = 0;
+  Item *items = nullptr;
   size_t count = 0;
   size_t capacity = 0;
  public:

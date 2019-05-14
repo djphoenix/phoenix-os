@@ -24,13 +24,13 @@ struct Interrupts::Handler {
   ALIGNED_NEWARR(0x1000)
 } PACKED;
 
-Interrupts::REC64 *Interrupts::idt = 0;
-GDT *Interrupts::gdt = 0;
-TSS64_ENT **Interrupts::tss = 0;
-List<Interrupts::Callback*> *Interrupts::callbacks;
+Interrupts::REC64 *Interrupts::idt = nullptr;
+GDT *Interrupts::gdt = nullptr;
+TSS64_ENT **Interrupts::tss = nullptr;
+List<Interrupts::Callback*> *Interrupts::callbacks = nullptr;
 Mutex Interrupts::callback_locks[256];
 Mutex Interrupts::fault;
-Interrupts::Handler* Interrupts::handlers = 0;
+Interrupts::Handler* Interrupts::handlers = nullptr;
 
 asm(
     ".global __interrupt_wrap;"
@@ -227,10 +227,10 @@ uint64_t __attribute__((sysv_abi)) Interrupts::handle(
   fault.release();
   uint64_t *rsp = reinterpret_cast<uint64_t*>(stack);
   bool has_code = (intr < 0x20) && FAULTS[intr].has_error_code;
-  uint64_t error_code = 0;
+  uint32_t error_code = 0;
   int_regs *regs = reinterpret_cast<int_regs*>(rsp - (12 + 3) - 1);
   if (has_code)
-    error_code = *(rsp++);
+    error_code = uint32_t(*(rsp++));
   int_info *info = reinterpret_cast<int_info*>(rsp);
   bool handled = false;
 
@@ -253,10 +253,10 @@ uint64_t __attribute__((sysv_abi)) Interrupts::handle(
   Callback *cb;
   for (;;) {
     callback_locks[intr].lock();
-    cb = (callbacks[intr].getCount() > idx) ? callbacks[intr][idx] : 0;
+    cb = (callbacks[intr].getCount() > idx) ? callbacks[intr][idx] : nullptr;
     idx++;
     callback_locks[intr].release();
-    if (cb == 0) break;
+    if (cb == nullptr) break;
     handled = cb(intr, error_code, &cb_regs);
     if (handled) break;
   }
@@ -346,10 +346,10 @@ void Interrupts::init() {
       "mov %%eax, 2+__interrupt_pagetable_mov(%%rip)"
       ::"a"(lapic_eoi)
       );
-  for (int i = 0; i < 256; i++) {
+  for (uint32_t i = 0; i < 256; i++) {
     uintptr_t jmp_from = uintptr_t(&(handlers[i].reljmp));
     uintptr_t diff = addr - jmp_from - 5;
-    handlers[i] = Handler(i, diff);
+    handlers[i] = Handler(i, uint32_t(diff));
 
     uintptr_t hptr = uintptr_t(&handlers[i]);
     idt[i] = REC64(hptr, 8, 1, 0xE, 0, true);
@@ -382,13 +382,13 @@ void Interrupts::maskIRQ(uint16_t mask) {
 }
 
 void Interrupts::loadVector() {
-  if (idt == 0) {
+  if (idt == nullptr) {
     init();
     return;
   }
   DTREG idtreg = { sizeof(REC64) * 256 -1, &idt[0] };
   uint32_t cpuid = ACPI::getController()->getCPUID();
-  uint16_t tr = 5 * sizeof(GDT::Entry) + cpuid * sizeof(GDT::SystemEntry);
+  uint16_t tr = uint16_t(5 * sizeof(GDT::Entry) + cpuid * sizeof(GDT::SystemEntry));
   asm volatile(
       "lidtq %0;"
       "ltr %w1;"
@@ -396,7 +396,9 @@ void Interrupts::loadVector() {
 }
 
 uint16_t Interrupts::getIRQmask() {
-  return Port<0x21>::in<uint8_t>() | (static_cast<uint16_t>(Port<0xA1>::in<uint8_t>()) << 8);
+  return uint16_t(
+      (uint16_t(Port<0x21>::in<uint8_t>())) |
+      (uint16_t(Port<0xA1>::in<uint8_t>()) << 8));
 }
 
 void Interrupts::addCallback(uint8_t intr, Callback* cb) {

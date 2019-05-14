@@ -44,12 +44,12 @@ class Pagetable {
       uint16_t pdpx = (ptr >> (12 + 9)) & 0x1FF;
       uint16_t pml4x = (ptr >> (12)) & 0x1FF;
 
-      Entry *pde = pagetable[ptx].present ? pagetable[ptx].getPTE() : 0;
-      if (pde == 0) return 0;
-      Entry *pdpe = pde[pdx].present ? pde[pdx].getPTE() : 0;
-      if (pdpe == 0) return 0;
-      Entry *page = pdpe[pdpx].present ? pdpe[pdpx].getPTE() : 0;
-      if (page == 0) return 0;
+      Entry *pde = pagetable[ptx].present ? pagetable[ptx].getPTE() : nullptr;
+      if (pde == nullptr) return nullptr;
+      Entry *pdpe = pde[pdx].present ? pde[pdx].getPTE() : nullptr;
+      if (pdpe == nullptr) return nullptr;
+      Entry *page = pdpe[pdpx].present ? pdpe[pdpx].getPTE() : nullptr;
+      if (page == nullptr) return nullptr;
 
       return &page[pml4x];
     }

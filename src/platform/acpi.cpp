@@ -8,7 +8,7 @@
 #include "pagetable.hpp"
 
 Mutex ACPI::controllerMutex;
-ACPI* ACPI::controller = 0;
+ACPI* ACPI::controller = nullptr;
 
 ACPI* ACPI::getController() {
   if (controller) return controller;
@@ -22,10 +22,8 @@ ACPI* ACPI::getController() {
 }
 
 ACPI::ACPI() {
-  static const void *const ACPI_FIND_START =
-      reinterpret_cast<char*>(0x000e0000);
-  static const void *const ACPI_FIND_TOP =
-      reinterpret_cast<char*>(0x000fffff);
+  static const void *const ACPI_FIND_START = reinterpret_cast<char*>(0x000e0000);
+  static const void *const ACPI_FIND_TOP = reinterpret_cast<char*>(0x000fffff);
   static const uint64_t ACPI_SIG_RTP_DSR = 0x2052545020445352;  // 'RTP DSR '
 
   acpiCpuCount = 0;
@@ -38,7 +36,7 @@ ACPI::ACPI() {
 
   const struct EFI::SystemTable *ST = EFI::getSystemTable();
   if (ST && ST->ConfigurationTable) {
-    const EFI::ConfigurationTable *acpi1 = 0, *acpi2 = 0;
+    const EFI::ConfigurationTable *acpi1 = nullptr, *acpi2 = nullptr;
     for (uint64_t i = 0; i < ST->NumberOfTableEntries; i++) {
       const EFI::ConfigurationTable *tbl = ST->ConfigurationTable + i;
       if (tbl->VendorGuid == EFI::GUID_ConfigTableACPI1) acpi1 = tbl;
@@ -81,10 +79,10 @@ ACPI::ACPI() {
   uint8_t t = Port<0x61>::in<uint8_t>() & 0xFE;
   Port<0x61>::out<uint8_t>(t);
   Port<0x61>::out<uint8_t>(t | 1);
-  LapicOut(LAPIC_TMRINITCNT, -1);
+  LapicOut(LAPIC_TMRINITCNT, 0xFFFFFFFF);
   while ((Port<0x61>::in<uint8_t>() & 0x20) == (t & 0x20)) {}
   LapicOut(LAPIC_LVT_TMR, LAPIC_DISABLE);
-  busfreq = (static_cast<uint64_t>(-1 - LapicIn(LAPIC_TMRCURRCNT)) << 4) * 100;
+  busfreq = (static_cast<uint64_t>(0xFFFFFFFF - LapicIn(LAPIC_TMRCURRCNT)) << 4) * 100;
 }
 void ACPI::ParseDT(const Header *header) {
   Pagetable::map(header);
@@ -163,7 +161,7 @@ bool ACPI::ParseRsdp(const void *ptr) {
   Memory::copy(oem, p + 9, 6);
   oem[6] = 0;
 
-  char revision = p[15];
+  uint8_t revision = p[15];
   const uint32_t *rsdtPtr = static_cast<const uint32_t*>(ptr) + 4;
   const uint64_t *xsdtPtr = static_cast<const uint64_t*>(ptr) + 3;
 
@@ -231,7 +229,7 @@ void ACPI::IOapicOut(uint32_t reg, uint32_t data) {
   MmioWrite32(ioApicAddr + IOAPIC_REGSEL, reg);
   MmioWrite32(ioApicAddr + IOAPIC_REGWIN, data);
 }
-void ACPI::IOapicMap(uint32_t idx, IOApicRedir r) {
+void ACPI::IOapicMap(uint32_t idx, const IOApicRedir &r) {
   IOapicOut(IOAPIC_REDTBL + idx * 2 + 0, r.raw[0]);
   IOapicOut(IOAPIC_REDTBL + idx * 2 + 1, r.raw[1]);
 }
@@ -305,7 +303,7 @@ void ACPI::EOI() {
   (ACPI::getController())->LapicOut(LAPIC_EOI, 0);
 }
 void ACPI::initIOAPIC() {
-  if (ioApicAddr == 0)
+  if (ioApicAddr == nullptr)
     return;
   ioApicMaxCount = (IOapicIn(IOAPIC_VER) >> 16) & 0xFF;
   IOApicRedir kbd;
@@ -321,7 +319,7 @@ void ACPI::initIOAPIC() {
   IOapicMap(1, kbd);
 }
 bool ACPI::initAPIC() {
-  if (localApicAddr == 0)
+  if (localApicAddr == nullptr)
     return false;
   initCPU();
   initIOAPIC();

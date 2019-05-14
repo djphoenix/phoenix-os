@@ -14,7 +14,7 @@ class ConsoleDisplay: public Display {
   char *display;
   void putc(const char c) {
     if (c == 0) return;
-    size_t pos = display - base;
+    size_t pos = size_t(display - base);
     if (c == '\n') {
       display += 160 - (pos % 160);
     } else if (c == '\t') {
@@ -36,7 +36,7 @@ class ConsoleDisplay: public Display {
 
  public:
   ConsoleDisplay() {
-    if (EFI::getSystemTable() != 0) return;
+    if (EFI::getSystemTable() != nullptr) return;
     display = base;
     clean();
   }
@@ -166,7 +166,7 @@ class SerialDisplay: public Display {
     uint64_t t = EnterCritical();
     mutex.lock();
     char c;
-    while ((c = *str++) != 0) Port<port>::out<uint8_t>(c);
+    while ((c = *str++) != 0) Port<port>::out(uint8_t(c));
     mutex.release();
     LeaveCritical(t);
   }
@@ -189,9 +189,9 @@ void Display::setup() {
   if (instance != &serialConsole) return;
   const struct EFI::SystemTable *ST = EFI::getSystemTable();
   if (ST) {  // EFI Framebuffer
-    EFI::GraphicsOutput *graphics_output = 0;
+    EFI::GraphicsOutput *graphics_output = nullptr;
     ST->BootServices->LocateProtocol(
-        &EFI::GUID_GraphicsOutputProtocol, 0,
+        &EFI::GUID_GraphicsOutputProtocol, nullptr,
         reinterpret_cast<void**>(&graphics_output));
     PixelFormat pixelFormat;
     switch (graphics_output->Mode->Info->PixelFormat) {

@@ -3,7 +3,7 @@
 
 #include "multiboot_info.hpp"
 
-Multiboot::Payload *Multiboot::payload = 0;
+Multiboot::Payload *Multiboot::payload = nullptr;
 Multiboot::Payload *Multiboot::getPayload() {
   return payload;
 }

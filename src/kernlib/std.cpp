@@ -4,7 +4,7 @@
 #include "kernlib.hpp"
 
 extern "C" {
-  void *__dso_handle = 0;
+  void *__dso_handle = nullptr;
 
   void CONST __cxa_pure_virtual() {}
   int CONST __cxa_atexit(void (*)(void*), void*, void*) { return 0; }
@@ -14,7 +14,7 @@ namespace klib {
   size_t strlen(const char* c, size_t limit) {
     const char *e = c;
     while ((size_t(e - c) < limit) && (*e++) != 0) {}
-    return e - c - 1;
+    return size_t(e - c - 1);
   }
 
   char* strdup(const char* c) {

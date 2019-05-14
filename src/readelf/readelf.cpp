@@ -282,8 +282,8 @@ static bool readelf_dylink(Process *process, uintptr_t start) {
 size_t readelf(Process *process, Stream *stream) {
   ELF_HDR elf;
   size_t size = 0;
-  ELF64_PROG *progs = 0, *progs_top, *prog;
-  char *buf = 0;
+  ELF64_PROG *progs = nullptr, *progs_top, *prog;
+  char *buf = nullptr;
   SectionType type;
   uintptr_t vaddr, offset_load, vaddr_start = 0;
 
@@ -346,7 +346,7 @@ size_t readelf(Process *process, Stream *stream) {
           }
           if (prog->offset + offset_load < off) goto err;
           if (prog->offset + offset_load > off) {
-            stream->seek(prog->offset + offset_load - off, 0);
+            stream->seek(ptrdiff_t(prog->offset + offset_load - off), 0);
             off = prog->offset + offset_load;
           }
           buf = new char[prog->filesz - offset_load]();
@@ -355,7 +355,7 @@ size_t readelf(Process *process, Stream *stream) {
           off += prog->filesz - offset_load;
           process->writeData(vaddr + offset_load, buf,
                              prog->filesz - offset_load);
-          delete[] buf; buf = 0;
+          delete[] buf; buf = nullptr;
           prog->vaddr = vaddr;
         }
         break;

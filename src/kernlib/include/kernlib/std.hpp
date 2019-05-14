@@ -19,7 +19,7 @@ namespace klib {
   template<typename T> inline static T PURE min(T a, T b) { return a < b ? a : b; }
   template<typename T> inline static T PURE abs(T a) { return a > 0 ? a : -a; }
 
-  size_t strlen(const char*, size_t limit = -1) PURE;
+  size_t strlen(const char*, size_t limit = static_cast<size_t>(-1)) PURE;
   char* strdup(const char*);
   int strcmp(const char*, const char*) PURE;
 

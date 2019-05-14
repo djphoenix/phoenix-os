@@ -11,6 +11,6 @@ constexpr uint64_t syscall_hash(const char (&str)[L], size_t n = L - 1) {
 
 static uint64_t syscall_hash(const char *str) {
   uint64_t hash = hash_base;
-  while (*str) hash += hash * 101 + *str++ * hash_mul;
+  while (*str) hash += hash * 101 + uint8_t(*str++) * hash_mul;
   return hash;
 }

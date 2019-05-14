@@ -133,7 +133,7 @@ class ACPI {
   void LapicOut(uint32_t reg, uint32_t data);
   uint32_t IOapicIn(uint32_t reg);
   void IOapicOut(uint32_t reg, uint32_t data);
-  void IOapicMap(uint32_t idx, IOApicRedir r);
+  void IOapicMap(uint32_t idx, const IOApicRedir &r);
   IOApicRedir IOapicReadMap(uint32_t idx);
   void activateCPU();
   uint32_t getLapicIDOfCPU(uint32_t cpuId) PURE;
