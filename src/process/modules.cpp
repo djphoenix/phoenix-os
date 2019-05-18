@@ -56,12 +56,47 @@ static inline bool parsePort(const char *str, uint16_t *min, uint16_t *max) {
   return *max >= *min;
 }
 
+enum cpuid_reg { REG_eax, REG_ebx, REG_ecx, REG_edx };
+static inline bool parseCPUID(const char *str, uint32_t *func, enum cpuid_reg *reg, uint8_t *bit) {
+  char c;
+  while ((c = *str++) != 0 && c != '.') {
+    if (!readHexChar(c, func)) return 0;
+  }
+  if (c != '.') return 0;
+  switch (*str++) {
+    case 'a': case 'A': *reg = REG_eax; break;
+    case 'b': case 'B': *reg = REG_ebx; break;
+    case 'c': case 'C': *reg = REG_ecx; break;
+    case 'd': case 'D': *reg = REG_edx; break;
+    default: return 0;
+  }
+  if ((*str++) != '.') return 0;
+  while ((c = *str++) != 0) {
+    if (!readHexChar(c, bit)) return 0;
+  }
+  return 1;
+}
+
 bool ModuleManager::bindRequirement(const char *req, Process *process) {
   if (klib::strncmp(req, "port/", 5) == 0) {
     uint16_t minport = 0, maxport = 0;
     if (!parsePort(req + 5, &minport, &maxport)) return 0;
     process->allowIOPorts(minport, maxport);
     return 1;
+  } else if (klib::strncmp(req, "cpuid/", 6) == 0) {
+    uint32_t func = 0; uint8_t bit = 0; enum cpuid_reg reg;
+    if (!parseCPUID(req + 6, &func, &reg, &bit)) return 0;
+    if (func & 0x0000FFFF) {
+      uint32_t maxfunc = 0;
+      asm volatile("cpuid":"=a"(maxfunc):"a"(uint32_t(func & 0xFFFF0000)):"ecx", "ebx", "edx");
+      if (func > maxfunc) return 0;
+    }
+    union {
+      uint32_t regs[4];
+      struct { uint32_t eax, ebx, ecx, edx; };
+    } val;
+    asm volatile("cpuid":"=a"(val.eax), "=b"(val.ebx), "=c"(val.ecx), "=d"(val.edx):"a"(func));
+    return ((val.regs[reg] >> bit) & 1);
   } else {
     return 0;
   }
