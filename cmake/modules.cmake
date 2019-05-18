@@ -6,11 +6,13 @@ list(TRANSFORM MODDIRS REPLACE "/${MODDIR_TAG}$" "")
 file(WRITE ${CMAKE_BINARY_DIR}/modules.s ".section .modules, \"a\"\n")
 file(APPEND ${CMAKE_BINARY_DIR}/modules.s ".global __modules_start__\n__modules_start__:\n")
 add_library(modules-linked STATIC ${CMAKE_BINARY_DIR}/modules.s)
+file(GLOB MODINC ${SRCDIR}/modules/include)
 foreach(moddir ${MODDIRS})
   string(REPLACE "/" "." mod ${moddir})
   set(ROOT_${mod} ${SRCDIR}/${moddir})
   file(GLOB SRCS_${mod} ${ROOT_${mod}}/*.s ${ROOT_${mod}}/*.c ${ROOT_${mod}}/*.cpp)
   add_library(mod_${mod} SHARED ${SRCS_${mod}})
+  target_include_directories(mod_${mod} PRIVATE ${MODINC})
   add_custom_command(
     TARGET mod_${mod} POST_BUILD
     COMMAND ${CMAKE_LLVM_OBJCOPY} --strip-non-alloc --strip-debug --strip-unneeded libmod_${mod}.so libmod_${mod}.strip.so
