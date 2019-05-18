@@ -38,8 +38,12 @@ bool ModuleManager::parseModuleInfo(ModuleInfo *info, Process *process) {
   return true;
 }
 
+bool ModuleManager::bindRequirements(const char *reqs, Process *process) {
+  return 1;
+}
+
 ModuleManager* ModuleManager::manager = nullptr;
-void ModuleManager::loadStream(Stream *stream, bool start) {
+void ModuleManager::loadStream(Stream *stream) {
   Stream *sub = stream;
   Process *process;
   size_t size;
@@ -52,12 +56,17 @@ void ModuleManager::loadStream(Stream *stream, bool start) {
       delete process;
       break;
     }
+    if (bindRequirements(mod.requirements, process)) {
+      process->startup();
+    } else {
+      delete process;
+    }
     delete mod.name;
     delete mod.version;
     delete mod.description;
     delete mod.requirements;
     delete mod.developer;
-    if (start) process->startup();
+
     sub->seek(ptrdiff_t(size), -1);
     if (!stream->eof()) {
       Stream *_sub = sub->substream();
@@ -78,7 +87,7 @@ void ModuleManager::parseInternal() {
 
   if (modules_size > 1) {
     MemoryStream ms(mods_start, modules_size);
-    loadStream(&ms, 1);
+    loadStream(&ms);
   }
 }
 void ModuleManager::parseInitRD() {
@@ -91,7 +100,7 @@ void ModuleManager::parseInitRD() {
     const char *top = reinterpret_cast<const char*>(uintptr_t(mods[i].end));
     size_t length = size_t(top - base);
     MemoryStream ms(base, length);
-    loadStream(&ms, 1);
+    loadStream(&ms);
   }
 }
 void ModuleManager::init() {
