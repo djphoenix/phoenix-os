@@ -38,8 +38,33 @@ bool ModuleManager::parseModuleInfo(ModuleInfo *info, Process *process) {
   return true;
 }
 
+template<typename T> static inline bool readHexChar(char c, T *inout) {
+  if (c >= '0' && c <= '9') return (*inout = T(*inout << 4) | T(c - '0'), 1);
+  if (c >= 'a' && c <= 'f') return (*inout = T(*inout << 4) | T(c - 'a' + 10), 1);
+  if (c >= 'A' && c <= 'F') return (*inout = T(*inout << 4) | T(c - 'A' + 10), 1);
+  return 0;
+}
+
+static inline bool parsePort(const char *str, uint16_t *min, uint16_t *max) {
+  uint16_t *port = min;
+  char c;
+  while ((c = *str++) != 0) {
+    if (c == '-' && port == min) { port = max; continue; }
+    if (!readHexChar(c, port)) return 0;
+  }
+  if (port == min) *max = *min;
+  return *max >= *min;
+}
+
 bool ModuleManager::bindRequirement(const char *req, Process *process) {
-  return 1;
+  if (klib::strncmp(req, "port/", 5) == 0) {
+    uint16_t minport = 0, maxport = 0;
+    if (!parsePort(req + 5, &minport, &maxport)) return 0;
+    process->allowIOPorts(minport, maxport);
+    return 1;
+  } else {
+    return 0;
+  }
 }
 
 bool ModuleManager::bindRequirements(const char *reqs, Process *process) {
