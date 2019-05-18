@@ -187,14 +187,10 @@ static Display *getSerialDisplay() { return &serialConsole; }
 
 void Display::setup() {
   if (instance != &serialConsole) return;
-  const struct EFI::SystemTable *ST = EFI::getSystemTable();
-  if (ST) {  // EFI Framebuffer
-    EFI::GraphicsOutput *graphics_output = nullptr;
-    ST->BootServices->LocateProtocol(
-        &EFI::GUID_GraphicsOutputProtocol, nullptr,
-        reinterpret_cast<void**>(&graphics_output));
+  const struct EFI::Framebuffer *fb = EFI::getFramebuffer();
+  if (fb) {  // EFI Framebuffer
     PixelFormat pixelFormat;
-    switch (graphics_output->Mode->Info->PixelFormat) {
+    switch (fb->pixelFormat) {
       case EFI::GRAPHICS_PIXEL_FORMAT_RGBX_8BPP:
         pixelFormat = PixelFormatRGBX;
         break;
@@ -204,11 +200,7 @@ void Display::setup() {
       default:
         return;
     }
-    instance = new FramebufferDisplay(
-        graphics_output->Mode->FrameBufferBase,
-        graphics_output->Mode->Info->HorizontalResolution,
-        graphics_output->Mode->Info->VerticalResolution,
-        pixelFormat);
+    instance = new FramebufferDisplay(fb->base, fb->width, fb->height, pixelFormat);
     return;
   }
 

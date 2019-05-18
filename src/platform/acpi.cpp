@@ -32,36 +32,29 @@ ACPI::ACPI() {
   localApicAddr = nullptr;
   ioApicAddr = nullptr;
 
-  const struct EFI::SystemTable *ST = EFI::getSystemTable();
-  if (ST && ST->ConfigurationTable) {
-    const EFI::ConfigurationTable *acpi1 = nullptr, *acpi2 = nullptr;
-    for (uint64_t i = 0; i < ST->NumberOfTableEntries; i++) {
-      const EFI::ConfigurationTable *tbl = ST->ConfigurationTable + i;
-      if (tbl->VendorGuid == EFI::GUID_ConfigTableACPI1) acpi1 = tbl;
-      if (tbl->VendorGuid == EFI::GUID_ConfigTableACPI2) acpi2 = tbl;
-    }
-
-    bool found = 0;
-    if (acpi2) {
-      const uint64_t *ptr = reinterpret_cast<const uint64_t*>(acpi2->VendorTable);
-      if ((*ptr == ACPI_SIG_RTP_DSR) && ParseRsdp(ptr)) found = 1;
-    }
-    if (!found && acpi1) {
-      const uint64_t *ptr = reinterpret_cast<const uint64_t*>(acpi1->VendorTable);
-      if ((*ptr == ACPI_SIG_RTP_DSR) && ParseRsdp(ptr)) found = 1;
-    }
-  } else {
-    const uint64_t *p = static_cast<const uint64_t*>(ACPI_FIND_START);
+  const uint64_t *ptr = nullptr;
+  if (!ptr && (ptr = static_cast<const uint64_t*>(EFI::getACPI2Addr()))) {
+    Pagetable::map(ptr);
+    Pagetable::map(ptr + 1);
+    if ((*ptr != ACPI_SIG_RTP_DSR) || !ParseRsdp(ptr)) ptr = nullptr;
+  }
+  if (!ptr && (ptr = static_cast<const uint64_t*>(EFI::getACPI1Addr()))) {
+    Pagetable::map(ptr);
+    Pagetable::map(ptr + 1);
+    if ((*ptr != ACPI_SIG_RTP_DSR) || !ParseRsdp(ptr)) ptr = nullptr;
+  }
+  if (!ptr) {
+    ptr = static_cast<const uint64_t*>(ACPI_FIND_START);
     const uint64_t *end = static_cast<const uint64_t*>(ACPI_FIND_TOP);
-    while (p < end) {
-      Pagetable::map(p);
-      Pagetable::map(p + 1);
-      uint64_t signature = *p;
+    while (ptr < end) {
+      Pagetable::map(ptr);
+      Pagetable::map(ptr + 1);
 
-      if ((signature == ACPI_SIG_RTP_DSR) && ParseRsdp(p)) break;
+      if ((*ptr == ACPI_SIG_RTP_DSR) && ParseRsdp(ptr)) break;
 
-      p += 2;
+      ptr += 2;
     }
+    if (ptr >= end) ptr = nullptr;
   }
 
   if ((CPU::getFeatures() & CPU::CPUID_FEAT_APIC) && !localApicAddr) {

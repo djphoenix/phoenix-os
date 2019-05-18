@@ -332,6 +332,14 @@ namespace EFI {
   };
   const struct SystemTable *getSystemTable() PURE;
   const void *getImageHandle() PURE;
+  const void *getACPI1Addr() PURE;
+  const void *getACPI2Addr() PURE;
+  struct Framebuffer {
+    void *base;
+    size_t width, height;
+    GraphicsPixelFormat pixelFormat;
+  };
+  const Framebuffer *getFramebuffer() PURE;
 };  // namespace EFI
 
 static inline bool operator ==(const EFI::GUID &lhs, const EFI::GUID &rhs) {

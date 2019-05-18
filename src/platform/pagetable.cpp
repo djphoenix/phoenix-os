@@ -105,6 +105,7 @@ void Pagetable::init() {
     uintptr_t ptbase = 0x600000 + (RAND::get<uintptr_t>() & 0x3FFF000);
 
     pagetable = static_cast<PTE*>(efiAllocatePage(ptbase, ST));
+    efiMapPage(pagetable, nullptr, ST, 0);
     efiMapPage(pagetable, pagetable, ST);
 
     size_t mapSize = 0, entSize = 0;
