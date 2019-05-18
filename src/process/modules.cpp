@@ -38,7 +38,27 @@ bool ModuleManager::parseModuleInfo(ModuleInfo *info, Process *process) {
   return true;
 }
 
+bool ModuleManager::bindRequirement(const char *req, Process *process) {
+  return 1;
+}
+
 bool ModuleManager::bindRequirements(const char *reqs, Process *process) {
+  const char *re;
+  char *r;
+  while (*reqs != 0) {
+    if (*reqs == ';') { reqs++; continue; }
+    re = reqs;
+    while (*re != 0 && *re != ';') re++;
+    r = klib::strndup(reqs, size_t(re - reqs));
+    reqs = re;
+
+    if (!bindRequirement(r, process)) {
+      printf("Unsatisfied requirement: %s\n", r);
+      Heap::free(r);
+      return 0;
+    }
+    Heap::free(r);
+  }
   return 1;
 }
 
