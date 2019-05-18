@@ -24,6 +24,18 @@ namespace klib {
     return r;
   }
 
+  char* strndup(const char* c, size_t len) {
+    char* r = new char[len + 1]();
+    Memory::copy(r, c, len);
+    r[len] = 0;
+    return r;
+  }
+
+  int strncmp(const char* a, const char* b, int max) {
+    size_t i = 0;
+    while (i < size_t(max) && a[i] != 0 && b[i] != 0 && a[i] == b[i]) { i++; }
+    return (i < size_t(max)) ? a[i] - b[i] : 0;
+  }
   int strcmp(const char* a, const char* b) {
     size_t i = 0;
     while (a[i] != 0 && b[i] != 0 && a[i] == b[i]) { i++; }
