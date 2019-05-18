@@ -29,6 +29,7 @@ class Process {
   uintptr_t entry;
   void addPage(uintptr_t vaddr, void* paddr, uint8_t flags);
   uintptr_t _aslrCode, _aslrStack;
+  void *iomap[2];
 
  public:
   Process();
@@ -46,6 +47,7 @@ class Process {
 
   uintptr_t getSymbolByName(const char* name) PURE;
   uintptr_t linkLibrary(const char* funcname);
+  void allowIOPorts(uint16_t min, uint16_t max);
 
   void writeData(uintptr_t address, void* src, size_t size);
   void readData(void* dst, uintptr_t address, size_t size) const;

@@ -229,6 +229,20 @@ void Process::addThread(Thread *thread, bool suspended) {
   threads.add(thread);
   ProcessManager::getManager()->queueThread(this, thread);
 }
+void Process::allowIOPorts(uint16_t min, uint16_t max) {
+  for (uint16_t i = 0; i <= (max - min); i++) {
+    uint16_t port = min + i;
+    size_t space = port / 8 / 0x1000;
+    size_t byte = (port / 8) & 0xFFF;
+    size_t bit = port % 8;
+    uint8_t *map;
+    if (!(map = reinterpret_cast<uint8_t*>(iomap[space]))) {
+      map = reinterpret_cast<uint8_t*>(iomap[space] = Pagetable::alloc());
+      Memory::fill(map, 0xFF, 0x1000);
+    }
+    map[byte] &= ~(1 << bit);
+  }
+}
 void Process::startup() {
   DTREG gdt = { 0, nullptr };
   DTREG idt = { 0, nullptr };
@@ -264,10 +278,14 @@ void Process::startup() {
   GDT::Entry *gdt_ent = reinterpret_cast<GDT::Entry*>(uintptr_t(gdt.addr) + 8 * 3);
   GDT::Entry *gdt_top = reinterpret_cast<GDT::Entry*>(uintptr_t(gdt.addr) + gdt.limit);
 
-  void *iomap1 = Pagetable::alloc();
-  void *iomap2 = Pagetable::alloc();
-  Memory::fill(iomap1, 0xFF, 0x1000);
-  Memory::fill(iomap2, 0xFF, 0x1000);
+  if (!iomap[0]) {
+    iomap[0] = Pagetable::alloc();
+    Memory::fill(iomap[0], 0xFF, 0x1000);
+  }
+  if (!iomap[1]) {
+    iomap[1] = Pagetable::alloc();
+    Memory::fill(iomap[1], 0xFF, 0x1000);
+  }
 
   while (gdt_ent < gdt_top) {
     uintptr_t base = gdt_ent->getBase();
@@ -278,8 +296,8 @@ void Process::startup() {
     }
     uintptr_t page = base & KB4;
     addPage(page, reinterpret_cast<void*>(page), 5);
-    addPage(page + 0x1000, iomap1, 5);
-    addPage(page + 0x2000, iomap2, 5);
+    addPage(page + 0x1000, iomap[0], 5);
+    addPage(page + 0x2000, iomap[1], 5);
 
     GDT::SystemEntry *sysent = reinterpret_cast<GDT::SystemEntry*>(gdt_ent);
     base = sysent->getBase();
