@@ -22,17 +22,15 @@ ACPI* ACPI::getController() {
 }
 
 ACPI::ACPI() {
-  static const void *const ACPI_FIND_START = reinterpret_cast<char*>(0x000e0000);
-  static const void *const ACPI_FIND_TOP = reinterpret_cast<char*>(0x000fffff);
+  static const void *const ACPI_FIND_START = reinterpret_cast<const void*>(0x000e0000);
+  static const void *const ACPI_FIND_TOP = reinterpret_cast<const void*>(0x000fffff);
   static const uint64_t ACPI_SIG_RTP_DSR = 0x2052545020445352;  // 'RTP DSR '
 
   acpiCpuCount = 0;
   activeCpuCount = 1;
 
-  if (!(CPU::getFeatures() & CPU::CPUID_FEAT_APIC)) {
-    acpiCpuCount = 1;
-    return;
-  }
+  localApicAddr = nullptr;
+  ioApicAddr = nullptr;
 
   const struct EFI::SystemTable *ST = EFI::getSystemTable();
   if (ST && ST->ConfigurationTable) {
@@ -45,13 +43,11 @@ ACPI::ACPI() {
 
     bool found = 0;
     if (acpi2) {
-      const uint64_t *ptr =
-          reinterpret_cast<const uint64_t*>(acpi2->VendorTable);
+      const uint64_t *ptr = reinterpret_cast<const uint64_t*>(acpi2->VendorTable);
       if ((*ptr == ACPI_SIG_RTP_DSR) && ParseRsdp(ptr)) found = 1;
     }
     if (!found && acpi1) {
-      const uint64_t *ptr =
-          reinterpret_cast<const uint64_t*>(acpi1->VendorTable);
+      const uint64_t *ptr = reinterpret_cast<const uint64_t*>(acpi1->VendorTable);
       if ((*ptr == ACPI_SIG_RTP_DSR) && ParseRsdp(ptr)) found = 1;
     }
   } else {
@@ -62,11 +58,28 @@ ACPI::ACPI() {
       Pagetable::map(p + 1);
       uint64_t signature = *p;
 
-      if ((signature == ACPI_SIG_RTP_DSR) && ParseRsdp(p))
-        break;
+      if ((signature == ACPI_SIG_RTP_DSR) && ParseRsdp(p)) break;
 
       p += 2;
     }
+  }
+
+  if ((CPU::getFeatures() & CPU::CPUID_FEAT_APIC) && !localApicAddr) {
+    static const uint32_t msr = 0x1B;
+    uintptr_t lapic;
+    asm volatile("rdmsr":"=A"(lapic):"c"(msr));
+    lapic &= ~0xFFFllu;
+    localApicAddr = reinterpret_cast<char*>(lapic);
+    Pagetable::map(localApicAddr);
+    lapic |= 0x800;
+    asm volatile("wrmsr"::"a"(uint32_t(lapic)), "d"(uint32_t(lapic >> 32)), "c"(msr));
+    acpiCpuIds[0] = getLapicID();
+    acpiCpuCount = 1;
+  }
+
+  if (!localApicAddr) {
+    acpiCpuCount = 1;
+    return;
   }
 
   LapicOut(LAPIC_TMRDIV, 3);
