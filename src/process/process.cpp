@@ -12,8 +12,8 @@ Process::Process() {
   id = size_t(-1);
   pagetable = nullptr;
   entry = 0;
-  _aslrCode = ((RAND::get<uintptr_t>() << 12) & 0x7FFFFFFF000) | 0x40000000000;
-  _aslrStack = ((RAND::get<uintptr_t>() << 12) & 0x7FFFFFFF000) | 0x80000000000;
+  _aslrCode = RAND::get<uintptr_t>(0x80000000llu, 0x100000000llu) << 12;
+  _aslrStack = RAND::get<uintptr_t>(0x40000000llu, 0x80000000llu) << 12;
 }
 Process::~Process() {
   if (pagetable != nullptr) {

@@ -102,7 +102,7 @@ void Pagetable::init() {
         EFI::getImageHandle(), &EFI::GUID_LoadedImageProtocol,
         reinterpret_cast<void**>(&loaded_image));
 
-    uintptr_t ptbase = 0x600000 + (RAND::get<uintptr_t>() & 0x3FFF000);
+    uintptr_t ptbase = RAND::get<uintptr_t>(0x800, 0x10000) << 12;
 
     pagetable = static_cast<PTE*>(efiAllocatePage(ptbase, ST));
     efiMapPage(pagetable, nullptr, ST, 0);
@@ -135,7 +135,7 @@ void Pagetable::init() {
     static const size_t pdpe_num = 64;
     static const size_t ptsz = (3 + pdpe_num) * 0x1000;
 
-    uintptr_t ptbase = 0x600000 - ptsz + ((RAND::get<uintptr_t>() & 0x3FFF) << 12);
+    uintptr_t ptbase = RAND::get<uintptr_t>(0x800, 0x8000 - (3 + pdpe_num)) << 12;
 
     PTE *newpt = reinterpret_cast<PTE*>(ptbase);
     Memory::fill(newpt, 0, ptsz);
