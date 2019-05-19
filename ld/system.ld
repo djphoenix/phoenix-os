@@ -20,7 +20,7 @@ SECTIONS
     .reloc 0x400FE0 (NOLOAD) : ALIGN(1) {
     	LONG(0) LONG(10) SHORT(0)
     } :text
-    .text 0x401000 : ALIGN(1) {
+    .text 0x401000 : ALIGN(0x1000) {
         __text_start__ = . ;
         *boot.a:bootstrap.o(.text .text.*)
         *(.text .text.*)
@@ -29,7 +29,7 @@ SECTIONS
         . = ALIGN(64);
         __text_end__ = . ;
     } :text
-    .rodata : ALIGN(1) {
+    .rodata : ALIGN(0x1000) {
         . = ALIGN(8);
         *(.modules)
 
@@ -37,7 +37,7 @@ SECTIONS
         __data_start__ = . ;
         *(.rodata .rodata.*)
     } :rodata
-    .data : ALIGN(1) {
+    .data : ALIGN(0x1000) {
         . = ALIGN(8);
         __VTABLE_START__ = . ;
         __CTOR_LIST__ = . ; QUAD(0) *(.init_array*) *(.ctor*) QUAD(0)
@@ -49,7 +49,7 @@ SECTIONS
         *(.data .data.*)
         __data_end__ = . ;
     } :data
-    .bss (NOLOAD) : ALIGN(1) {
+    .bss (NOLOAD) : ALIGN(0x1000) {
         __bss_start__ = . ;
         *(.bss .bss.*)
         *(COMMON)

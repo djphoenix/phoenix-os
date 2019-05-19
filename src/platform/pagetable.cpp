@@ -19,7 +19,7 @@ static void fillPages(uintptr_t low, uintptr_t top, PTE *pagetable, uint8_t flag
     *PTE::find(low, pagetable) = PTE(low, flags);
 }
 
-static inline void fillPages(void *low, void *top, PTE *pagetable, uint8_t flags = 3) {
+static inline void fillPages(const void *low, const void *top, PTE *pagetable, uint8_t flags = 3) {
   fillPages(uintptr_t(low), uintptr_t(top), pagetable, flags);
 }
 
@@ -77,22 +77,19 @@ static void efiMapPage(PTE *pagetable, const void *page,
 }
 
 void Pagetable::init() {
-  char *stack_start, *stack_top;
-  char *text_start, *data_top;
-  char *bss_start, *bss_top;
+  static const size_t stack_size = 0x1000;
+
+  extern const char __stack_end__[];
+  const char *__stack_start__ = __stack_end__ - stack_size;
+  extern const char __text_start__[], __text_end__[];
+  extern const char __modules_start__[], __modules_end__[];
+  extern const char __data_start__[], __data_end__[];
+  extern const char __bss_start__[], __bss_end__[];
 
   const struct EFI::SystemTable *ST = EFI::getSystemTable();
   Multiboot::Payload *multiboot = Multiboot::getPayload();
 
-  static const size_t stack_size = 0x1000;
-
   asm volatile("mov %%cr3, %q0":"=r"(pagetable));
-  asm volatile("lea __stack_end__(%%rip), %q0":"=r"(stack_top));
-  stack_start = stack_top - stack_size;
-  asm volatile("lea __text_start__(%%rip), %q0":"=r"(text_start));
-  asm volatile("lea __data_end__(%%rip), %q0":"=r"(data_top));
-  asm volatile("lea __bss_start__(%%rip), %q0":"=r"(bss_start));
-  asm volatile("lea __bss_end__(%%rip), %q0":"=r"(bss_top));
 
   // Initialization of pagetables
 
@@ -153,9 +150,11 @@ void Pagetable::init() {
     fillPages(0x0C8000, 0x0F0000, newpt);  // Reserved for many systems
     fillPages(0x0F0000, 0x100000, newpt);  // BIOS Code
 
-    fillPages(stack_start, stack_top, newpt);  // PXOS Stack
-    fillPages(text_start, data_top, newpt);    // PXOS Code & Data
-    fillPages(bss_start, bss_top, newpt);      // PXOS BSS
+    fillPages(__stack_start__, __stack_end__, newpt);         // PXOS Stack
+    fillPages(__text_start__, __text_end__, newpt, 1);        // PXOS Code
+    fillPages(__modules_start__, __modules_end__, newpt, 1);  // PXOS Built-in modules
+    fillPages(__data_start__, __data_end__, newpt);           // PXOS Data
+    fillPages(__bss_start__, __bss_end__, newpt);             // PXOS BSS
 
     if (multiboot)
       *PTE::find(multiboot, newpt) = PTE { multiboot, 3 };
@@ -167,13 +166,13 @@ void Pagetable::init() {
   if (multiboot) {
     if (multiboot->flags & Multiboot::MB_FLAG_CMDLINE) {
       if (multiboot->pcmdline < 0x80000)
-        multiboot->pcmdline += uintptr_t(bss_top);
+        multiboot->pcmdline += uintptr_t(__bss_end__);
       map(reinterpret_cast<void*>(uintptr_t(multiboot->pcmdline)));
     }
 
     if (multiboot->flags & Multiboot::MB_FLAG_MODS) {
       if (multiboot->pmods_addr < 0x80000)
-        multiboot->pmods_addr += uintptr_t(bss_top);
+        multiboot->pmods_addr += uintptr_t(__bss_end__);
 
       uintptr_t low = uintptr_t(multiboot->pmods_addr) & 0xFFFFFFFFFFFFF000;
       uintptr_t top = klib::__align(
@@ -195,7 +194,7 @@ void Pagetable::init() {
 
     if (multiboot->flags & Multiboot::MB_FLAG_MEMMAP) {
       if (multiboot->pmmap_addr < 0x80000)
-        multiboot->pmmap_addr += uintptr_t(bss_top);
+        multiboot->pmmap_addr += uintptr_t(__bss_end__);
 
       const char *mmap = reinterpret_cast<const char*>(uintptr_t(multiboot->pmmap_addr));
       const char *mmap_top = mmap + multiboot->mmap_length;
