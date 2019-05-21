@@ -59,7 +59,6 @@ class Pagetable {
   } PACKED;
 
  private:
-  static Entry *pagetable;
   static Mutex page_mutex;
   static uint64_t last_page;
   static void* _alloc(uint8_t avl = 0, bool nolow = false);

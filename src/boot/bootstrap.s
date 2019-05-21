@@ -217,7 +217,6 @@ x64_entry:
   call _ZN3SMP4initEv
   call _ZN13ModuleManager4initEv
   call _ZN7Syscall5setupEv
-  mov %rsp, %rbp
   jmp _ZN14ProcessManager12process_loopEv
 
 reloc_vtables:

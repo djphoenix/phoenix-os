@@ -9,14 +9,14 @@ namespace EFI {
   const void *ImageHandle = nullptr;
   const void *acpi1 = nullptr, *acpi2 = nullptr;
   void load();
-  Framebuffer fb, *fbPtr = nullptr;
+  Framebuffer fb;
 }
 const struct EFI::SystemTable *EFI::getSystemTable() { load(); return SystemTable; }
 const void *EFI::getImageHandle() { return ImageHandle; }
 
 const void *EFI::getACPI1Addr() { return acpi1; }
 const void *EFI::getACPI2Addr() { return acpi2; }
-const struct EFI::Framebuffer *EFI::getFramebuffer() { return fbPtr; }
+const struct EFI::Framebuffer *EFI::getFramebuffer() { return fb.base ? &fb : nullptr; }
 
 void EFI::load() {
   static bool loaded = false;
@@ -38,7 +38,6 @@ void EFI::load() {
     fb.width = graphics_output->Mode->Info->HorizontalResolution;
     fb.height = graphics_output->Mode->Info->VerticalResolution;
     fb.pixelFormat = graphics_output->Mode->Info->PixelFormat;
-    fbPtr = &fb;
   }
   loaded = true;
 }

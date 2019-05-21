@@ -8,7 +8,6 @@
 
 using PTE = Pagetable::Entry;
 
-PTE *Pagetable::pagetable;
 Mutex Pagetable::page_mutex;
 uintptr_t Pagetable::last_page = 1;
 
@@ -76,20 +75,73 @@ static void efiMapPage(PTE *pagetable, const void *page,
   *pml4e = PTE(page, flags);
 }
 
-void Pagetable::init() {
-  static const size_t stack_size = 0x1000;
+static void fillPagesEfi(uintptr_t low, uintptr_t top, PTE *pagetable,
+                         const struct EFI::SystemTable *ST, uint8_t flags = 3) {
+  low &= 0xFFFFFFFFFFFFF000;
+  top = klib::__align(top, 0x1000);
+  for (; low < top; low += 0x1000) {
+    printf("SET: %#lx %d\n", low, flags);
+    efiMapPage(pagetable, reinterpret_cast<void*>(low), ST, flags);
+  }
+}
 
-  extern const char __stack_end__[];
-  const char *__stack_start__ = __stack_end__ - stack_size;
+static inline void fillPagesEfi(const void *low, const void *top, PTE *pagetable,
+                                const struct EFI::SystemTable *ST, uint8_t flags = 3) {
+  fillPagesEfi(uintptr_t(low), uintptr_t(top), pagetable, ST, flags);
+}
+
+static inline __attribute__((always_inline)) void newkern_reloc(uintptr_t kernbase) {
+  const char *__text_start__, *__bss_end__;
+  asm volatile(
+      "lea __text_start__(%%rip), %q0;"
+      "lea __bss_end__(%%rip), %q1;"
+      :"=r"(__text_start__), "=r"(__bss_end__));
+  uintptr_t *__VTABLE_START__, *__VTABLE_END__;
+  asm volatile(
+      "lea __VTABLE_START__(%%rip), %q0;"
+      "lea __VTABLE_END__(%%rip), %q1;"
+      :"=r"(__VTABLE_START__), "=r"(__VTABLE_END__));
+
+  ptrdiff_t kernreloc = ptrdiff_t(kernbase) - ptrdiff_t(__text_start__);
+  for (uintptr_t *p = __VTABLE_START__; p < __VTABLE_END__; p++) {
+    if (*p < uintptr_t(__text_start__)) continue;
+    if (*p > uintptr_t(__bss_end__)) continue;
+    uintptr_t *np = p + kernreloc / 8;
+    *np = (*p + uintptr_t(kernreloc));
+  }
+}
+
+static inline __attribute__((always_inline)) void newkern_relocstack(ptrdiff_t kernreloc) {
+  struct stackframe {
+    struct stackframe* rbp;
+    uintptr_t rip;
+  } __attribute__((packed));
+  struct stackframe *frame;
+  asm volatile("mov %%rbp, %q0":"=r"(frame)::);
+  while (frame != nullptr) {
+    frame->rip += uintptr_t(kernreloc);
+    frame = frame->rbp;
+  }
+}
+
+static inline __attribute__((always_inline)) void newkern_reinit() {
+  uintptr_t *__CTOR_LIST__; asm volatile("leaq __CTOR_LIST__(%%rip), %q0":"=r"(__CTOR_LIST__));
+  for (uintptr_t *p = __CTOR_LIST__ + 1; *p != 0; p++) {
+    void (*func)(void) = reinterpret_cast<void(*)(void)>(*p);
+    func();
+  }
+}
+
+void Pagetable::init() {
   extern const char __text_start__[], __text_end__[];
   extern const char __modules_start__[], __modules_end__[];
   extern const char __data_start__[], __data_end__[];
   extern const char __bss_start__[], __bss_end__[];
 
+  const size_t kernsz = size_t(__bss_end__ - __text_start__);
+
   const struct EFI::SystemTable *ST = EFI::getSystemTable();
   Multiboot::Payload *multiboot = Multiboot::getPayload();
-
-  asm volatile("mov %%cr3, %q0":"=r"(pagetable));
 
   // Initialization of pagetables
 
@@ -99,33 +151,59 @@ void Pagetable::init() {
         EFI::getImageHandle(), &EFI::GUID_LoadedImageProtocol,
         reinterpret_cast<void**>(&loaded_image));
 
-    uintptr_t ptbase = RAND::get<uintptr_t>(0x800, 0x10000) << 12;
+    uintptr_t ptbase = RAND::get<uintptr_t>(0x800, 0x8000) << 12;
 
-    pagetable = static_cast<PTE*>(efiAllocatePage(ptbase, ST));
+    char *base; asm volatile("lea __text_start__(%%rip), %q0":"=r"(base));
+
+    PTE *pagetable = static_cast<PTE*>(efiAllocatePage(ptbase, ST));
     efiMapPage(pagetable, nullptr, ST, 0);
     efiMapPage(pagetable, pagetable, ST);
 
     size_t mapSize = 0, entSize = 0;
     uint64_t mapKey = 0;
     uint32_t entVer = 0;
-    EFI::MemoryDescriptor *map = nullptr, *ent;
-
+    EFI::MemoryDescriptor *map = nullptr;
     ST->BootServices->GetMemoryMap(&mapSize, map, &mapKey, &entSize, &entVer);
     map = static_cast<EFI::MemoryDescriptor*>(alloca(mapSize));
     ST->BootServices->GetMemoryMap(&mapSize, map, &mapKey, &entSize, &entVer);
-    for (ent = map;
-        ent < reinterpret_cast<EFI::MemoryDescriptor*>(uintptr_t(map) + mapSize);
-        ent = reinterpret_cast<EFI::MemoryDescriptor*>(uintptr_t(ent) + entSize)) {
-      if (ent->Type == EFI::MEMORY_TYPE_CONVENTIONAL) continue;
-      for (uintptr_t ptr = ent->PhysicalStart;
-          ptr < ent->PhysicalStart + ent->NumberOfPages * 0x1000;
-          ptr += 0x1000) {
-        efiMapPage(pagetable, reinterpret_cast<void*>(ptr), ST);
-      }
-    }
+
+    const char *rsp; asm volatile("mov %%rsp, %q0":"=r"(rsp));
+    efiMapPage(pagetable, rsp, ST);
+    efiMapPage(pagetable, rsp - 0x1000, ST);
+
+    void *newbase = reinterpret_cast<void*>(RAND::get<uintptr_t>(0x8000, 0x10000 - ((kernsz + 0xFFF) / 0x1000)) << 12);
+    ST->BootServices->AllocatePages(EFI::ALLOCATE_TYPE_ADDR, EFI::MEMORY_TYPE_LOADER,
+                                    (kernsz + 0xFFF) >> 12, &newbase);
+    printf("New base: %p => %p\n", base, newbase);
+
+    ptrdiff_t kernreloc = ptrdiff_t(newbase) - ptrdiff_t(__text_start__);
+    Memory::copy(newbase, base, kernsz);
+
+    newkern_reloc(uintptr_t(newbase));
+
+    fillPagesEfi(__text_start__ + kernreloc, __text_end__ + kernreloc, pagetable, ST, 3);
+    fillPagesEfi(__modules_start__ + kernreloc, __modules_end__ + kernreloc, pagetable, ST, 1);
+    fillPagesEfi(__data_start__ + kernreloc, __data_end__ + kernreloc, pagetable, ST);
+    fillPagesEfi(__bss_start__ + kernreloc, __bss_end__ + kernreloc, pagetable, ST);
+
+    DTREG gdtreg = { 0, nullptr };
+    asm volatile("sgdtq (%q0)"::"r"(&gdtreg));
+    efiMapPage(pagetable, gdtreg.addr, ST);
+
     ST->BootServices->ExitBootServices(EFI::getImageHandle(), mapKey);
-    asm volatile("mov %q0, %%cr3"::"r"(pagetable));
+
+    asm volatile(
+        "movq %q1, %%rax;"
+        "addq $1f, %%rax;"
+        "jmpq *%%rax;1:"
+        "mov %q0, %%cr3;"
+        ::"r"(pagetable), "r"(kernreloc) : "rax");
+
+    kernreloc = reinterpret_cast<char*>(newbase) - base;
+    newkern_relocstack(kernreloc);
+    newkern_reinit();
   } else {
+    PTE *pagetable; asm volatile("mov %%cr3, %q0":"=r"(pagetable));
     PTE::find(nullptr, pagetable)->present = 0;
     fillPages(0x1000, 0x3FFFF000, pagetable);
 
@@ -150,20 +228,38 @@ void Pagetable::init() {
     fillPages(0x0C8000, 0x0F0000, newpt);  // Reserved for many systems
     fillPages(0x0F0000, 0x100000, newpt);  // BIOS Code
 
-    fillPages(__stack_start__, __stack_end__, newpt);         // PXOS Stack
-    fillPages(__text_start__, __text_end__, newpt, 1);        // PXOS Code
-    fillPages(__modules_start__, __modules_end__, newpt, 1);  // PXOS Built-in modules
-    fillPages(__data_start__, __data_end__, newpt);           // PXOS Data
-    fillPages(__bss_start__, __bss_end__, newpt);             // PXOS BSS
+    static const size_t stack_size = 0x1000;
+    extern const char __stack_end__[];
+    const char *__stack_start__ = __stack_end__ - stack_size;
+    fillPages(__stack_start__, __stack_end__, newpt);
 
-    if (multiboot)
-      *PTE::find(multiboot, newpt) = PTE { multiboot, 3 };
+    uintptr_t kernbase = RAND::get<uintptr_t>(
+        ((ptbase + (3 + pdpe_num)) >> 12),
+        0x8000 - (kernsz + 0xFFF) / 0x1000) << 12;
 
-    pagetable = newpt;
-    asm volatile("mov %q0, %%cr3"::"r"(pagetable));
+    ptrdiff_t kernreloc = ptrdiff_t(kernbase) - ptrdiff_t(__text_start__);
+    Memory::copy(reinterpret_cast<char*>(kernbase), __text_start__, kernsz);
+
+    newkern_reloc(kernbase);
+
+    fillPages(__text_start__ + kernreloc, __text_end__ + kernreloc, newpt, 3);
+    fillPages(__modules_start__ + kernreloc, __modules_end__ + kernreloc, newpt, 1);
+    fillPages(__data_start__ + kernreloc, __data_end__ + kernreloc, newpt);
+    fillPages(__bss_start__ + kernreloc, __bss_end__ + kernreloc, newpt);
+
+    asm volatile(
+        "movq %q1, %%rax;"
+        "addq $1f, %%rax;"
+        "jmpq *%%rax;1:"
+        "mov %q0, %%cr3;"
+        ::"r"(newpt), "r"(kernreloc) : "rax");
+
+    newkern_relocstack(kernreloc);
+    newkern_reinit();
   }
 
   if (multiboot) {
+    map(multiboot);
     if (multiboot->flags & Multiboot::MB_FLAG_CMDLINE) {
       if (multiboot->pcmdline < 0x80000)
         multiboot->pcmdline += uintptr_t(__bss_end__);
@@ -215,6 +311,7 @@ void Pagetable::init() {
 }
 
 void* Pagetable::map(const void* mem) {
+  PTE *pagetable; asm volatile("mov %%cr3, %q0":"=r"(pagetable));
   uint64_t t = EnterCritical();
   page_mutex.lock();
   uintptr_t i = uintptr_t(mem) >> 12;
@@ -241,6 +338,7 @@ void* Pagetable::map(const void* mem) {
 }
 
 void* Pagetable::_alloc(uint8_t avl, bool nolow) {
+  PTE *pagetable; asm volatile("mov %%cr3, %q0":"=r"(pagetable));
 start:
   void *addr = nullptr;
   PTE *page;
@@ -290,6 +388,7 @@ void* Pagetable::alloc(uint8_t avl) {
 }
 
 void Pagetable::free(void* page) {
+  PTE *pagetable; asm volatile("mov %%cr3, %q0":"=r"(pagetable));
   uint64_t t = EnterCritical();
   page_mutex.lock();
   PTE *pdata = PTE::find(page, pagetable);

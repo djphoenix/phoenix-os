@@ -290,17 +290,18 @@ void Process::startup() {
   while (gdt_ent < gdt_top) {
     uintptr_t base = gdt_ent->getBase();
     size_t limit = gdt_ent->getLimit();
-    if (((gdt_ent->type != 0x9) && (gdt_ent->type != 0xB)) || (limit != sizeof(TSS64_ENT) + 0x2000)) {
+    if (((gdt_ent->type != 0x9) && (gdt_ent->type != 0xB)) || (limit != sizeof(TSS64_ENT) + 0x2000 - 1)) {
       gdt_ent++;
       continue;
     }
+
+    GDT::SystemEntry *sysent = reinterpret_cast<GDT::SystemEntry*>(gdt_ent);
+    base = sysent->getBase();
+
     uintptr_t page = base & KB4;
     addPage(page, reinterpret_cast<void*>(page), 5);
     addPage(page + 0x1000, iomap[0], 5);
     addPage(page + 0x2000, iomap[1], 5);
-
-    GDT::SystemEntry *sysent = reinterpret_cast<GDT::SystemEntry*>(gdt_ent);
-    base = sysent->getBase();
 
     TSS64_ENT *tss = reinterpret_cast<TSS64_ENT*>(base);
     uintptr_t stack = tss->ist[0];

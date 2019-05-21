@@ -312,7 +312,7 @@ void Interrupts::init() {
     ent->iomap_base = sizeof(TSS64_ENT);
 
     gdt->sys_ents[idx] = GDT::SystemEntry(
-        uintptr_t(tss[idx]), sizeof(TSS64_ENT) + 0x2000,
+        uintptr_t(tss[idx]), sizeof(TSS64_ENT) + 0x2000 - 1,
         0x9, 0, 0, 1, 0, 1, 0, 0);
   }
 
@@ -326,14 +326,14 @@ void Interrupts::init() {
       "pushq $8;"
       "lea 1f(%%rip), %%rcx;"
       "pushq %%rcx;"
-      "lgdtq (%q0);"
+      "lgdtq %0;"
       "iretq;"
       "1:"
       "mov %%ss, %%ax;"
       "mov %%ax, %%ds;"
       "mov %%ax, %%es;"
       "mov %%ax, %%gs;"
-      ::"r"(&gdtreg):"rax", "rcx");
+      ::"m"(gdtreg):"rax", "rcx");
 
   uintptr_t addr;
   char *lapic_eoi =
