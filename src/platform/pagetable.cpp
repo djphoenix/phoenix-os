@@ -10,6 +10,7 @@ using PTE = Pagetable::Entry;
 
 Mutex Pagetable::page_mutex;
 uintptr_t Pagetable::last_page = 1;
+void *Pagetable::rsvd_pages[rsvd_num] = { nullptr, nullptr, nullptr, nullptr };
 
 static void fillPages(uintptr_t low, uintptr_t top, PTE *pagetable, uint8_t flags = 3) {
   low &= 0xFFFFFFFFFFFFF000;
@@ -171,6 +172,11 @@ void Pagetable::init() {
     efiMapPage(pagetable, rsp, ST);
     efiMapPage(pagetable, rsp - 0x1000, ST);
 
+    for (size_t i = 0; i < rsvd_num; i++) {
+      ST->BootServices->AllocatePages(EFI::ALLOCATE_TYPE_ANY, EFI::MEMORY_TYPE_DATA, 1, &rsvd_pages[i]);
+      efiMapPage(pagetable, rsvd_pages[i], ST);
+    }
+
     void *newbase = reinterpret_cast<void*>(RAND::get<uintptr_t>(0x8000, 0x10000 - ((kernsz + 0xFFF) / 0x1000)) << 12);
     ST->BootServices->AllocatePages(EFI::ALLOCATE_TYPE_ADDR, EFI::MEMORY_TYPE_LOADER,
                                     (kernsz + 0xFFF) >> 12, &newbase);
@@ -208,9 +214,12 @@ void Pagetable::init() {
     fillPages(0x1000, 0x3FFFF000, pagetable);
 
     static const size_t pdpe_num = 64;
-    static const size_t ptsz = (3 + pdpe_num) * 0x1000;
+    static const size_t ptsz = (3 + pdpe_num + rsvd_num) * 0x1000;
 
-    uintptr_t ptbase = RAND::get<uintptr_t>(0x800, 0x8000 - (3 + pdpe_num)) << 12;
+    uintptr_t ptbase = RAND::get<uintptr_t>(0x800, 0x8000 - (3 + pdpe_num + rsvd_num)) << 12;
+    for (size_t i = 0; i < rsvd_num; i++) {
+      rsvd_pages[i] = reinterpret_cast<void*>(ptbase + (3 + pdpe_num + i) * 0x1000);
+    }
 
     PTE *newpt = reinterpret_cast<PTE*>(ptbase);
     Memory::fill(newpt, 0, ptsz);
@@ -310,28 +319,60 @@ void Pagetable::init() {
   }
 }
 
+void* Pagetable::_getRsvd() {
+  void *addr;
+  for (size_t i = 0; i < rsvd_num; i++) {
+    addr = rsvd_pages[i];
+    if (addr != nullptr) {
+      rsvd_pages[i] = nullptr;
+      return addr;
+    }
+  }
+  printf("OUT OF RSVD\n"); for (;;);
+  return nullptr;
+}
+
+static Mutex renewGuard;
+void Pagetable::_renewRsvd() {
+  if (!renewGuard.try_lock()) return;
+  for (size_t i = 0; i < rsvd_num; i++) {
+    if (rsvd_pages[i] != nullptr) continue;
+    rsvd_pages[i] = _alloc(0, true);
+  }
+  renewGuard.release();
+}
+
+void* Pagetable::_map(const void* mem) {
+  PTE *pagetable; asm volatile("mov %%cr3, %q0":"=r"(pagetable));
+
+  uintptr_t i = uintptr_t(mem) >> 12;
+  uint16_t ptx = (i >> 27) & 0x1FF;
+  uint16_t pdx = (i >> 18) & 0x1FF;
+  uint16_t pdpx = (i >> 9) & 0x1FF;
+  uint16_t pml4x = i & 0x1FF;
+  void *addr = reinterpret_cast<void*>(i << 12);
+
+  PTE *p = PTE::find(addr, pagetable);
+  if (p && p->present) return addr;
+
+  if (!pagetable[ptx].present) pagetable[ptx] = PTE(_getRsvd(), 3);
+  PTE *pde = pagetable[ptx].getPTE();
+  if (!pde[pdx].present) pde[pdx] = PTE(_getRsvd(), 3);
+  PTE *pdpe = pde[pdx].getPTE();
+  if (!pdpe[pdpx].present) pdpe[pdpx] = PTE(_getRsvd(), 3);
+  PTE *pml4e = pdpe[pdpx].getPTE();
+  pml4e[pml4x] = PTE(addr, 3);
+
+  _renewRsvd();
+
+  return addr;
+}
+
 void* Pagetable::map(const void* mem) {
   PTE *pagetable; asm volatile("mov %%cr3, %q0":"=r"(pagetable));
   uint64_t t = EnterCritical();
   page_mutex.lock();
-  uintptr_t i = uintptr_t(mem) >> 12;
-  void *addr = reinterpret_cast<void*>(i << 12);
-  PTE pte = pagetable[(i >> 27) & 0x1FF];
-  if (!pte.present) {
-    pagetable[(i >> 27) & 0x1FF] = pte = PTE(_alloc(0, true), 3);
-  }
-  PTE *pde = pte.getPTE();
-  pte = pde[(i >> 18) & 0x1FF];
-  if (!pte.present) {
-    pde[(i >> 18) & 0x1FF] = pte = PTE(_alloc(0, true), 3);
-  }
-  PTE *pdpe = pte.getPTE();
-  pte = pdpe[(i >> 9) & 0x1FF];
-  if (!pte.present) {
-    pdpe[(i >> 9) & 0x1FF] = pte = PTE(_alloc(0, true), 3);
-  }
-  PTE *page = pte.getPTE();
-  page[i & 0x1FF] = PTE(addr, 3);
+  void *addr = _map(mem);
   page_mutex.release();
   LeaveCritical(t);
   return addr;
@@ -339,41 +380,20 @@ void* Pagetable::map(const void* mem) {
 
 void* Pagetable::_alloc(uint8_t avl, bool nolow) {
   PTE *pagetable; asm volatile("mov %%cr3, %q0":"=r"(pagetable));
-start:
   void *addr = nullptr;
   PTE *page;
   uintptr_t i = last_page - 1;
-  if (nolow && (i < 0x100))
-    i = 0x100;
+  if (nolow && (i < 0x100)) i = 0x100;
   while (i < 0xFFFFFFFFFFFFF000) {
     i++;
     addr = reinterpret_cast<void*>(i << 12);
     page = PTE::find(addr, pagetable);
-    if ((page == nullptr) || !page->present)
-      break;
+    if ((page == nullptr) || !page->present) break;
   }
-  if (!nolow)
-    last_page = i;
-  PTE *pde = pagetable[(i >> 27) & 0x1FF].getPTE();
-  PTE *pdpe = pde[(i >> 18) & 0x1FF].getPTE();
-  PTE *pdpen = pde[((i + 1) >> 18) & 0x1FF].getPTE();
-  page = pdpe[(i >> 9) & 0x1FF].getPTE();
-  if (!pde[((i + 2) >> 18) & 0x1FF].present) {
-    page[i & 0x1FF] = PTE(addr, 3);
-    i++;
-    i++;
-    pde[(i >> 18) & 0x1FF] = PTE(addr, 3);
-    Memory::fill(addr, 0, 0x1000);
-    goto start;
-  }
-  if (!pdpen[((i + 1) >> 9) & 0x1FF].present) {
-    page[i & 0x1FF] = PTE(addr, 3);
-    i++;
-    pdpen[(i >> 9) & 0x1FF] = PTE(addr, 3);
-    Memory::fill(addr, 0, 0x1000);
-    goto start;
-  }
-  page[i & 0x1FF] = PTE(addr, avl, 3);
+  if (!nolow) last_page = i;
+
+  _map(addr);
+  PTE::find(addr, pagetable)->avl = avl;
   Memory::fill(addr, 0, 0x1000);
   return addr;
 }

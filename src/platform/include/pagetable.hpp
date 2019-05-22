@@ -53,15 +53,20 @@ class Pagetable {
 
       return &page[pml4x];
     }
-    static Entry* find(void *addr, Entry *pagetable) {
+    static Entry* find(const void *addr, Entry *pagetable) {
       return find(uintptr_t(addr), pagetable);
     }
   } PACKED;
 
  private:
+  static const size_t rsvd_num = 16;
+  static void* rsvd_pages[rsvd_num];
   static Mutex page_mutex;
   static uint64_t last_page;
   static void* _alloc(uint8_t avl = 0, bool nolow = false);
+  static void* _map(const void* addr);
+  static void* _getRsvd();
+  static void _renewRsvd();
   static void init();
 
  public:
