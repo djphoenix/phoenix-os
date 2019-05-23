@@ -204,8 +204,8 @@ namespace EFI {
     Status EFIAPI(*const GetMemoryMap)(
         uint64_t *MemoryMapSize, MemoryDescriptor *MemoryMap, uint64_t *MapKey, uint64_t *DescriptorSize,
         uint32_t *DescriptorVersion);
-    const void *AllocatePool;
-    const void *FreePool;
+    Status EFIAPI(*const AllocatePool)(MemoryType MemoryType, uint64_t size, void **Address);
+    Status EFIAPI(*const FreePool)(void *Address);
     const void *CreateEvent;
     const void *SetTimer;
     const void *WaitForEvent;

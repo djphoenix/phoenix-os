@@ -135,7 +135,6 @@ void ACPI::ParseApic(const Madt *madt) {
     Pagetable::map(header + 1);
     uint16_t type = header->type;
     uint16_t length = header->length;
-    Pagetable::map(header);
     if (type == 0) {
       const ApicLocalApic *s = reinterpret_cast<const ApicLocalApic*>(p);
       acpiCpuIds[acpiCpuCount++] = s->apicId;
