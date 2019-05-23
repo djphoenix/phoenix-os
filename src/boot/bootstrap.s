@@ -12,8 +12,8 @@ _start:
   .align 4
 multiboot_header:
   .long 0x1BADB002
-  .long 0x00010003
-  .long -(0x1BADB002+0x00010003)
+  .long 0x00010005
+  .long -(0x1BADB002+0x00010005)
 
   .long multiboot_header
   .long __text_start__
@@ -21,6 +21,7 @@ multiboot_header:
   .long __bss_end__ + 0x80000
   .long multiboot_entry
 
+  .long 0, 800, 600, 8
 
 multiboot_entry:
   cli

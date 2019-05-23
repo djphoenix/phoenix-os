@@ -348,6 +348,18 @@ void Pagetable::init() {
         mmap += ent->size + sizeof(ent->size);
       }
     }
+    if (multiboot->flags & Multiboot::FLAG_VBETAB) {
+      if (multiboot->vbe.pcontrol_info < 0x80000)
+        multiboot->vbe.pcontrol_info += bss_end;
+      if (multiboot->vbe.pmode_info < 0x80000)
+        multiboot->vbe.pmode_info += bss_end;
+      Multiboot::VBEInfo *vbe = reinterpret_cast<Multiboot::VBEInfo*>(multiboot->vbe.pcontrol_info);
+      map(vbe); map(vbe+1);
+      const char *vendor = reinterpret_cast<const char*>(vbe->vendor_string);
+      map(vendor);
+      Multiboot::VBEModeInfo *mode = reinterpret_cast<Multiboot::VBEModeInfo*>(multiboot->vbe.pmode_info);
+      map(mode); map(mode + 1);
+    }
   }
 }
 

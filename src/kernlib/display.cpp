@@ -3,6 +3,7 @@
 
 #include "kernlib.hpp"
 #include "efi.hpp"
+#include "multiboot_info.hpp"
 #include "pagetable.hpp"
 #include "font-8x16.hpp"
 
@@ -202,6 +203,16 @@ void Display::setup() {
     }
     instance = new FramebufferDisplay(fb->base, fb->width, fb->height, pixelFormat);
     return;
+  }
+  const struct Multiboot::Payload *mb = Multiboot::getPayload();
+  if (mb && (mb->flags & Multiboot::FLAG_VBETAB)) {
+    const Multiboot::VBEModeInfo *mode = reinterpret_cast<const Multiboot::VBEModeInfo*>(mb->vbe.pmode_info);
+    if (mode && mode->lfb_ptr) {
+      instance = new FramebufferDisplay(
+          reinterpret_cast<void*>(mode->lfb_ptr),
+          mode->h_res, mode->v_res, PixelFormatBGRX);
+      return;
+    }
   }
 
   // Fallback
