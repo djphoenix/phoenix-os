@@ -412,12 +412,8 @@ void* Pagetable::_map(const void* mem) {
 }
 
 void* Pagetable::map(const void* mem) {
-  uint64_t t = EnterCritical();
-  page_mutex.lock();
-  void *addr = _map(mem);
-  page_mutex.release();
-  LeaveCritical(t);
-  return addr;
+  Mutex::CriticalLock lock(page_mutex);
+  return _map(mem);
 }
 
 void* Pagetable::_alloc(uint8_t avl, bool nolow) {
@@ -441,18 +437,13 @@ void* Pagetable::_alloc(uint8_t avl, bool nolow) {
 }
 
 void* Pagetable::alloc(uint8_t avl) {
-  uint64_t t = EnterCritical();
-  page_mutex.lock();
-  void* ret = _alloc(avl);
-  page_mutex.release();
-  LeaveCritical(t);
-  return ret;
+  Mutex::CriticalLock lock(page_mutex);
+  return _alloc(avl);
 }
 
 void Pagetable::free(void* page) {
   PTE *pagetable; asm volatile("mov %%cr3, %q0":"=r"(pagetable));
-  uint64_t t = EnterCritical();
-  page_mutex.lock();
+  Mutex::CriticalLock lock(page_mutex);
   PTE *pdata = PTE::find(page, pagetable);
   if ((pdata != nullptr) && pdata->present) {
     pdata->present = 0;
@@ -460,6 +451,4 @@ void Pagetable::free(void* page) {
     if ((uintptr_t(addr) >> 12) < last_page)
       last_page = uintptr_t(addr) >> 12;
   }
-  page_mutex.release();
-  LeaveCritical(t);
 }

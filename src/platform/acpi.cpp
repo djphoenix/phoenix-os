@@ -12,12 +12,8 @@ ACPI* ACPI::controller = nullptr;
 
 ACPI* ACPI::getController() {
   if (controller) return controller;
-  uint64_t t = EnterCritical();
-  controllerMutex.lock();
-  if (!controller)
-    controller = new ACPI();
-  controllerMutex.release();
-  LeaveCritical(t);
+  Mutex::CriticalLock lock(controllerMutex);
+  if (!controller) controller = new ACPI();
   return controller;
 }
 

@@ -223,8 +223,9 @@ void Interrupts::print(uint8_t num, CallbackRegs *regs, uint32_t code, const Pro
 
 uint64_t __attribute__((sysv_abi)) Interrupts::handle(
     unsigned char intr, uint64_t stack, uint64_t *pagetable) {
-  fault.lock();
-  fault.release();
+  {
+    Mutex::Lock lock(fault);
+  }
   uint64_t *rsp = reinterpret_cast<uint64_t*>(stack);
   bool has_code = (intr < 0x20) && FAULTS[intr].has_error_code;
   uint32_t error_code = 0;
@@ -252,10 +253,11 @@ uint64_t __attribute__((sysv_abi)) Interrupts::handle(
   size_t idx = 0;
   Callback *cb;
   for (;;) {
-    callback_locks[intr].lock();
-    cb = (callbacks[intr].getCount() > idx) ? callbacks[intr][idx] : nullptr;
-    idx++;
-    callback_locks[intr].release();
+    {
+      Mutex::Lock lock(callback_locks[intr]);
+      cb = (callbacks[intr].getCount() > idx) ? callbacks[intr][idx] : nullptr;
+      idx++;
+    }
     if (cb == nullptr) break;
     handled = cb(intr, error_code, &cb_regs);
     if (handled) break;
@@ -402,9 +404,6 @@ uint16_t Interrupts::getIRQmask() {
 }
 
 void Interrupts::addCallback(uint8_t intr, Callback* cb) {
-  uint64_t t = EnterCritical();
-  callback_locks[intr].lock();
+  Mutex::CriticalLock lock(callback_locks[intr]);
   callbacks[intr].add(cb);
-  callback_locks[intr].release();
-  LeaveCritical(t);
 }

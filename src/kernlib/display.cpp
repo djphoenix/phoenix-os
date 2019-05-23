@@ -42,16 +42,12 @@ class ConsoleDisplay: public Display {
     clean();
   }
   void write(const char *str) {
-    uint64_t t = EnterCritical();
-    mutex.lock();
+    Mutex::CriticalLock lock(mutex);
     while (*str != 0) putc(*(str++));
-    mutex.release();
-    LeaveCritical(t);
   }
   void clean() {
-    mutex.lock();
+    Mutex::Lock lock(mutex);
     Memory::fill(base, 0, size);
-    mutex.release();
   }
 };
 
@@ -132,16 +128,12 @@ class FramebufferDisplay: public Display {
     clean();
   }
   void write(const char *str) {
-    uint64_t t = EnterCritical();
-    mutex.lock();
+    Mutex::CriticalLock lock(mutex);
     while (*str != 0) putc(*(str++));
-    mutex.release();
-    LeaveCritical(t);
   }
   void clean() {
-    mutex.lock();
+    Mutex::Lock lock(mutex);
     Memory::zero(framebuffer, bufferSize());
-    mutex.release();
   }
 };
 
@@ -164,12 +156,9 @@ class SerialDisplay: public Display {
     Port<port + 3>::out<uint8_t>(0x03);
   }
   void write(const char *str) {
-    uint64_t t = EnterCritical();
-    mutex.lock();
+    Mutex::CriticalLock lock(mutex);
     char c;
     while ((c = *str++) != 0) Port<port>::out(uint8_t(c));
-    mutex.release();
-    LeaveCritical(t);
   }
   void clean() {}
 };
@@ -221,11 +210,8 @@ void Display::setup() {
 
 Display *Display::getInstance() {
   if (instance) return instance;
-  uint64_t t = EnterCritical();
-  instanceMutex.lock();
+  Mutex::CriticalLock lock(instanceMutex);
   if (!instance) setup();
-  instanceMutex.release();
-  LeaveCritical(t);
   return instance;
 }
 

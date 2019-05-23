@@ -20,8 +20,7 @@ void SMP::setup() {
   Interrupts::loadVector();
   ACPI::getController()->activateCPU();
   Syscall::setup();
-  startupMutex.lock();
-  startupMutex.release();
+  Mutex::Lock lock(startupMutex);
 }
 
 void SMP::startup() {
@@ -78,23 +77,22 @@ void SMP::init() {
   if (nullcpus > 0)
     nullcpus--;
 
-  startupMutex.lock();
-
-  for (uint32_t i = 0; i < cpuCount; i++) {
-    if (info->cpuids[i] != localId) {
-      acpi->sendCPUInit(uint32_t(info->cpuids[i]));
-    }
-  }
-  while (cpuCount - nullcpus != acpi->getActiveCPUCount()) {
+  {
+    Mutex::Lock lock(startupMutex);
     for (uint32_t i = 0; i < cpuCount; i++) {
       if (info->cpuids[i] != localId) {
-        acpi->sendCPUStartup(uint32_t(info->cpuids[i]), smp_init_vector);
+        acpi->sendCPUInit(uint32_t(info->cpuids[i]));
       }
     }
-    asm volatile("hlt");
+    while (cpuCount - nullcpus != acpi->getActiveCPUCount()) {
+      for (uint32_t i = 0; i < cpuCount; i++) {
+        if (info->cpuids[i] != localId) {
+          acpi->sendCPUStartup(uint32_t(info->cpuids[i]), smp_init_vector);
+        }
+      }
+      asm volatile("hlt");
+    }
   }
-
-  startupMutex.release();
 
   delete info->cpuids;
   delete info->stacks;

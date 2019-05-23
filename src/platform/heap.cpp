@@ -28,12 +28,10 @@ Mutex Heap::heap_mutex;
 void* Heap::alloc(size_t size, size_t align) {
   if (size == 0)
     return nullptr;
-  heap_mutex.lock();
+  Mutex::Lock lock(heap_mutex);
 
-  if (!heap_pages)
-    heap_pages = reinterpret_cast<HeapPage*>(Pagetable::alloc());
-  if (!allocs)
-    allocs = reinterpret_cast<AllocTable*>(Pagetable::alloc());
+  if (!heap_pages) heap_pages = reinterpret_cast<HeapPage*>(Pagetable::alloc());
+  if (!allocs) allocs = reinterpret_cast<AllocTable*>(Pagetable::alloc());
 
   uintptr_t ptr = 0, ptr_top;
 
@@ -123,7 +121,6 @@ next_page:
     table = table->next;
   }
 done:
-  heap_mutex.release();
 
   void *a = reinterpret_cast<void*>(ptr);
   Memory::zero(a, size);
@@ -131,51 +128,47 @@ done:
   return a;
 }
 void Heap::free(void* addr) {
-  if (addr == nullptr)
-    return;
-  heap_mutex.lock();
+  if (addr == nullptr) return;
+  Mutex::Lock lock(heap_mutex);
   AllocTable *t = allocs;
   while (1) {
     for (int i = 0; i < 255; i++) {
       if (t->allocs[i].addr == addr) {
         t->allocs[i].addr = nullptr;
         t->allocs[i].size = 0;
-        goto end;
+        return;
       }
     }
-    if (t->next == nullptr)
-      goto end;
+    if (t->next == nullptr) return;
     t = t->next;
   }
-  end: heap_mutex.release();
 }
 void *Heap::realloc(void *addr, size_t size, size_t align) {
   if (size == 0) {
     free(addr);
     return nullptr;
   }
-  if (addr == nullptr)
-    return alloc(size, align);
-  heap_mutex.lock();
-  AllocTable *t = allocs;
+  if (addr == nullptr) return alloc(size, align);
   size_t oldsize = 0;
-  while (t != nullptr) {
-    for (int i = 0; i < 255; i++) {
-      if (t->allocs[i].addr == addr) {
-        oldsize = t->allocs[i].size;
-        if (oldsize >= size) {
-          t->allocs[i].size = size;
-          heap_mutex.release();
-          return addr;
+  {
+    Mutex::Lock lock(heap_mutex);
+    AllocTable *t = allocs;
+    while (t != nullptr) {
+      for (int i = 0; i < 255; i++) {
+        if (t->allocs[i].addr == addr) {
+          oldsize = t->allocs[i].size;
+          if (oldsize >= size) {
+            t->allocs[i].size = size;
+            return addr;
+          }
+          break;
         }
-        break;
       }
+      if (oldsize != 0)
+        break;
+      t = t->next;
     }
-    if (oldsize != 0)
-      break;
-    t = t->next;
   }
-  heap_mutex.release();
   if (oldsize == 0)
     return nullptr;
   void *newptr = alloc(size, align);

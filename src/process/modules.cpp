@@ -191,9 +191,7 @@ void ModuleManager::init() {
 
 ModuleManager* ModuleManager::getManager() {
   if (manager) return manager;
-  managerMutex.lock();
-  if (!manager)
-    manager = new ModuleManager();
-  managerMutex.release();
+  Mutex::Lock lock(managerMutex);
+  if (!manager) manager = new ModuleManager();
   return manager;
 }

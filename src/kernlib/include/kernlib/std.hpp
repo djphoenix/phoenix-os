@@ -25,6 +25,12 @@ namespace klib {
   int strncmp(const char*, const char*, int) PURE;
   int strcmp(const char*, const char*) PURE;
 
+  inline static uint64_t rdtsc() {
+    uint32_t eax, edx;
+    asm volatile("rdtsc":"=a"(eax), "=d"(edx));
+    return ((uint64_t(edx) << 32) | eax);
+  }
+
   inline static uintptr_t __align(uintptr_t base, size_t align) {
     if (base % align == 0)
       return base;

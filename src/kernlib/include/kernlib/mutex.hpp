@@ -4,9 +4,29 @@
 #pragma once
 #include "std.hpp"
 
+class CriticalSection {
+ private:
+  uint64_t flags;
+
+ public:
+  inline static uint64_t __attribute__((always_inline)) enter() {
+    uint64_t flags;
+    asm volatile("pushfq; cli; pop %q0":"=r"(flags));
+    return flags;
+  }
+
+  inline static void leave(uint64_t flags) {
+    asm volatile("push %q0; popfq"::"r"(flags));
+  }
+
+  CriticalSection() : flags(enter()) {}
+  ~CriticalSection() { leave(flags); }
+};
+
 class Mutex {
  private:
   bool state;
+
  public:
   Mutex(): state(0) {}
   inline void lock() {
@@ -28,4 +48,20 @@ class Mutex {
   inline void release() {
     asm volatile("movw $0, %0"::"m"(state));
   }
+  class Lock {
+   private:
+    Mutex *mutex;
+   public:
+    explicit Lock(Mutex *mutex) : mutex(mutex) { mutex->lock(); }
+    explicit Lock(Mutex &mutex) : Lock(&mutex) {}
+    ~Lock() { mutex->release(); }
+  };
+  class CriticalLock: public CriticalSection {
+   private:
+    Mutex *mutex;
+   public:
+    explicit CriticalLock(Mutex *mutex) : mutex(mutex) { mutex->lock(); }
+    explicit CriticalLock(Mutex &mutex) : CriticalLock(&mutex) {}
+    ~CriticalLock() { mutex->release(); }
+  };
 };
