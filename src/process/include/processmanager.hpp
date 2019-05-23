@@ -16,7 +16,7 @@ class ProcessManager {
   };
 
   static Mutex managerMutex;
-  static ProcessManager* manager;
+  static volatile ProcessManager* manager;
 
   ProcessManager();
   QueuedThread *nextThread, *lastThread;

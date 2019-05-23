@@ -8,13 +8,13 @@
 #include "pagetable.hpp"
 
 Mutex ACPI::controllerMutex;
-ACPI* ACPI::controller = nullptr;
+volatile ACPI* ACPI::controller = nullptr;
 
 ACPI* ACPI::getController() {
-  if (controller) return controller;
+  if (controller) return const_cast<ACPI*>(controller);
   Mutex::CriticalLock lock(controllerMutex);
   if (!controller) controller = new ACPI();
-  return controller;
+  return const_cast<ACPI*>(controller);
 }
 
 ACPI::ACPI() {
@@ -29,7 +29,7 @@ ACPI::ACPI() {
   ioApicAddr = nullptr;
 
   const uint64_t *ptr = nullptr;
-  if (!ptr && (ptr = static_cast<const uint64_t*>(EFI::getACPI2Addr()))) {
+  if (nullptr != (ptr = static_cast<const uint64_t*>(EFI::getACPI2Addr()))) {
     Pagetable::map(ptr);
     Pagetable::map(ptr + 1);
     if ((*ptr != ACPI_SIG_RTP_DSR) || !ParseRsdp(ptr)) ptr = nullptr;

@@ -170,7 +170,7 @@ const size_t ConsoleDisplay::size = ConsoleDisplay::top - ConsoleDisplay::base;
 static Display *getSerialDisplay();
 
 static SerialDisplay serialConsole;
-Display *Display::instance = getSerialDisplay();
+volatile Display *Display::instance = getSerialDisplay();
 Mutex Display::instanceMutex;
 
 static Display *getSerialDisplay() { return &serialConsole; }
@@ -209,10 +209,10 @@ void Display::setup() {
 }
 
 Display *Display::getInstance() {
-  if (instance) return instance;
+  if (instance) return const_cast<Display*>(instance);
   Mutex::CriticalLock lock(instanceMutex);
   if (!instance) setup();
-  return instance;
+  return const_cast<Display*>(instance);
 }
 
 Display::~Display() {}

@@ -8,7 +8,7 @@
 class Display {
  private:
   static Mutex instanceMutex;
-  static Display *instance;
+  static volatile Display *instance;
   static void setup();
  protected:
   Mutex mutex;

@@ -13,13 +13,13 @@ void __attribute((naked)) ProcessManager::process_loop() {
 }
 
 Mutex ProcessManager::managerMutex;
-ProcessManager* ProcessManager::manager = nullptr;
+volatile ProcessManager* ProcessManager::manager = nullptr;
 
 ProcessManager* ProcessManager::getManager() {
-  if (manager) return manager;
+  if (manager) return const_cast<ProcessManager*>(manager);
   Mutex::CriticalLock lock(managerMutex);
   if (!manager) manager = new ProcessManager();
-  return manager;
+  return const_cast<ProcessManager*>(manager);
 }
 
 ProcessManager::ProcessManager() {

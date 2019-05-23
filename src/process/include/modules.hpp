@@ -12,7 +12,7 @@ class ModuleManager {
     char *name, *version, *description, *requirements, *developer;
   };
   static Mutex managerMutex;
-  static ModuleManager* manager;
+  static volatile ModuleManager* manager;
   void parseInternal();
   void parseInitRD();
   void loadStream(Stream *stream);

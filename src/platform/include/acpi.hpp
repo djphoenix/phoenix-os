@@ -105,7 +105,7 @@ class ACPI {
 
  private:
   static Mutex controllerMutex;
-  static ACPI *controller;
+  static volatile ACPI *controller;
 
   char *localApicAddr, *ioApicAddr;
   uint8_t ioApicMaxCount;

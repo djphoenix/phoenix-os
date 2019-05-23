@@ -6,6 +6,7 @@
 #include "readelf.hpp"
 #include "multiboot_info.hpp"
 
+volatile ModuleManager* ModuleManager::manager = nullptr;
 Mutex ModuleManager::managerMutex;
 
 bool ModuleManager::parseModuleInfo(ModuleInfo *info, Process *process) {
@@ -122,7 +123,6 @@ bool ModuleManager::bindRequirements(const char *reqs, Process *process) {
   return 1;
 }
 
-ModuleManager* ModuleManager::manager = nullptr;
 void ModuleManager::loadStream(Stream *stream) {
   Stream *sub = stream;
   Process *process;
@@ -190,8 +190,8 @@ void ModuleManager::init() {
 }
 
 ModuleManager* ModuleManager::getManager() {
-  if (manager) return manager;
+  if (manager) return const_cast<ModuleManager*>(manager);
   Mutex::Lock lock(managerMutex);
   if (!manager) manager = new ModuleManager();
-  return manager;
+  return const_cast<ModuleManager*>(manager);
 }
