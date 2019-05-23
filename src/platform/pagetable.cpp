@@ -297,29 +297,29 @@ void Pagetable::init() {
     map(multiboot);
     uintptr_t bss_end; asm volatile("lea __bss_end__(%%rip), %q0":"=r"(bss_end));
 
-    if (multiboot->flags & Multiboot::MB_FLAG_MEM) {
-      max_page = ((uintptr_t(multiboot->mem_upper) * 1024) + 0x100000lu) >> 12;
+    if (multiboot->flags & Multiboot::FLAG_MEM) {
+      max_page = ((multiboot->mem.upper * 1024) + 0x100000lu) >> 12;
     }
-    if (multiboot->flags & Multiboot::MB_FLAG_CMDLINE) {
+    if (multiboot->flags & Multiboot::FLAG_CMDLINE) {
       if (multiboot->pcmdline < 0x80000)
         multiboot->pcmdline += bss_end;
       map(reinterpret_cast<void*>(uintptr_t(multiboot->pcmdline)));
     }
-    if (multiboot->flags & Multiboot::MB_FLAG_MODS) {
-      if (multiboot->pmods_addr < 0x80000)
-        multiboot->pmods_addr += bss_end;
+    if (multiboot->flags & Multiboot::FLAG_MODS) {
+      if (multiboot->mods.paddr < 0x80000)
+        multiboot->mods.paddr += bss_end;
 
-      uintptr_t low = uintptr_t(multiboot->pmods_addr) & 0xFFFFFFFFFFFFF000;
+      uintptr_t low = uintptr_t(multiboot->mods.paddr) & 0xFFFFFFFFFFFFF000;
       uintptr_t top = klib::__align(
-          uintptr_t(multiboot->pmods_addr) +
-          multiboot->mods_count * sizeof(Multiboot::Module),
+          uintptr_t(multiboot->mods.paddr) +
+          multiboot->mods.count * sizeof(Multiboot::Module),
           0x1000);
       for (uintptr_t addr = low; addr < top; addr += 0x1000)
         map(reinterpret_cast<void*>(addr));
 
       const Multiboot::Module *mods =
-          reinterpret_cast<Multiboot::Module*>(uintptr_t(multiboot->pmods_addr));
-      for (uint32_t i = 0; i < multiboot->mods_count; i++) {
+          reinterpret_cast<Multiboot::Module*>(uintptr_t(multiboot->mods.paddr));
+      for (uint32_t i = 0; i < multiboot->mods.count; i++) {
         uintptr_t low = mods[i].start;
         uintptr_t top = klib::__align(mods[i].end, 0x1000);
         for (uintptr_t addr = low; addr < top; addr += 0x1000)
@@ -327,20 +327,23 @@ void Pagetable::init() {
       }
     }
 
-    if (multiboot->flags & Multiboot::MB_FLAG_MEMMAP) {
-      if (multiboot->pmmap_addr < 0x80000)
-        multiboot->pmmap_addr += bss_end;
+    if (multiboot->flags & Multiboot::FLAG_MEMMAP) {
+      if (multiboot->mmap.paddr < 0x80000)
+        multiboot->mmap.paddr += bss_end;
 
-      const char *mmap = reinterpret_cast<const char*>(uintptr_t(multiboot->pmmap_addr));
-      const char *mmap_top = mmap + multiboot->mmap_length;
+      max_page = 0;
+      const char *mmap = reinterpret_cast<const char*>(uintptr_t(multiboot->mmap.paddr));
+      const char *mmap_top = mmap + multiboot->mmap.size;
       while (mmap < mmap_top) {
         const Multiboot::MmapEnt *ent = reinterpret_cast<const Multiboot::MmapEnt*>(mmap);
         map(ent);
+        uintptr_t low = uintptr_t(ent->base) & 0xFFFFFFFFFFFFF000;
+        uintptr_t top = klib::__align(uintptr_t(ent->base) + ent->length, 0x1000);
         if (ent->type != 1) {
-          uintptr_t low = uintptr_t(ent->base) & 0xFFFFFFFFFFFFF000;
-          uintptr_t top = klib::__align(uintptr_t(ent->base) + ent->length, 0x1000);
           for (uintptr_t addr = low; addr < top; addr += 0x1000)
             map(reinterpret_cast<void*>(addr));
+        } else {
+          max_page = klib::max(max_page, top >> 12);
         }
         mmap += ent->size + sizeof(ent->size);
       }

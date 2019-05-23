@@ -172,10 +172,10 @@ void ModuleManager::parseInternal() {
 }
 void ModuleManager::parseInitRD() {
   Multiboot::Payload *multiboot = Multiboot::getPayload();
-  if (!multiboot || (multiboot->flags & Multiboot::MB_FLAG_MODS) == 0) return;
+  if (!multiboot || (multiboot->flags & Multiboot::FLAG_MODS) == 0) return;
   const Multiboot::Module *mods =
-      reinterpret_cast<const Multiboot::Module*>(uintptr_t(multiboot->pmods_addr));
-  for (uint32_t i = 0; i < multiboot->mods_count; i++) {
+      reinterpret_cast<const Multiboot::Module*>(uintptr_t(multiboot->mods.paddr));
+  for (uint32_t i = 0; i < multiboot->mods.count; i++) {
     const char *base = reinterpret_cast<const char*>(uintptr_t(mods[i].start));
     const char *top = reinterpret_cast<const char*>(uintptr_t(mods[i].end));
     size_t length = size_t(top - base);
