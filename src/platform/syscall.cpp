@@ -17,11 +17,14 @@ static void syscall_puts(uintptr_t strptr) {
 static void syscall_exit(int code) {
   ProcessManager *manager = ProcessManager::getManager();
   Process *process = manager->currentProcess();
+  void *rsp; asm volatile("mov %%rsp, %q0; and $~0xFFF, %q0":"=r"(rsp));
+  Pagetable::Entry *pt; asm volatile("mov %%cr3, %q0":"=r"(pt));
+  Pagetable::Entry *pte = Pagetable::Entry::find(rsp, pt);
   asm volatile(
       "callq _ZN7Process4exitEi;"
-      "sti;"
+      "sti; movq $0, %q2;"
       "jmp _ZN14ProcessManager12process_loopEv"
-      ::"D"(process), "S"(code)
+      ::"D"(process), "S"(code), "a"(pte)
       );
 }
 

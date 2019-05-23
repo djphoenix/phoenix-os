@@ -16,6 +16,7 @@ Process::Process() {
   _aslrStack = RAND::get<uintptr_t>(0x40000000llu, 0x80000000llu) << 12;
 }
 Process::~Process() {
+  void *rsp; asm volatile("mov %%rsp, %q0; and $~0xFFF, %q0":"=r"(rsp));
   if (pagetable != nullptr) {
     PTE addr;
     for (uintptr_t ptx = 0; ptx < 512; ptx++) {
@@ -38,10 +39,11 @@ Process::~Process() {
             if (!addr.present)
               continue;
             void *page = addr.getPtr();
-            if (uintptr_t(page) == ((ptx << (12 + 9 + 9 + 9))
+            uintptr_t ptaddr = ((ptx << (12 + 9 + 9 + 9))
                 | (pdx << (12 + 9 + 9))
-                | (pdpx << (12 + 9)) | (pml4x << (12))))
-              continue;
+                | (pdpx << (12 + 9)) | (pml4x << (12)));
+            if (page == rsp) continue;
+            if (uintptr_t(page) == ptaddr) continue;
             Pagetable::free(page);
           }
           Pagetable::free(ppml4e);
