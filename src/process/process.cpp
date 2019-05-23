@@ -251,11 +251,11 @@ void Process::startup() {
   static const uintptr_t KB4 = 0xFFFFFFFFFFFFF000;
   for (uintptr_t addr = uintptr_t(gdt.addr) & KB4;
       addr < (uintptr_t(gdt.addr) + gdt.limit); addr += 0x1000) {
-    addPage(addr, reinterpret_cast<void*>(addr), 5);
+    addPage(addr, reinterpret_cast<void*>(addr), 1);
   }
   for (uintptr_t addr = uintptr_t(idt.addr) & KB4;
       addr < (uintptr_t(idt.addr) + idt.limit); addr += 0x1000) {
-    addPage(addr, reinterpret_cast<void*>(addr), 5);
+    addPage(addr, reinterpret_cast<void*>(addr), 1);
   }
   Interrupts::REC64 *recs = static_cast<Interrupts::REC64*>(idt.addr);
   uintptr_t page = 0;
@@ -265,7 +265,7 @@ void Process::startup() {
         | (uintptr_t(recs[i].offset_high) << 32));
     if (page != (handler & KB4)) {
       page = handler & KB4;
-      addPage(page, reinterpret_cast<void*>(page), 5);
+      addPage(page, reinterpret_cast<void*>(page), 1);
     }
   }
   uintptr_t handler, sc_wrapper;
@@ -273,8 +273,8 @@ void Process::startup() {
   asm volatile("lea _ZN7Syscall7wrapperEv(%%rip), %q0":"=r"(sc_wrapper));
   handler &= KB4;
   sc_wrapper &= KB4;
-  addPage(handler, reinterpret_cast<void*>(handler), 5);
-  addPage(sc_wrapper, reinterpret_cast<void*>(sc_wrapper), 5);
+  addPage(handler, reinterpret_cast<void*>(handler), 1);
+  addPage(sc_wrapper, reinterpret_cast<void*>(sc_wrapper), 1);
   GDT::Entry *gdt_ent = reinterpret_cast<GDT::Entry*>(uintptr_t(gdt.addr) + 8 * 3);
   GDT::Entry *gdt_top = reinterpret_cast<GDT::Entry*>(uintptr_t(gdt.addr) + gdt.limit);
 
@@ -299,14 +299,14 @@ void Process::startup() {
     base = sysent->getBase();
 
     uintptr_t page = base & KB4;
-    addPage(page, reinterpret_cast<void*>(page), 5);
-    addPage(page + 0x1000, iomap[0], 5);
-    addPage(page + 0x2000, iomap[1], 5);
+    addPage(page, reinterpret_cast<void*>(page), 1);
+    addPage(page + 0x1000, iomap[0], 1);
+    addPage(page + 0x2000, iomap[1], 1);
 
     TSS64_ENT *tss = reinterpret_cast<TSS64_ENT*>(base);
     uintptr_t stack = tss->ist[0];
     page = stack - 0x1000;
-    addPage(page, reinterpret_cast<void*>(page), 5);
+    addPage(page, reinterpret_cast<void*>(page), 3);
     gdt_ent = reinterpret_cast<GDT::Entry*>(sysent + 1);
   }
 
