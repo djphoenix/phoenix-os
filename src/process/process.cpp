@@ -8,13 +8,15 @@
 
 using PTE = Pagetable::Entry;
 
-Process::Process() {
-  id = size_t(-1);
-  pagetable = nullptr;
-  entry = 0;
-  _aslrCode = RAND::get<uintptr_t>(0x80000000llu, 0x100000000llu) << 12;
-  _aslrStack = RAND::get<uintptr_t>(0x40000000llu, 0x80000000llu) << 12;
+Process::Process() :
+    id(uint64_t(-1)), entry(0),
+    _aslrCode(RAND::get<uintptr_t>(0x80000000llu, 0x100000000llu) << 12),
+    _aslrStack(RAND::get<uintptr_t>(0x40000000llu, 0x80000000llu) << 12),
+    _syscallPage(0), _syscallNum(0),
+    pagetable(nullptr) {
+  iomap[0] = iomap[1] = nullptr;
 }
+
 Process::~Process() {
   void *rsp; asm volatile("mov %%rsp, %q0; and $~0xFFF, %q0":"=r"(rsp));
   if (pagetable != nullptr) {
@@ -143,30 +145,32 @@ uintptr_t Process::getSymbolByName(const char* name) {
   }
   return 0;
 }
+struct SyscallEntry {
+  const uint8_t _pre[2] = {
+    // movabsq ..., %rax
+    0x48, 0xb8,
+  };
+  const uint64_t syscall_id;
+  const uint8_t _post[3] = {
+    // syscallq; ret
+    0x0f, 0x05, 0xc3,
+  };
+
+  explicit SyscallEntry(uint64_t idx) : syscall_id(idx) {}
+} PACKED;
 uintptr_t Process::linkLibrary(const char* funcname) {
   uintptr_t ptr = getSymbolByName(funcname);
   if (ptr != 0) return ptr;
 
   uint64_t syscall_id;
   if ((syscall_id = Syscall::callByName(funcname)) != 0) {
-    struct {
-      uint8_t sbp[4];
-      uint8_t pushac11[4];
-      uint8_t movabs[2];
-      uint64_t syscall_id;
-      uint8_t syscall[2];
-      uint8_t popac11b[5];
-      uint8_t ret;
-    } PACKED call = {
-      { 0x55, 0x48, 0x89, 0xe5 },
-      { 0x50, 0x51, 0x41, 0x53 },
-      { 0x48, 0xb8 },
-      syscall_id,
-      { 0x0f, 0x05 },
-      { 0x41, 0x5b, 0x59, 0x58, 0x5d },
-      0xc3
-    };
-    ptr = addSection(SectionTypeCode, sizeof(call));
+    static const constexpr size_t countInPage = 0x1000 / sizeof(SyscallEntry);
+    if (_syscallPage == 0 || _syscallNum == countInPage) {
+      _syscallPage = addSection(SectionTypeCode, sizeof(SyscallEntry) * countInPage);
+      _syscallNum = 0;
+    }
+    struct SyscallEntry call(syscall_id);
+    ptr = _syscallPage + (_syscallNum++) * sizeof(SyscallEntry);
     writeData(ptr, &call, sizeof(call));
     addSymbol(funcname, ptr);
   }

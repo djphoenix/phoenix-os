@@ -28,7 +28,8 @@ class Process {
   List<ProcessSymbol> symbols;
   uintptr_t entry;
   Pagetable::Entry* addPage(uintptr_t vaddr, void* paddr, uint8_t flags);
-  uintptr_t _aslrCode, _aslrStack;
+  uintptr_t _aslrCode, _aslrStack, _syscallPage;
+  size_t _syscallNum;
   void *iomap[2];
 
  public:

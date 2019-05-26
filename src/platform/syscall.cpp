@@ -69,56 +69,51 @@ uint64_t Syscall::callByName(const char *name) {
 void __attribute((naked)) Syscall::wrapper() {
   asm volatile(
       // Save registers
-      "push %rax;"
-      "push %rcx;"
-      "push %rdx;"
       "push %rbx;"
-      "push %rbp;"
-      "push %rsi;"
-      "push %rdi;"
-      "push %r8;"
-      "push %r9;"
-      "push %r10;"
       "push %r11;"
       "push %r12;"
       "push %r13;"
       "push %r14;"
       "push %r15;"
 
-      // Save pagetable & stack
-      "mov %cr3, %rax; mov %rsp, %rbx; push %rax; push %rbx;"
+      // Save pagetable
+      "mov %cr3, %rbx;"
 
       // Set stack to absolute address
-      "sub $16, %rbx; ror $48, %rbx;"
-      "mov $4, %rcx;"
-      "1:"
-      "rol $9, %rbx;"
-      "mov %rbx, %rdx;"
-      "and $0x1FF, %rdx;"
-      "mov (%rax,%rdx,8), %rax;"
-      "and $~0xFFF, %rax; btr $63, %rax;"
-      "loop 1b;"
-      "rol $12, %rbx; and $0xFFF, %rbx; add %rax, %rbx; mov %rbx, %rsp;"
+      "mov %rsp, %r12; shr $39, %r12; and $0x1FF, %r12;" // r12 = ptx
+      "mov (%rbx,%r12,8), %r13; and $~0xFFF, %r13; btr $63, %r13;" // rbx = pt, r12 = pte
+
+      "mov %rsp, %r12; shr $30, %r12; and $0x1FF, %r12;" // r12 = pdx
+      "mov (%r13,%r12,8), %r13; and $~0xFFF, %r13; btr $63, %r13;" // r13 = pde
+
+      "mov %rsp, %r12; shr $21, %r12; and $0x1FF, %r12;" // r12 = pdpx
+      "mov (%r13,%r12,8), %r13; and $~0xFFF, %r13; btr $63, %r13;" // r13 = pdpe
+
+      "mov %rsp, %r12; shr $12, %r12; and $0x1FF, %r12;" // r12 = pml4x
+      "mov (%r13,%r12,8), %r13; and $~0xFFF, %r13; btr $63, %r13;" // r13 = pml4e
+
+      // Save stack
+      "mov %rsp, %r12;"
+      "mov %rsp, %r14; and $0xFFF, %r14; add %r14, %r13; mov %r13, %rsp;"
 
       // Set kernel pagetable
-      "_wrapper_mov_cr3: movabsq $0, %rax; mov %rax, %cr3;"
+      "_wrapper_mov_cr3: movabsq $0, %r13; mov %r13, %cr3;"
 
       // Find syscall handler
-      "mov 128(%rsp), %rdx;"
-      "lea _ZL11syscall_map(%rip), %rax;"
+      "lea _ZL11syscall_map(%rip), %r13;"
       "1:"
-      "cmp %rdx, (%rax);"
+      "cmp %rax, (%r13);"
       "je 1f;"
-      "cmpq $0, (%rax);"
+      "cmpq $0, (%r13);"
       "je 2f;"
-      "add $16, %rax;"
+      "add $16, %r13;"
       "jmp 1b;"
-      "1: mov 8(%rax), %rax; callq *%rax; jmp 3f;"
-      "2: ud2;"
-      "3:"
+
+      "1:"
+      "mov %rcx, %r14; callq *8(%r13); mov %r14, %rcx;"
 
       // Restore process stack & pagetable
-      "pop %rcx; pop %rax; mov %rcx, %rsp; mov %rax, %cr3;"
+      "mov %r12, %rsp; mov %rbx, %cr3;"
 
       // Restore registers
       "pop %r15;"
@@ -126,26 +121,16 @@ void __attribute((naked)) Syscall::wrapper() {
       "pop %r13;"
       "pop %r12;"
       "pop %r11;"
-      "pop %r10;"
-      "pop %r9;"
-      "pop %r8;"
-      "pop %rdi;"
-      "pop %rsi;"
-      "pop %rbp;"
       "pop %rbx;"
-      "pop %rdx;"
-      "pop %rcx;"
-      "pop %rax;"
 
       // Return to ring3
       "sysretq;"
+      "2: ud2;"
   );
 }
 
 void Syscall::setup() {
-  asm volatile(
-      "mov %%cr3, %%rax; mov %%rax, 2 + _wrapper_mov_cr3(%%rip)":::"%rax"
-      );
+  asm volatile("mov %%cr3, %%rax; mov %%rax, 2 + _wrapper_mov_cr3(%%rip)":::"%rax");
   wrmsr(MSR_STAR, uint64_t(0x10) << 48 | uint64_t(0x8) << 32);
   wrmsr(MSR_LSTAR, uintptr_t(wrapper));
   wrmsr(MSR_SFMASK, MSR_SFMASK_IE);
