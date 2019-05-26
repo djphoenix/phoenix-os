@@ -5,6 +5,7 @@
 
 #include "processmanager.hpp"
 #include "syscall.hpp"
+#include "acpi.hpp"
 
 using PTE = Pagetable::Entry;
 
@@ -159,6 +160,10 @@ struct SyscallEntry {
   explicit SyscallEntry(uint64_t idx) : syscall_id(idx) {}
 } PACKED;
 uintptr_t Process::linkLibrary(const char* funcname) {
+  if (klib::strcmp(funcname, "kptr_acpi_rsdp") == 0) {
+    return uintptr_t(ACPI::getController()->getRSDPAddr());
+  }
+
   uintptr_t ptr = getSymbolByName(funcname);
   if (ptr != 0) return ptr;
 

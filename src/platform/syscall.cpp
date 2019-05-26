@@ -3,6 +3,7 @@
 
 #include "syscall.hpp"
 #include "processmanager.hpp"
+#include "pagetable.hpp"
 
 #include "./syscall_hash.hpp"
 #include "./syscall_setup.hpp"
@@ -28,6 +29,14 @@ static void syscall_exit(int code) {
       );
 }
 
+static void syscall_kread(void *out, const void *kaddr, size_t size) {
+  Process *process = ProcessManager::getManager()->currentProcess();
+  for (size_t p = 0; p < size; p += 0x1000) {
+    Pagetable::map(reinterpret_cast<const void*>(uintptr_t(kaddr) + p));
+  }
+  process->writeData(uintptr_t(out), kaddr, size);
+}
+
 static void syscall_ioprovide(const char *path, const void *ptr) {
   Process *process = ProcessManager::getManager()->currentProcess();
   char *str = process->readString(uintptr_t(path));
@@ -46,6 +55,7 @@ static const struct {
 } PACKED syscall_map[] = {
   SYSCALL_ENT(puts),
   SYSCALL_ENT(exit),
+  SYSCALL_ENT(kread),
   SYSCALL_ENT(ioprovide),
   {0, nullptr}
 };

@@ -14,6 +14,8 @@ extern "C" {
   void puts(const char *);
   void exit(int);
 
+  void kread(void *, const void *, size_t);
+
   void ioprovide(const char *, const void *);
 
   // Entry point
