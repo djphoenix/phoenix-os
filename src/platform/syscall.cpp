@@ -40,7 +40,7 @@ static void syscall_kread(void *out, const void *kaddr, size_t size) {
 static void syscall_ioprovide(const char *path, const void *ptr) {
   Process *process = ProcessManager::getManager()->currentProcess();
   char *str = process->readString(uintptr_t(path));
-  printf("ioprovide [%p] [%s]\n", ptr, str);
+  printf("ioprovide [%s(%#lx) / %p] [%s]\n", process->getName(), process->getId(), ptr, str);
   delete str;
 }
 
