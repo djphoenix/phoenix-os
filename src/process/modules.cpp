@@ -137,6 +137,7 @@ void ModuleManager::loadStream(Stream *stream) {
       delete process;
       break;
     }
+    process->setName(mod.name);
     if (bindRequirements(mod.requirements, process)) {
       process->startup();
     } else {

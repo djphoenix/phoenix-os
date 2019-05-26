@@ -31,6 +31,7 @@ class Process {
   uintptr_t _aslrCode, _aslrStack, _syscallPage;
   size_t _syscallNum;
   void *iomap[2];
+  char *name;
 
  public:
   Process();
@@ -53,6 +54,9 @@ class Process {
   void writeData(uintptr_t address, const void* src, size_t size);
   void readData(void* dst, uintptr_t address, size_t size) const;
   char* readString(uintptr_t address) const;
+
+  const char *getName() const;
+  void setName(const char *name);
 
   void* getPhysicalAddress(uintptr_t ptr) const PURE;
 

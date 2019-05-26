@@ -14,6 +14,7 @@ Process::Process() :
     _aslrCode(RAND::get<uintptr_t>(0x80000000llu, 0x100000000llu) << 12),
     _aslrStack(RAND::get<uintptr_t>(0x40000000llu, 0x80000000llu) << 12),
     _syscallPage(0), _syscallNum(0),
+    name(nullptr),
     pagetable(nullptr) {
   iomap[0] = iomap[1] = nullptr;
 }
@@ -64,6 +65,7 @@ Process::~Process() {
     ProcessManager::getManager()->dequeueThread(threads[i]);
     delete threads[i];
   }
+  delete name;
 }
 
 PTE* Process::addPage(uintptr_t vaddr, void* paddr, uint8_t flags) {
@@ -337,6 +339,12 @@ void Process::exit(int code) {
     ProcessManager::getManager()->dequeueThread(threads[i]);
   }
   delete this;
+}
+
+const char *Process::getName() const { return name; }
+void Process::setName(const char *newname) {
+  delete name;
+  name = newname ? klib::strdup(newname) : nullptr;
 }
 
 void Process::print_stacktrace(uintptr_t base, const Process *process) {
