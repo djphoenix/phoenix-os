@@ -63,7 +63,7 @@ Process::~Process() {
   }
 }
 
-void Process::addPage(uintptr_t vaddr, void* paddr, uint8_t flags) {
+PTE* Process::addPage(uintptr_t vaddr, void* paddr, uint8_t flags) {
   uint16_t ptx = (vaddr >> (12 + 9 + 9 + 9)) & 0x1FF;
   uint16_t pdx = (vaddr >> (12 + 9 + 9)) & 0x1FF;
   uint16_t pdpx = (vaddr >> (12 + 9)) & 0x1FF;
@@ -92,6 +92,7 @@ void Process::addPage(uintptr_t vaddr, void* paddr, uint8_t flags) {
   PTE *pml4e = pte.getPTE();
   flags |= 1;
   pml4e[pml4x] = PTE(paddr, flags);
+  return &pml4e[pml4x];
 }
 
 uintptr_t Process::addSection(SectionType type, size_t size) {
@@ -124,7 +125,7 @@ uintptr_t Process::addSection(SectionType type, size_t size) {
         flags |= 2;
         break;
     }
-    addPage(vaddr, Pagetable::alloc(), flags);
+    addPage(vaddr, Pagetable::alloc(), flags)->nx = type != SectionTypeCode;
     vaddr += 0x1000;
   }
   return addr;
@@ -172,8 +173,8 @@ uintptr_t Process::linkLibrary(const char* funcname) {
 
   return ptr;
 }
-void Process::writeData(uintptr_t address, void* src, size_t size) {
-  char *ptr = static_cast<char*>(src);
+void Process::writeData(uintptr_t address, const void* src, size_t size) {
+  const uint8_t *ptr = static_cast<const uint8_t*>(src);
   while (size > 0) {
     void *dest = getPhysicalAddress(address);
     size_t limit = 0x1000 - (uintptr_t(dest) & 0xFFF);

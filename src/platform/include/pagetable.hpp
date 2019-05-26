@@ -22,21 +22,22 @@ class Pagetable {
     } PACKED;
     bool rsvd:1;
     uint8_t avl :3;
-    uintptr_t _ptr :52;
+    uintptr_t _ptr :51;
+    uint8_t nx :1;
 
     uintptr_t getUintPtr() { return _ptr << 12; }
     void *getPtr() { return reinterpret_cast<void*>(getUintPtr()); }
     Entry *getPTE() { return static_cast<Entry*>(getPtr()); }
 
-    Entry(): flags(0), rsvd(0), avl(0), _ptr(0) {}
+    Entry(): flags(0), rsvd(0), avl(0), _ptr(0), nx(0) {}
     Entry(uintptr_t ptr, uint8_t avl, uint8_t flags):
-      flags(flags), rsvd(0), avl(avl), _ptr(ptr >> 12) {}
+      flags(flags), rsvd(0), avl(avl), _ptr(ptr >> 12), nx(0) {}
     Entry(uintptr_t ptr, uint8_t flags):
-      flags(flags), rsvd(0), avl(0), _ptr(ptr >> 12) {}
+      flags(flags), rsvd(0), avl(0), _ptr(ptr >> 12), nx(0) {}
     Entry(const void *ptr, uint8_t avl, uint8_t flags):
-      flags(flags), rsvd(0), avl(avl), _ptr(uintptr_t(ptr) >> 12) {}
+      flags(flags), rsvd(0), avl(avl), _ptr(uintptr_t(ptr) >> 12), nx(0) {}
     Entry(const void *ptr, uint8_t flags):
-      flags(flags), rsvd(0), avl(0), _ptr(uintptr_t(ptr) >> 12) {}
+      flags(flags), rsvd(0), avl(0), _ptr(uintptr_t(ptr) >> 12), nx(0) {}
 
     static Entry* find(uintptr_t ptr, Entry *pagetable) {
       uint16_t ptx = (ptr >> (12 + 9 + 9 + 9)) & 0x1FF;

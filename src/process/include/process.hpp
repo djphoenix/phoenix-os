@@ -27,7 +27,7 @@ class Process {
   List<Thread*> threads;
   List<ProcessSymbol> symbols;
   uintptr_t entry;
-  void addPage(uintptr_t vaddr, void* paddr, uint8_t flags);
+  Pagetable::Entry* addPage(uintptr_t vaddr, void* paddr, uint8_t flags);
   uintptr_t _aslrCode, _aslrStack;
   void *iomap[2];
 
@@ -49,7 +49,7 @@ class Process {
   uintptr_t linkLibrary(const char* funcname);
   void allowIOPorts(uint16_t min, uint16_t max);
 
-  void writeData(uintptr_t address, void* src, size_t size);
+  void writeData(uintptr_t address, const void* src, size_t size);
   void readData(void* dst, uintptr_t address, size_t size) const;
   char* readString(uintptr_t address) const;
 

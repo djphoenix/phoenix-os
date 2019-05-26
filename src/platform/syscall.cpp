@@ -88,7 +88,7 @@ void __attribute((naked)) Syscall::wrapper() {
       "mov %rbx, %rdx;"
       "and $0x1FF, %rdx;"
       "mov (%rax,%rdx,8), %rax;"
-      "and $~0xFFF, %rax;"
+      "and $~0xFFF, %rax; btr $63, %rax;"
       "loop 1b;"
       "rol $12, %rbx; and $0xFFF, %rbx; add %rax, %rbx; mov %rbx, %rsp;"
 
@@ -141,5 +141,5 @@ void Syscall::setup() {
   wrmsr(MSR_STAR, uint64_t(0x10) << 48 | uint64_t(0x8) << 32);
   wrmsr(MSR_LSTAR, uintptr_t(wrapper));
   wrmsr(MSR_SFMASK, MSR_SFMASK_IE);
-  wrmsr(MSR_EFER, rdmsr(MSR_EFER) | MSR_EFER_SCE);
+  wrmsr(MSR_EFER, rdmsr(MSR_EFER) | MSR_EFER_SCE | MSR_EFER_NXE);
 }
