@@ -108,7 +108,7 @@ uint64_t ProcessManager::RegisterProcess(Process *process) {
   Mutex::CriticalLock lock(processSwitchMutex);
   uint64_t pid = 1;
   for (size_t i = 0; i < processes.getCount(); i++) {
-    pid = klib::max(pid, processes[i]->getId());
+    pid = klib::max(pid, processes[i]->getId() + 1);
   }
   processes.add(process);
   return pid;
