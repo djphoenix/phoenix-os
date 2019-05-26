@@ -334,7 +334,7 @@ void Process::startup() {
 }
 
 void Process::exit(int code) {
-  printf("EXIT %d\n", code);
+  (void)code;  // TODO: handle
   for (size_t i = 0; i < threads.getCount(); i++) {
     ProcessManager::getManager()->dequeueThread(threads[i]);
   }
