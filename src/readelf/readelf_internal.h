@@ -184,6 +184,31 @@ enum ELF64_RELOC_TYPE: uint32_t {
   R_X86_64_PC8         // 8 bit sign extended pc relative
 };
 
+enum ELF64_SYM_BIND: uint8_t {
+  STB_LOCAL = 0,
+  STB_GLOBAL = 1,
+  STB_WEAK = 2,
+  STB_LOOS = 10,
+  STB_HIOS = 12,
+  STB_LOPROC = 13,
+  STB_HIPROC = 15,
+};
+
+enum ELF64_SYM_TYPE: uint8_t {
+  STT_NOTYPE = 0,
+  STT_OBJECT = 1,
+  STT_FUNC = 2,
+  STT_SECTION = 3,
+  STT_FILE = 4,
+  STT_COMMON = 5,
+  STT_TLS = 6,
+  STT_LOOS = 10,
+  STT_HIOS = 12,
+  STT_LOPROC = 13,
+  STT_SPARC_REGISTER = 13,
+  STT_HIPROC = 15,
+};
+
 struct ELF64_DYN {
   ELF64_DYN_TAG tag;
   uint64_t val;

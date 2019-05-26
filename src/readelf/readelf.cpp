@@ -104,21 +104,52 @@ static uint64_t readelf_dylink_dynamic_find(Process *process,
   return 0;
 }
 
+static bool readelf_dylink_process_reloc(Process *process, uintptr_t start, const ELF64RELA &ent,
+                                         uintptr_t symtab, uintptr_t syment, uintptr_t strtab) {
+  if (ent.sym == 0) return 0;
+  ELF64SYM sym;
+  process->readData(&sym, symtab + syment * ent.sym, sizeof(sym));
+  if (!sym.name) return 0;
+
+  uintptr_t addr = 0;
+  char *name = process->readString(strtab + sym.name);
+  ELF64_SYM_BIND bind = ELF64_SYM_BIND(sym.info >> 4);
+  uintptr_t ptr = readelf_find_load_addr(process, start, ent.addr);
+
+  bool allownull = bind == STB_WEAK;
+  addr = process->getSymbolByName(name);
+  if (!addr) addr = process->linkLibrary(name);
+
+  if (!allownull && addr == 0) {
+    printf("Cannot link symbol: %s\n", name);
+    delete name;
+    return 0;
+  }
+  delete name;
+
+  addr += ent.add;
+  switch (ent.type) {
+    case R_X86_64_JUMP_SLOT:
+    case R_X86_64_GLOB_DAT:
+      process->writeData(ptr, &addr, sizeof(addr));
+      break;
+    default:
+      printf("UNHANDLED REL@%#lx: %x => %x+%#lx\n", ent.addr, ent.type, ent.sym, ent.add);
+      return 0;
+  }
+  return 1;
+}
+
 static bool readelf_dylink_handle_dynamic_jmprel(Process *process,
                                                  uintptr_t start,
                                                  uintptr_t dyntbl,
                                                  size_t dynsz,
                                                  uintptr_t jmprel) {
-  uintptr_t symtab =
-      readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_SYMTAB);
-  uintptr_t pltrel =
-      readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_PLTREL);
-  uintptr_t pltrelsz =
-      readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_PLTRELSZ);
-  uintptr_t syment =
-      readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_SYMENT);
-  uintptr_t strtab =
-      readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_STRTAB);
+  uintptr_t symtab = readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_SYMTAB);
+  uintptr_t pltrel = readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_PLTREL);
+  uintptr_t pltrelsz = readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_PLTRELSZ);
+  uintptr_t syment = readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_SYMENT);
+  uintptr_t strtab = readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_STRTAB);
   if (syment == 0) syment = sizeof(ELF64SYM);
   if (jmprel == 0 || symtab == 0) return 0;
   switch (pltrel) {
@@ -131,7 +162,6 @@ static bool readelf_dylink_handle_dynamic_jmprel(Process *process,
     default: return 0;
   }
   ELF64RELA rel;
-  ELF64SYM sym;
   Memory::zero(&rel, sizeof(rel));
   while (pltrelsz) {
     switch (pltrel) {
@@ -147,35 +177,54 @@ static bool readelf_dylink_handle_dynamic_jmprel(Process *process,
         break;
       default: return 0;
     }
-    uintptr_t addr = 0;
-    if (rel.sym != 0) {
-      process->readData(&sym, symtab + syment * rel.sym, sizeof(sym));
-      if (sym.name) {
-        char *name = process->readString(strtab + sym.name);
-        addr = process->linkLibrary(name);
-        if (addr == 0) {
-          printf("Cannot link symbol: %s\n", name);
-          delete name;
-          return 0;
-        }
-        delete name;
-      } else {
-        return 0;
-      }
-    } else {
-      return 0;
-    }
-    addr += rel.add;
-    uintptr_t ptr = readelf_find_load_addr(process, start, rel.addr);
-    switch (rel.type) {
-      case R_X86_64_JUMP_SLOT:
-        process->writeData(ptr, &addr, sizeof(addr));
-        break;
-      default:
-        printf("UNHANDLED REL@%#lx: %x/%x+%#lx\n",
-               rel.addr, rel.type, rel.sym, rel.add);
-        return 0;
-    }
+    if (!readelf_dylink_process_reloc(process, start, rel, symtab, syment, strtab)) return 0;
+  }
+  return 1;
+}
+
+static bool readelf_dylink_handle_dynamic_rel(Process *process,
+                                                uintptr_t start,
+                                                uintptr_t dyntbl,
+                                                size_t dynsz,
+                                                uintptr_t rel) {
+  uintptr_t sz = readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_RELSZ);
+  uintptr_t entsz = readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_RELENT);
+  uintptr_t symtab = readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_SYMTAB);
+  uintptr_t syment = readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_SYMENT);
+  uintptr_t strtab = readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_STRTAB);
+  if (sz == 0 || entsz != sizeof(ELF64REL)) return 0;
+  ELF64RELA ent;
+  ent.add = 0;
+  while (sz) {
+    process->readData(&ent, rel, sizeof(ELF64REL));
+
+    if (!readelf_dylink_process_reloc(process, start, ent, symtab, syment, strtab)) return 0;
+
+    rel += entsz;
+    sz -= entsz;
+  }
+  return 1;
+}
+
+static bool readelf_dylink_handle_dynamic_rela(Process *process,
+                                                uintptr_t start,
+                                                uintptr_t dyntbl,
+                                                size_t dynsz,
+                                                uintptr_t rela) {
+  uintptr_t sz = readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_RELASZ);
+  uintptr_t entsz = readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_RELAENT);
+  uintptr_t symtab = readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_SYMTAB);
+  uintptr_t syment = readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_SYMENT);
+  uintptr_t strtab = readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_STRTAB);
+  if (sz == 0 || entsz != sizeof(ELF64RELA)) return 0;
+  ELF64RELA ent;
+  while (sz) {
+    process->readData(&ent, rela, sizeof(ent));
+
+    if (!readelf_dylink_process_reloc(process, start, ent, symtab, syment, strtab)) return 0;
+
+    rela += entsz;
+    sz -= entsz;
   }
   return 1;
 }
@@ -185,12 +234,9 @@ static bool readelf_dylink_handle_dynamic_symtab(Process *process,
                                                  uintptr_t dyntbl,
                                                  size_t dynsz,
                                                  uintptr_t symtab) {
-  uintptr_t syment =
-      readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_SYMENT);
-  uintptr_t strtab =
-      readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_STRTAB);
-  uintptr_t hashtab =
-      readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_HASH);
+  uintptr_t syment = readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_SYMENT);
+  uintptr_t strtab = readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_STRTAB);
+  uintptr_t hashtab = readelf_dylink_dynamic_find(process, dyntbl, dynsz, DT_HASH);
   if (syment == 0 || strtab == 0 || hashtab == 0) return 0;
   ELF64SYM sym;
   struct {
@@ -204,12 +250,15 @@ static bool readelf_dylink_handle_dynamic_symtab(Process *process,
     hashtab += sizeof(idx);
     if (idx == 0) continue;
     process->readData(&sym, symtab + syment * idx, sizeof(ELF64SYM));
-    if (sym.value == 0) continue;
     if (sym.name == 0) continue;
     uintptr_t ptr = readelf_find_load_addr(process, start, sym.value);
     if (ptr == 0) continue;
     char *name = process->readString(strtab + sym.name);
-    if (name && name[0] != 0) process->addSymbol(name, ptr);
+    if (name && name[0] != 0) {
+      uint8_t bind = sym.info >> 4;
+      if (bind == STB_GLOBAL)
+        process->addSymbol(name, ptr);
+    }
     delete name;
   }
   return 1;
@@ -225,12 +274,21 @@ static bool readelf_dylink_handle_dynamic_table(Process *process,
     process->readData(&dyn, dynptr, sizeof(ELF64_DYN));
     switch (dyn.tag) {
       case DT_JMPREL:
-        if (!readelf_dylink_handle_dynamic_jmprel(
-            process, start, dyntbl, dynsz, dyn.val)) return 0;
+        if (!readelf_dylink_handle_dynamic_jmprel(process, start, dyntbl, dynsz, dyn.val)) return 0;
+        break;
+      case DT_REL:
+        if (!readelf_dylink_handle_dynamic_rel(process, start, dyntbl, dynsz, dyn.val)) return 0;
+        break;
+      case DT_RELA:
+        if (!readelf_dylink_handle_dynamic_rela(process, start, dyntbl, dynsz, dyn.val)) return 0;
         break;
       case DT_PLTGOT:
       case DT_PLTREL:
       case DT_PLTRELSZ:
+      case DT_RELASZ:
+      case DT_RELAENT:
+      case DT_RELSZ:
+      case DT_RELENT:
       case DT_SYMENT:
       case DT_HASH:
       case DT_GNU_HASH:
@@ -238,8 +296,7 @@ static bool readelf_dylink_handle_dynamic_table(Process *process,
       case DT_STRSZ:
         break;
       case DT_SYMTAB:
-        if (!readelf_dylink_handle_dynamic_symtab(
-            process, start, dyntbl, dynsz, dyn.val)) return 0;
+        if (!readelf_dylink_handle_dynamic_symtab(process, start, dyntbl, dynsz, dyn.val)) return 0;
         break;
       case DT_NULL: break;
       default:
@@ -262,10 +319,8 @@ static bool readelf_dylink_handle_dynamic(Process *process, uintptr_t start) {
   for (phdr = phdr_base; phdr < phdr_top; phdr += sizeof(ELF64_PROG)) {
     process->readData(&prog, phdr, sizeof(ELF64_PROG));
     if (prog.type != PT_DYNAMIC) continue;
-    if (!readelf_dylink_fix_dynamic_table(
-        process, start, prog.vaddr, prog.filesz) ||
-        !readelf_dylink_handle_dynamic_table(
-            process, start, prog.vaddr, prog.filesz))
+    if (!readelf_dylink_fix_dynamic_table(process, start, prog.vaddr, prog.filesz) ||
+        !readelf_dylink_handle_dynamic_table(process, start, prog.vaddr, prog.filesz))
       return 0;
   }
 
@@ -313,8 +368,7 @@ size_t readelf(Process *process, Stream *stream) {
   progs_top = progs + elf.phnum;
 
   // Read linker program
-  if (stream->read(progs, sizeof(ELF64_PROG) * elf.phnum)
-      != sizeof(ELF64_PROG) * elf.phnum)
+  if (stream->read(progs, sizeof(ELF64_PROG) * elf.phnum) != sizeof(ELF64_PROG) * elf.phnum)
     goto err;
   off += sizeof(ELF64_PROG) * elf.phnum;
 
@@ -322,8 +376,7 @@ size_t readelf(Process *process, Stream *stream) {
     switch (prog->type) {
       case PT_NULL: break;
       case PT_PHDR:
-        if ((prog->offset != elf.phoff) ||
-            (prog->filesz != sizeof(ELF64_PROG) * elf.phnum))
+        if ((prog->offset != elf.phoff) || (prog->filesz != sizeof(ELF64_PROG) * elf.phnum))
           goto err;
         break;
       case PT_LOAD:
@@ -350,11 +403,9 @@ size_t readelf(Process *process, Stream *stream) {
             off = prog->offset + offset_load;
           }
           buf = new char[prog->filesz - offset_load]();
-          if (stream->read(buf, prog->filesz - offset_load) !=
-              prog->filesz - offset_load) goto err;
+          if (stream->read(buf, prog->filesz - offset_load) != prog->filesz - offset_load) goto err;
           off += prog->filesz - offset_load;
-          process->writeData(vaddr + offset_load, buf,
-                             prog->filesz - offset_load);
+          process->writeData(vaddr + offset_load, buf, prog->filesz - offset_load);
           delete[] buf; buf = nullptr;
           prog->vaddr = vaddr;
         }
@@ -367,8 +418,7 @@ size_t readelf(Process *process, Stream *stream) {
     }
   }
 
-  process->writeData(vaddr_start + sizeof(ELF_HDR),
-                     progs, sizeof(ELF64_PROG) * elf.phnum);
+  process->writeData(vaddr_start + sizeof(ELF_HDR), progs, sizeof(ELF64_PROG) * elf.phnum);
 
   goto done;
 err:
