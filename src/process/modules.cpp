@@ -104,6 +104,7 @@ bool ModuleManager::bindRequirement(const char *req, Process *process) {
 }
 
 bool ModuleManager::bindRequirements(const char *reqs, Process *process) {
+  if (reqs == nullptr) return 1;
   const char *re;
   char *r;
   while (*reqs != 0) {
@@ -150,8 +151,7 @@ void ModuleManager::loadStream(Stream *stream) {
     sub->seek(ptrdiff_t(size), -1);
     if (!stream->eof()) {
       Stream *_sub = sub->substream();
-      if (sub != stream)
-        delete sub;
+      if (sub != stream) delete sub;
       sub = _sub;
     }
   }
