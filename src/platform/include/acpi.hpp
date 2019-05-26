@@ -108,6 +108,7 @@ class ACPI {
   static volatile ACPI *controller;
 
   char *localApicAddr, *ioApicAddr;
+  const void *rsdpAddr;
   uint8_t ioApicMaxCount;
   uint32_t acpiCpuIds[256];
   uint8_t acpiCpuCount;
@@ -126,6 +127,7 @@ class ACPI {
   static ACPI* getController();
   uint32_t getLapicID();
   uint32_t getCPUID();
+  const void* getRSDPAddr() PURE;
   void* getLapicAddr() PURE;
   uint32_t getCPUCount() PURE;
   uint32_t getActiveCPUCount() PURE;

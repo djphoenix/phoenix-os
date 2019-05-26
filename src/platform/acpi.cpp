@@ -158,6 +158,8 @@ bool ACPI::ParseRsdp(const void *ptr) {
   if (sum)
     return false;
 
+  rsdpAddr = ptr;
+
   char oem[7];
   Memory::copy(oem, p + 9, 6);
   oem[6] = 0;
@@ -239,6 +241,9 @@ ACPI::IOApicRedir ACPI::IOapicReadMap(uint32_t idx) {
   a.raw[0] = IOapicIn(IOAPIC_REDTBL + idx * 2 + 0);
   a.raw[1] = IOapicIn(IOAPIC_REDTBL + idx * 2 + 1);
   return a;
+}
+const void* ACPI::getRSDPAddr() {
+  return rsdpAddr;
 }
 void* ACPI::getLapicAddr() {
   return localApicAddr;
