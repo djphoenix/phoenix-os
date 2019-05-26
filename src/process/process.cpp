@@ -277,7 +277,9 @@ void Process::startup() {
   handler &= KB4;
   sc_wrapper &= KB4;
   addPage(handler, reinterpret_cast<void*>(handler), 1);
+  addPage(handler + 0x1000, reinterpret_cast<void*>(handler + 0x1000), 1);
   addPage(sc_wrapper, reinterpret_cast<void*>(sc_wrapper), 1);
+  addPage(sc_wrapper + 0x1000, reinterpret_cast<void*>(sc_wrapper + 0x1000), 1);
   GDT::Entry *gdt_ent = reinterpret_cast<GDT::Entry*>(uintptr_t(gdt.addr) + 8 * 3);
   GDT::Entry *gdt_top = reinterpret_cast<GDT::Entry*>(uintptr_t(gdt.addr) + gdt.limit);
 
