@@ -14,6 +14,8 @@ extern "C" {
   void puts(const char *);
   void exit(int);
 
+  void ioprovide(const char *, const void *);
+
   // Entry point
   void module();
 }

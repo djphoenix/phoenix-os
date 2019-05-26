@@ -9,30 +9,32 @@ MODDESC(description, "Generic PCI Driver");
 MODDESC(requirements, "port/CF8-CFF");
 MODDESC(developer, "PhoeniX");
 
-static inline void putl(uint32_t l) {
-  char buf[11];
-  int off = 10;
+template<typename T>
+static inline size_t putn(T x, uint8_t base = 10, size_t len = 1) {
+  char buf[sizeof(T) * 4];
+  size_t sz = sizeof(buf) - 1, off = sz;
   buf[off] = 0;
-  while (off == 10 || l > 0) {
-    buf[--off] = '0' + (l % 10);
-    l /= 10;
+  while (off >= sz + 1 - len || x > 0) {
+    uint8_t c = uint8_t(x % base); x /= base;
+    buf[--off] = (c < 10) ? static_cast<char>('0' + c) : static_cast<char>('a' - 10 + c);
   }
   puts(buf + off);
+  return sz - off;
 }
 
-static inline void putx(uint32_t l) {
-  char buf[9];
-  int off = 8;
+template<typename T>
+static inline size_t sputn(char *out, T x, uint8_t base = 10, size_t len = 1) {
+  char buf[sizeof(T) * 4];
+  size_t sz = sizeof(buf) - 1, off = sz;
   buf[off] = 0;
-  while (off == 8 || l > 0) {
-    char c = static_cast<char>(l & 0xF);
-    buf[--off] = (c < 10) ? ('0' + c) : ('a' + c - 10);
-    l /= 16;
-    c = static_cast<char>(l & 0xF);
-    buf[--off] = (c < 10) ? ('0' + c) : ('a' + c - 10);
-    l /= 16;
+  while (off >= sz + 1 - len || x > 0) {
+    uint8_t c = uint8_t(x % base); x /= base;
+    buf[--off] = (c < 10) ? static_cast<char>('0' + c) : static_cast<char>('a' - 10 + c);
   }
-  puts(buf + off);
+  char *o = out, *p = buf + off;
+  while (*p != 0) *(o++) = *(p++);
+  *(o++) = 0;
+  return sz - off;
 }
 
 namespace PCI {
@@ -125,13 +127,39 @@ namespace PCI {
     uint8_t subClass = Device::getSubClass(bus, device, function);
     uint8_t progIf = Device::getProgIf(bus, device, function);
     uint8_t rev = Device::getRevision(bus, device, function);
-    puts("TODO: Provide device: ");
-    uint16_t vendorID = Device::getVendorID(bus, device, function);
+    uint16_t vendorId = Device::getVendorID(bus, device, function);
     uint16_t deviceId = Device::getDeviceID(bus, device, function);
-    putl(bus); puts("."); putl(device); puts("."); putl(function); puts(" => ");
-    puts("["); putx(uint32_t(baseClass << 8) | subClass); puts("."); putx(progIf); puts("."); putx(rev); puts("]");
-    putx(vendorID); puts("."); putx(deviceId);
-    puts("\n");
+
+    uintptr_t address = 0x80000000u |
+        (uint32_t(bus) << 16) |
+        (uint32_t(device) << 11) |
+        (uint32_t(function) << 8);
+    const void *ptr = reinterpret_cast<const void*>(address);
+
+    {
+      char path[] = "pci/path.000.000.000.000";
+      char *p = path + 9;
+      p += sputn(p, bus); *(p++) = '.';
+      p += sputn(p, device); *(p++) = '.';
+      p += sputn(p, function); *(p++) = 0;
+      ioprovide(path, ptr);
+    }
+    {
+      char path[] = "pci/class.00.00.00.00";
+      char *p = path + 10;
+      p += sputn(p, baseClass, 16, 2); *(p++) = '.';
+      p += sputn(p, subClass, 16, 2); *(p++) = '.';
+      p += sputn(p, progIf, 16, 2); *(p++) = 0;
+      ioprovide(path, ptr);
+    }
+    {
+      char path[] = "pci/vendor.0000/device.0000/rev.00";
+      char *p = path + 11;
+      p += sputn(p, vendorId, 16, 4); *(p++) = '/'; p += 7;
+      p += sputn(p, deviceId, 16, 4); *(p++) = '/'; p += 4;
+      p += sputn(p, rev, 16, 2); *(p++) = 0;
+      ioprovide(path, ptr);
+    }
   }
   static void scanBus(uint8_t bus);
   static void scanFunction(uint8_t bus, uint8_t device, uint8_t function) {

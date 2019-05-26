@@ -28,6 +28,13 @@ static void syscall_exit(int code) {
       );
 }
 
+static void syscall_ioprovide(const char *path, const void *ptr) {
+  Process *process = ProcessManager::getManager()->currentProcess();
+  char *str = process->readString(uintptr_t(path));
+  printf("ioprovide [%p] [%s]\n", ptr, str);
+  delete str;
+}
+
 #define SYSCALL_ENT(name) { \
   syscall_hash(#name), \
   reinterpret_cast<void*>(syscall_ ## name) \
@@ -39,6 +46,7 @@ static const struct {
 } PACKED syscall_map[] = {
   SYSCALL_ENT(puts),
   SYSCALL_ENT(exit),
+  SYSCALL_ENT(ioprovide),
   {0, nullptr}
 };
 
