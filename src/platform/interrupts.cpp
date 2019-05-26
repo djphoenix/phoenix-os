@@ -201,17 +201,18 @@ void Interrupts::print(uint8_t num, CallbackRegs *regs, uint32_t code, const Pro
     rflags_buf[1] = 'D';
   if (regs->rflags & (1 << 11))
     rflags_buf[0] = 'O';
+  uint64_t base; asm volatile("lea __text_start__(%%rip), %q0":"=r"(base));
   printf("\n%s fault %s (cpu=%u, error=0x%x)\n"
-         "IP=%016lx CS=%04hx SS=%04hx DPL=%hhu\n"
-         "FL=%016lx [%s]\n"
+         "BASE=%016lx CS=%04hx SS=%04hx DPL=%hhu\n"
+         "IP=%016lx FL=%016lx [%s]\n"
          "SP=%016lx BP=%016lx CR2=%08lx\n"
          "SI=%016lx DI=%016lx\n"
          "A =%016lx C =%016lx D =%016lx B =%016lx\n"
          "8 =%016lx 9 =%016lx 10=%016lx 11=%016lx\n"
          "12=%016lx 13=%016lx 14=%016lx 15=%016lx\n",
          regs->dpl ? "Userspace" : "Kernel", FAULTS[num].code, cpuid, code,
-         regs->rip, regs->cs, regs->ss, regs->dpl,
-         regs->rflags, rflags_buf,
+         base, regs->cs, regs->ss, regs->dpl,
+         regs->rip, regs->rflags, rflags_buf,
          regs->rsp, regs->rbp, cr2,
          regs->rsi, regs->rdi,
          regs->rax, regs->rcx, regs->rdx, regs->rbx,
