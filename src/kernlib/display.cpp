@@ -100,10 +100,9 @@ class FramebufferDisplay: public Display {
         uint8_t *line = fbptr + y * width * pb;
         uint8_t fontline = fontsym[y];
         for (size_t x = 0; x < 8; x++) {
-          if (fontline & (1 << (8 - x))) {
-            for (size_t px = 0; px < pb; px++)
-              line[x * pb + px] = 0xFF;
-          }
+          uint8_t val = (fontline & (1 << (8 - x))) ? 0xFF : 0x00;
+          for (size_t px = 0; px < pb; px++)
+            line[x * pb + px] = val;
         }
       }
 
