@@ -5,7 +5,12 @@
 #include "efi.hpp"
 #include "multiboot_info.hpp"
 #include "pagetable.hpp"
-#include "font-8x16.hpp"
+
+asm(
+  ".rodata;"
+  "fb_font_8x16:"
+  ".incbin \"" __FILE__ ".font.psf\""
+);
 
 class ConsoleDisplay: public Display {
  private:
@@ -62,6 +67,7 @@ class FramebufferDisplay: public Display {
   size_t width, height;
   PixelFormat pixelFormat;
   size_t offset;
+  const uint8_t *fb_font_8x16;
 
   size_t pixelBytes() {
     switch (pixelFormat) {
@@ -126,6 +132,7 @@ class FramebufferDisplay: public Display {
       Pagetable::map(reinterpret_cast<void*>(ptr));
     }
     clean();
+    asm volatile("lea fb_font_8x16(%%rip), %q0":"=r"(fb_font_8x16));
   }
   void write(const char *str) {
     Mutex::CriticalLock lock(mutex);
