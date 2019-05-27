@@ -5,7 +5,7 @@ add_custom_target(${EFIROOT}
   DEPENDS pxkrnl
 )
 
-set(QEMU_FLAGS -smp cores=2,threads=2 -cpu Nehalem-IBRS -serial stdio)
+set(QEMU_FLAGS -smp cores=2,threads=2 -machine pc-q35-2.10 -cpu Nehalem-IBRS -serial stdio)
 add_custom_target(launch
   ${QEMU} ${QEMU_FLAGS} -kernel pxkrnl
   DEPENDS pxkrnl
