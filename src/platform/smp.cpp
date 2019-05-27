@@ -52,7 +52,7 @@ void SMP::init() {
   char *startupCode;
   StartupInfo *info;
 
-  startupCode = static_cast<char*>(Pagetable::alloc());
+  startupCode = static_cast<char*>(Pagetable::lowalloc());
   info = reinterpret_cast<StartupInfo*>(startupCode + klib::__align(smp_init_size, 8));
 
   Memory::copy(startupCode, smp_init, smp_init_size);

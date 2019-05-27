@@ -9,24 +9,16 @@
 struct Interrupts::Handler {
   // 68 04 03 02 01  pushq  ${int_num}
   // e9 46 ec 3f 00  jmp . + {diff}
-  uint8_t push;  // == 0x68
+  uint8_t push[1] = { 0x68 };
   uint32_t int_num;
-  uint8_t reljmp;  // == 0xE9
+  uint8_t reljmp[1] = { 0xE9 };
   uint32_t diff;
 
-  Handler():
-    push(0x68), int_num(0),
-    reljmp(0xE9), diff(0) {}
-  Handler(uint32_t int_num, uint32_t diff):
-    push(0x68), int_num(int_num),
-    reljmp(0xE9), diff(diff) {}
-
-  ALIGNED_NEWARR(0x1000)
+  Handler(uint32_t int_num, uint32_t diff): int_num(int_num), diff(diff) {}
 } PACKED;
 
 Interrupts::REC64 *Interrupts::idt = nullptr;
 GDT *Interrupts::gdt = nullptr;
-TSS64_ENT **Interrupts::tss = nullptr;
 List<Interrupts::Callback*> *Interrupts::callbacks = nullptr;
 Mutex Interrupts::callback_locks[256];
 Mutex Interrupts::fault;
@@ -295,27 +287,34 @@ uint64_t __attribute__((sysv_abi)) Interrupts::handle(
 void Interrupts::init() {
   uint64_t ncpu = ACPI::getController()->getCPUCount();
 
-  gdt = new(GDT::size(ncpu)) GDT();
-  tss = new TSS64_ENT*[ncpu]();
-  idt = new REC64[256]();
-  handlers = new Handler[256]();
+  gdt = reinterpret_cast<GDT*>(
+      Pagetable::lowalloc((GDT::size(ncpu) + 0xFFF) / 0x1000));
+  idt = reinterpret_cast<REC64*>(
+      Pagetable::alloc((sizeof(REC64) * 256 + 0xFFF) / 0x1000));
+  handlers = reinterpret_cast<Interrupts::Handler*>(
+      Pagetable::alloc((sizeof(Handler) * 256 + 0xFFF) / 0x1000));
 
   gdt->ents[0] = GDT::Entry();
   gdt->ents[1] = GDT::Entry(0, 0xFFFFFFFFFFFFFFFF, 0xA, 0, 1, 1, 0, 1, 0, 1);
   gdt->ents[2] = GDT::Entry(0, 0xFFFFFFFFFFFFFFFF, 0x2, 0, 1, 1, 0, 0, 1, 1);
   gdt->ents[3] = GDT::Entry(0, 0xFFFFFFFFFFFFFFFF, 0x2, 3, 1, 1, 0, 0, 1, 1);
   gdt->ents[4] = GDT::Entry(0, 0xFFFFFFFFFFFFFFFF, 0xA, 3, 1, 1, 0, 1, 0, 1);
+
+  size_t tss_size = sizeof(TSS64_ENT) * ncpu;
+  size_t tss_size_pad = klib::__align(tss_size, 0x1000);
+  char *tssbuf = reinterpret_cast<char*>(Pagetable::alloc(2 + tss_size_pad / 0x1000));
+  char *tsstop = tssbuf + tss_size_pad;
+  Memory::fill(tsstop, 0xFF, 0x2000);
   for (uint32_t idx = 0; idx < ncpu; idx++) {
     void *stack = Pagetable::alloc();
     uintptr_t stack_ptr = uintptr_t(stack) + 0x1000;
-    char *entbuf = reinterpret_cast<char*>(Heap::alloc(0x3000, 0x1000));
-    TSS64_ENT *ent = tss[idx] = reinterpret_cast<TSS64_ENT*>(entbuf + (0x1000 - sizeof(TSS64_ENT)));
-    Memory::zero(tss[idx], sizeof(TSS64_ENT) + 0x2000);
+    char *entbuf = tssbuf + sizeof(TSS64_ENT) * idx;
+    TSS64_ENT *ent = reinterpret_cast<TSS64_ENT*>(entbuf);
     ent->ist[0] = stack_ptr;
-    ent->iomap_base = sizeof(TSS64_ENT);
+    ent->iomap_base = uint16_t(tsstop - entbuf);
 
     gdt->sys_ents[idx] = GDT::SystemEntry(
-        uintptr_t(tss[idx]), sizeof(TSS64_ENT) + 0x2000 - 1,
+        uintptr_t(ent), uintptr_t(tsstop - entbuf) + 0x2000 - 1,
         0x9, 0, 0, 1, 0, 1, 0, 0);
   }
 

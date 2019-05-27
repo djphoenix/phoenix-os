@@ -64,7 +64,7 @@ class Pagetable {
   static void* rsvd_pages[rsvd_num];
   static Mutex page_mutex;
   static uint64_t last_page;
-  static void* _alloc(uint8_t avl = 0, bool nolow = false);
+  static void* _alloc(bool low, size_t count);
   static void* _map(const void* addr);
   static void* _getRsvd();
   static void _renewRsvd();
@@ -72,7 +72,8 @@ class Pagetable {
 
  public:
   static void* map(const void* mem);
-  static void* alloc(uint8_t avl = 0);
+  static void* alloc(size_t count = 1);
+  static void* lowalloc(size_t count = 1);
   static void free(void* page);
 };
 

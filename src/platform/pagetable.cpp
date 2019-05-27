@@ -9,7 +9,7 @@
 using PTE = Pagetable::Entry;
 
 Mutex Pagetable::page_mutex;
-uintptr_t Pagetable::last_page = 1;
+uintptr_t Pagetable::last_page = 0x1000;
 void *Pagetable::rsvd_pages[rsvd_num];
 static uintptr_t max_page = 0xFFFFFFFFFFFFFllu;
 static Mutex renewGuard;
@@ -176,7 +176,7 @@ void Pagetable::init() {
         ent = reinterpret_cast<EFI::MemoryDescriptor*>(uintptr_t(ent) + entSize)) {
       max_page = klib::max(max_page, (ent->PhysicalStart >> 12) + ent->NumberOfPages);
     }
-    ST->BootServices->FreePool(map);
+    ST->BootServices->FreePool(map); map = nullptr;
 
     uintptr_t ptbase = RAND::get<uintptr_t>(0x100, max_page) << 12;
     PTE *pagetable = static_cast<PTE*>(efiAllocatePage(ptbase, ST));
@@ -188,6 +188,33 @@ void Pagetable::init() {
     const char *rsp; asm volatile("mov %%rsp, %q0":"=r"(rsp));
     efiMapPage(pagetable, rsp, ST);
     efiMapPage(pagetable, rsp - 0x1000, ST);
+
+    ST->BootServices->GetMemoryMap(&mapSize, map, &mapKey, &entSize, &entVer);
+    mapSize += 3 * entSize;
+    ST->BootServices->AllocatePool(EFI::MEMORY_TYPE_DATA, mapSize, reinterpret_cast<void**>(&map));
+    ST->BootServices->GetMemoryMap(&mapSize, map, &mapKey, &entSize, &entVer);
+
+    for (EFI::MemoryDescriptor *ent = map;
+        ent < reinterpret_cast<EFI::MemoryDescriptor*>(uintptr_t(map) + mapSize);
+        ent = reinterpret_cast<EFI::MemoryDescriptor*>(uintptr_t(ent) + entSize)) {
+      switch (ent->Type) {
+        case EFI::MEMORY_TYPE_BS_CODE:
+        case EFI::MEMORY_TYPE_BS_DATA:
+        case EFI::MEMORY_TYPE_RS_CODE:
+        case EFI::MEMORY_TYPE_RS_DATA:
+
+        case EFI::MEMORY_TYPE_RESERVED:
+        case EFI::MEMORY_TYPE_ACPI_RECLAIM:
+        case EFI::MEMORY_TYPE_ACPI_NVS:
+        case EFI::MEMORY_TYPE_MAPPED_IO:
+        case EFI::MEMORY_TYPE_MAPPED_IO_PORTSPACE:
+          fillPagesEfi(ent->PhysicalStart, ent->PhysicalStart + (ent->NumberOfPages << 12), pagetable, ST);
+          break;
+        default:
+          break;
+      }
+    }
+    ST->BootServices->FreePool(map);
 
     const EFI::Framebuffer *fb = EFI::getFramebuffer();
     if (fb && fb->base) {
@@ -380,7 +407,7 @@ void Pagetable::_renewRsvd() {
   if (!renewGuard.try_lock()) return;
   for (size_t i = 0; i < rsvd_num; i++) {
     if (rsvd_pages[i] != nullptr) continue;
-    rsvd_pages[i] = _alloc(0, true);
+    rsvd_pages[i] = _alloc(false, 1);
   }
   renewGuard.release();
 }
@@ -416,29 +443,39 @@ void* Pagetable::map(const void* mem) {
   return _map(mem);
 }
 
-void* Pagetable::_alloc(uint8_t avl, bool nolow) {
+void* Pagetable::_alloc(bool low, size_t count) {
   PTE *pagetable; asm volatile("mov %%cr3, %q0":"=r"(pagetable));
-  void *addr = nullptr;
-  PTE *page;
-  uintptr_t i = last_page - 1;
-  if (nolow && (i < 0x100)) i = 0x100;
-  while (i < max_page) {
+  char *addr = nullptr;
+  uintptr_t i;
+  i = low ? 1 : last_page;
+  while (1) {
+    if (i + count >= max_page) return nullptr;
+    addr = reinterpret_cast<char*>(i << 12);
+    bool found = 1;
+    for (size_t ii = 0; ii < count; ii++) {
+      PTE *page = PTE::find(addr + (ii << 12), pagetable);
+      if (page && page->present) {
+        found = 0; break;
+      }
+    }
+    if (found) break;
     i++;
-    addr = reinterpret_cast<void*>(i << 12);
-    page = PTE::find(addr, pagetable);
-    if ((page == nullptr) || !page->present) break;
   }
-  if (!nolow) last_page = i;
+  if (!low) last_page = i;
 
-  _map(addr);
-  PTE::find(addr, pagetable)->avl = avl;
-  Memory::fill(addr, 0, 0x1000);
+  for (size_t i = 0; i < count; i++) _map(addr + (i << 12));
+  Memory::fill(addr, 0, count * 0x1000);
   return addr;
 }
 
-void* Pagetable::alloc(uint8_t avl) {
+void* Pagetable::alloc(size_t count) {
   Mutex::CriticalLock lock(page_mutex);
-  return _alloc(avl);
+  return _alloc(false, count);
+}
+
+void* Pagetable::lowalloc(size_t count) {
+  Mutex::CriticalLock lock(page_mutex);
+  return _alloc(true, count);
 }
 
 void Pagetable::free(void* page) {
@@ -448,7 +485,7 @@ void Pagetable::free(void* page) {
   if ((pdata != nullptr) && pdata->present) {
     pdata->present = 0;
     void *addr = pdata->getPtr();
-    if ((uintptr_t(addr) >> 12) < last_page)
+    if ((uintptr_t(addr) >> 12) < last_page && (uintptr_t(addr) >> 12) >= 0x1000)
       last_page = uintptr_t(addr) >> 12;
   }
 }

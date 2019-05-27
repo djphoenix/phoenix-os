@@ -301,8 +301,7 @@ void Process::startup() {
 
   while (gdt_ent < gdt_top) {
     uintptr_t base = gdt_ent->getBase();
-    size_t limit = gdt_ent->getLimit();
-    if (((gdt_ent->type != 0x9) && (gdt_ent->type != 0xB)) || (limit != sizeof(TSS64_ENT) + 0x2000 - 1)) {
+    if ((gdt_ent->type != 0x9) && (gdt_ent->type != 0xB)) {
       gdt_ent++;
       continue;
     }
