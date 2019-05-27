@@ -29,7 +29,8 @@ class ProcessManager {
   static bool FaultHandler(uint8_t intr, uint32_t code, Interrupts::CallbackRegs *regs);
 
  public:
-  uint64_t RegisterProcess(Process *process);
+  uint64_t registerProcess(Process *process);
+  void exitProcess(Process *process, int code);
   void queueThread(Process *process, Thread *thread);
   void dequeueThread(Thread *thread);
   Process *currentProcess();

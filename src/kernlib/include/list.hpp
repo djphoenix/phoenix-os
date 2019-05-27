@@ -20,6 +20,9 @@ class List {
     }
     return items[count++];
   }
+  void remove(size_t idx) {
+    Memory::copy(items + idx, items + idx + 1, sizeof(Item) * ((--count) - idx));
+  }
 
   void add(const Item &item) { insert() = item; }
 

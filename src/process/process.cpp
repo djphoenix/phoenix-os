@@ -77,26 +77,22 @@ PTE* Process::addPage(uintptr_t vaddr, void* paddr, uint8_t flags) {
     pagetable = static_cast<PTE*>(Pagetable::alloc());
     addPage(uintptr_t(pagetable), pagetable, 5);
   }
-  PTE pte = pagetable[ptx];
-  if (!pte.present) {
-    pagetable[ptx] = pte = PTE(Pagetable::alloc(), 7);
-    addPage(pte.getUintPtr(), pte.getPtr(), 5);
+  if (!pagetable[ptx].present) {
+    pagetable[ptx] = PTE(Pagetable::alloc(), 7);
+    addPage(pagetable[ptx].getUintPtr(), pagetable[ptx].getPtr(), 5);
   }
-  PTE *pde = pte.getPTE();
-  pte = pde[pdx];
-  if (!pte.present) {
-    pde[pdx] = pte = PTE(Pagetable::alloc(), 7);
-    addPage(pte.getUintPtr(), pte.getPtr(), 5);
+  PTE *pde = pagetable[ptx].getPTE();
+  if (!pde[pdx].present) {
+    pde[pdx] = PTE(Pagetable::alloc(), 7);
+    addPage(pde[pdx].getUintPtr(), pde[pdx].getPtr(), 5);
   }
-  PTE *pdpe = pte.getPTE();
-  pte = pdpe[pdpx];
-  if (!pte.present) {
-    pdpe[pdpx] = pte = PTE(Pagetable::alloc(), 7);
-    addPage(pte.getUintPtr(), pte.getPtr(), 5);
+  PTE *pdpe = pde[pdx].getPTE();
+  if (!pdpe[pdpx].present) {
+    pdpe[pdpx] = PTE(Pagetable::alloc(), 7);
+    addPage(pdpe[pdpx].getUintPtr(), pdpe[pdpx].getPtr(), 5);
   }
-  PTE *pml4e = pte.getPTE();
-  flags |= 1;
-  pml4e[pml4x] = PTE(paddr, flags);
+  PTE *pml4e = pdpe[pdpx].getPTE();
+  pml4e[pml4x] = PTE(paddr, flags | 1);
   return &pml4e[pml4x];
 }
 
@@ -329,7 +325,7 @@ void Process::startup() {
   Thread *thread = new Thread();
   thread->regs.rip = entry;
   thread->regs.rflags = 0;
-  id = (ProcessManager::getManager())->RegisterProcess(this);
+  id = (ProcessManager::getManager())->registerProcess(this);
   addThread(thread, false);
 }
 
@@ -338,6 +334,7 @@ void Process::exit(int code) {
   for (size_t i = 0; i < threads.getCount(); i++) {
     ProcessManager::getManager()->dequeueThread(threads[i]);
   }
+  ProcessManager::getManager()->exitProcess(this, code);
   delete this;
 }
 

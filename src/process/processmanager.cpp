@@ -104,7 +104,7 @@ bool ProcessManager::HandleFault(uint8_t intr, uint32_t code, Interrupts::Callba
   return true;
 }
 
-uint64_t ProcessManager::RegisterProcess(Process *process) {
+uint64_t ProcessManager::registerProcess(Process *process) {
   Mutex::CriticalLock lock(processSwitchMutex);
   uint64_t pid = 1;
   for (size_t i = 0; i < processes.getCount(); i++) {
@@ -112,6 +112,14 @@ uint64_t ProcessManager::RegisterProcess(Process *process) {
   }
   processes.add(process);
   return pid;
+}
+
+void ProcessManager::exitProcess(Process *process, int code) {
+  (void)code;  // TODO: handle
+  Mutex::CriticalLock lock(processSwitchMutex);
+  for (size_t i = processes.getCount(); i > 0; i--) {
+    if (processes[i-1] == process) processes.remove(i-1);
+  }
 }
 
 void ProcessManager::queueThread(Process *process, Thread *thread) {
