@@ -10,6 +10,60 @@
 Mutex ACPI::controllerMutex;
 volatile ACPI* ACPI::controller = nullptr;
 
+enum LAPIC_VALUES {
+  LAPIC_DISABLE = 0x10000,
+  LAPIC_SW_ENABLE = 0x100,
+  LAPIC_CPUFOCUS = 0x200,
+  LAPIC_NMI = (4 << 8),
+  TMR_PERIODIC = 0x20000,
+  TMR_BASEDIV = (1 << 20),
+};
+
+enum IOAPIC_FIELDS {
+  IOAPIC_REGSEL = 0x0, IOAPIC_REGWIN = 0x10,
+};
+
+enum IOAPIC_REGS {
+  IOAPIC_ID = 0x0, IOAPIC_VER = 0x1, IOAPIC_REDTBL = 0x10,
+};
+
+struct ACPI::Header {
+  uint32_t signature;
+  uint32_t length;
+  uint8_t revision;
+  uint8_t checksum;
+  uint8_t oem[6];
+  uint8_t oemTableId[8];
+  uint32_t oemRevision;
+  uint32_t creatorId;
+  uint32_t creatorRevision;
+};
+struct ACPI::Madt : Header {
+  uint32_t localApicAddr;
+  uint32_t flags;
+};
+struct ACPI::ApicHeader {
+  uint8_t type;
+  uint8_t length;
+};
+struct ACPI::ApicLocalApic : ApicHeader {
+  uint8_t acpiProcessorId;
+  uint8_t apicId;
+  uint32_t flags;
+};
+struct ACPI::ApicIoApic : ApicHeader {
+  uint8_t ioApicId;
+  uint8_t reserved;
+  uint32_t ioApicAddress;
+  uint32_t globalSystemInterruptBase;
+};
+struct ACPI::ApicInterruptOverride : ApicHeader {
+  uint8_t bus;
+  uint8_t source;
+  uint32_t interrupt;
+  uint16_t flags;
+};
+
 ACPI* ACPI::getController() {
   if (controller) return const_cast<ACPI*>(controller);
   Mutex::CriticalLock lock(controllerMutex);
@@ -132,7 +186,7 @@ void ACPI::ParseApic(const Madt *madt) {
   Pagetable::map(localApicAddr);
 
   const uint8_t *p = reinterpret_cast<const uint8_t*>(madt + 1);
-  const uint8_t *end = p + (madt->header.length - sizeof(Madt));
+  const uint8_t *end = p + (madt->Header::length - sizeof(Madt));
 
   while (p < end) {
     const ApicHeader *header = reinterpret_cast<const ApicHeader*>(p);
@@ -141,15 +195,14 @@ void ACPI::ParseApic(const Madt *madt) {
     uint16_t type = header->type;
     uint16_t length = header->length;
     if (type == 0) {
-      const ApicLocalApic *s = reinterpret_cast<const ApicLocalApic*>(p);
+      const ApicLocalApic *s = reinterpret_cast<const ApicLocalApic*>(header);
       acpiCpuIds[acpiCpuCount++] = s->apicId;
     } else if (type == 1) {
-      const ApicIoApic *s = reinterpret_cast<const ApicIoApic*>(p);
+      const ApicIoApic *s = reinterpret_cast<const ApicIoApic*>(header);
       ioApicAddr = reinterpret_cast<char*>(uintptr_t(s->ioApicAddress));
       Pagetable::map(ioApicAddr);
     } else if (type == 2) {
-      const ApicInterruptOverride *s =
-          reinterpret_cast<const ApicInterruptOverride*>(p);
+      const ApicInterruptOverride *s = reinterpret_cast<const ApicInterruptOverride*>(header);
       (void)s;
       // TODO: handle interrupt overrides
     }

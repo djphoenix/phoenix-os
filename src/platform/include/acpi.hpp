@@ -27,66 +27,6 @@ class ACPI {
     LAPIC_TMRDIV = 0x3E0,
     LAPIC_LAST = 0x38F,
   };
-
- private:
-  enum LAPIC_VALUES {
-    LAPIC_DISABLE = 0x10000,
-    LAPIC_SW_ENABLE = 0x100,
-    LAPIC_CPUFOCUS = 0x200,
-    LAPIC_NMI = (4 << 8),
-    TMR_PERIODIC = 0x20000,
-    TMR_BASEDIV = (1 << 20),
-  };
-
-  enum IOAPIC_FIELDS {
-    IOAPIC_REGSEL = 0x0, IOAPIC_REGWIN = 0x10,
-  };
-
-  enum IOAPIC_REGS {
-    IOAPIC_ID = 0x0, IOAPIC_VER = 0x1, IOAPIC_REDTBL = 0x10,
-  };
-
-  struct Header {
-    uint32_t signature;
-    uint32_t length;
-    uint8_t revision;
-    uint8_t checksum;
-    uint8_t oem[6];
-    uint8_t oemTableId[8];
-    uint32_t oemRevision;
-    uint32_t creatorId;
-    uint32_t creatorRevision;
-  };
-  struct Madt {
-    Header header;
-    uint32_t localApicAddr;
-    uint32_t flags;
-  };
-  struct ApicHeader {
-    uint8_t type;
-    uint8_t length;
-  };
-  struct ApicLocalApic {
-    ApicHeader header;
-    uint8_t acpiProcessorId;
-    uint8_t apicId;
-    uint32_t flags;
-  };
-  struct ApicIoApic {
-    ApicHeader header;
-    uint8_t ioApicId;
-    uint8_t reserved;
-    uint32_t ioApicAddress;
-    uint32_t globalSystemInterruptBase;
-  };
-  struct ApicInterruptOverride {
-    ApicHeader header;
-    uint8_t bus;
-    uint8_t source;
-    uint32_t interrupt;
-    uint16_t flags;
-  };
-
   union IOApicRedir {
     struct {
       uint8_t vector :8;
@@ -104,6 +44,13 @@ class ACPI {
   };
 
  private:
+  struct Header;
+  struct Madt;
+  struct ApicHeader;
+  struct ApicLocalApic;
+  struct ApicIoApic;
+  struct ApicInterruptOverride;
+
   static Mutex controllerMutex;
   static volatile ACPI *controller;
 
