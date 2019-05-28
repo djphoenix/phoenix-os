@@ -9,11 +9,10 @@
 volatile ModuleManager* ModuleManager::manager = nullptr;
 Mutex ModuleManager::managerMutex;
 
-bool ModuleManager::parseModuleInfo(ModuleInfo *info, Process *process) {
+bool ModuleManager::parseModuleInfo(ModuleInfo *info, const Process *process) {
   struct {
-    uintptr_t entry, name, version, desc, reqs, dev;
+    uintptr_t name, version, desc, reqs, dev;
   } symbols = {
-    process->getSymbolByName("module"),
     process->getSymbolByName("module_name"),
     process->getSymbolByName("module_version"),
     process->getSymbolByName("module_description"),
@@ -22,11 +21,9 @@ bool ModuleManager::parseModuleInfo(ModuleInfo *info, Process *process) {
   };
   ModuleInfo mod = { nullptr, nullptr, nullptr, nullptr, nullptr };
 
-  if ((symbols.entry == 0) || (symbols.name == 0) || (symbols.version == 0)
+  if ((symbols.name == 0) || (symbols.version == 0)
       || (symbols.desc == 0) || (symbols.reqs == 0) || (symbols.dev == 0))
     return false;
-
-  process->setEntryAddress(symbols.entry);
 
   mod.name = process->readString(symbols.name);
   mod.version = process->readString(symbols.version);

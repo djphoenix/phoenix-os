@@ -16,7 +16,7 @@ class ModuleManager {
   void parseInternal();
   void parseInitRD();
   void loadStream(Stream *stream);
-  bool parseModuleInfo(ModuleInfo *info, Process *process);
+  bool parseModuleInfo(ModuleInfo *info, const Process *process);
   bool bindRequirement(const char *req, Process *process);
   bool bindRequirements(const char *reqs, Process *process);
   static void init();

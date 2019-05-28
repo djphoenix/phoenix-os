@@ -4,9 +4,7 @@
 #pragma once
 #include "kernlib.hpp"
 
-class Thread {
- public:
-  Thread();
+struct Thread {
   struct {
     uint64_t rip, rflags;
     uint64_t rsi, rdi, rbp, rsp;
@@ -16,4 +14,5 @@ class Thread {
   } regs;
   uint64_t suspend_ticks;
   uint64_t stack_top;
+  Thread() : regs(), suspend_ticks(0), stack_top(0) {}
 };

@@ -10,6 +10,7 @@ class List {
   Item *items = nullptr;
   size_t count = 0;
   size_t capacity = 0;
+
  public:
   ~List() { Heap::free(items); }
 
@@ -26,7 +27,8 @@ class List {
 
   void add(const Item &item) { insert() = item; }
 
-  size_t getCount() { return count; }
+  size_t getCount() const { return count; }
 
   Item& operator[] (const size_t index) { return items[index]; }
+  const Item& operator[] (const size_t index) const { return items[index]; }
 };

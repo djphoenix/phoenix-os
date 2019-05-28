@@ -137,7 +137,7 @@ void Process::addSymbol(const char *name, uintptr_t ptr) {
 void Process::setEntryAddress(uintptr_t ptr) {
   entry = ptr;
 }
-uintptr_t Process::getSymbolByName(const char* name) {
+uintptr_t Process::getSymbolByName(const char* name) const {
   for (size_t i = 0; i < symbols.getCount(); i++) {
     if (klib::strcmp(symbols[i].name, name) == 0)
       return symbols[i].ptr;

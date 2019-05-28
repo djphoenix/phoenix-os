@@ -40,14 +40,14 @@ class Process {
   void exit(int code);
   void addThread(Thread *thread, bool suspended);
 
-  uint64_t getId() { return id; }
+  uint64_t getId() const { return id; }
 
   Pagetable::Entry *pagetable;
   uintptr_t addSection(SectionType type, size_t size);
   void addSymbol(const char *name, uintptr_t ptr);
   void setEntryAddress(uintptr_t ptr);
 
-  uintptr_t getSymbolByName(const char* name) PURE;
+  uintptr_t getSymbolByName(const char* name) const PURE;
   uintptr_t linkLibrary(const char* funcname);
   void allowIOPorts(uint16_t min, uint16_t max);
 
