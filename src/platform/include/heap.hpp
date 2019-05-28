@@ -20,10 +20,3 @@ class Heap {
 
   static void free(void* addr);
 };
-
-#define ALIGNED_NEW(align) \
-    void *operator new(size_t size) { return Heap::alloc(size, align); }
-#define ALIGNED_NEWARR(align) \
-    void *operator new[](size_t size) { return Heap::alloc(size, align); }
-
-void *operator new(size_t, size_t);

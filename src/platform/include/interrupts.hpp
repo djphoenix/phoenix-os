@@ -138,8 +138,6 @@ class Interrupts {
         offset_low(uint16_t(offset)), selector(selector), ist(ist), rsvd1(0),
         type(type), rsvd2(0), dpl(dpl), present(present),
         offset_middle(uint16_t(offset >> 16)), offset_high(offset >> 32), rsvd3(0) {}
-
-    ALIGNED_NEWARR(0x1000)
   } PACKED;
 
  private:
