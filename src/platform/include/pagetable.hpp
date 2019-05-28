@@ -76,12 +76,3 @@ class Pagetable {
   static void* lowalloc(size_t count = 1);
   static void free(void* page);
 };
-
-inline static void MmioWrite32(void *p, uint32_t data) {
-  Pagetable::map(p);
-  *reinterpret_cast<volatile uint32_t *>(p) = data;
-}
-inline static uint32_t MmioRead32(const void *p) {
-  Pagetable::map(p);
-  return *reinterpret_cast<const volatile uint32_t *>(p);
-}
