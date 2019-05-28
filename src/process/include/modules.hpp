@@ -9,7 +9,7 @@
 class ModuleManager {
  private:
   struct ModuleInfo {
-    char *name, *version, *description, *requirements, *developer;
+    ptr<char> name, version, description, requirements, developer;
   };
   static Mutex managerMutex;
   static volatile ModuleManager* manager;

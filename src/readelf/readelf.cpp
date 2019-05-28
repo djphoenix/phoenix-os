@@ -106,19 +106,17 @@ static bool readelf_dylink_process_reloc(Process *process, uintptr_t start, cons
   if (!sym.name) return 0;
 
   uintptr_t addr = 0;
-  char *name = process->readString(strtab + sym.name);
+  ptr<char> name(process->readString(strtab + sym.name));
   uintptr_t ptr = readelf_find_load_addr(process, start, ent.addr);
 
   bool allownull = sym.bind == ELF64::SYM::STB_WEAK;
-  addr = process->getSymbolByName(name);
-  if (!addr) addr = process->linkLibrary(name);
+  addr = process->getSymbolByName(name.get());
+  if (!addr) addr = process->linkLibrary(name.get());
 
   if (!allownull && addr == 0) {
-    printf("Cannot link symbol: %s\n", name);
-    delete name;
+    printf("Cannot link symbol: %s\n", name.get());
     return 0;
   }
-  delete name;
 
   addr += ent.add;
   switch (ent.type) {
@@ -209,6 +207,7 @@ static bool readelf_dylink_handle_dynamic_symtab(Process *process, uintptr_t sta
   } PACKED hashhdr;
   process->readData(&hashhdr, hashtab, sizeof(hashhdr));
   hashtab += sizeof(hashhdr);
+  ptr<char> name;
   for (uint32_t si = 0; si < hashhdr.nbucket + hashhdr.nchain; si++) {
     uint32_t idx;
     process->readData(&idx, hashtab, sizeof(idx));
@@ -218,9 +217,8 @@ static bool readelf_dylink_handle_dynamic_symtab(Process *process, uintptr_t sta
     if (sym.name == 0) continue;
     uintptr_t ptr = readelf_find_load_addr(process, start, sym.value);
     if (ptr == 0) continue;
-    char *name = process->readString(strtab + sym.name);
-    if (name && name[0] != 0) process->addSymbol(name, ptr);
-    delete name;
+    name = process->readString(strtab + sym.name);
+    if (name && name[0] != 0) process->addSymbol(name.get(), ptr);
   }
   return 1;
 }
@@ -296,14 +294,15 @@ static bool readelf_dylink(Process *process, uintptr_t start) {
 size_t readelf(Process *process, Stream *stream) {
   ELF::HDR elf;
   size_t size = 0;
-  ELF64::PROG *progs = nullptr, *progs_top, *prog;
-  char *buf = nullptr;
+  ELF64::PROG *progs_top, *prog;
+  ptr<ELF64::PROG> progs;
+  ptr<char> buf;
   SectionType type;
   uintptr_t vaddr, offset_load, vaddr_start = 0;
 
   // Read ELF header
   size_t off = 0;
-  if (stream->read(&elf, sizeof(ELF::HDR)) != sizeof(ELF::HDR)) goto err;
+  if (stream->read(&elf, sizeof(ELF::HDR)) != sizeof(ELF::HDR)) return 0;
   off += sizeof(ELF::HDR);
 
   // Identify ELF
@@ -312,35 +311,33 @@ size_t readelf(Process *process, Stream *stream) {
       || (elf.ident.data != ELF::ED_2LSB)
       || (elf.ident.version != ELF::EVF_CURRENT)
       || (elf.ident.osabi != 0)
-      || (elf.ident.abiversion != 0)) goto err;
+      || (elf.ident.abiversion != 0)) return 0;
   // Check ELF type
   if ((elf.machine != ELF::EM_AMD64)
       || (elf.type != ELF::ET_DYN)
       || (elf.version != ELF::EV_CURRENT)
       || (elf.flags != 0)
       || (elf.ehsize != sizeof(ELF::HDR))
-      || (elf.phoff != sizeof(ELF::HDR))) goto err;
+      || (elf.phoff != sizeof(ELF::HDR))) return 0;
 
   // Init variables
   size = elf.shoff + elf.shentsize * elf.shnum;
   progs = new ELF64::PROG[elf.phnum]();
-  progs_top = progs + elf.phnum;
+  progs_top = progs.get() + elf.phnum;
 
   // Read linker program
-  if (stream->read(progs, sizeof(ELF64::PROG) * elf.phnum) != sizeof(ELF64::PROG) * elf.phnum)
-    goto err;
+  if (stream->read(progs.get(), sizeof(ELF64::PROG) * elf.phnum) != sizeof(ELF64::PROG) * elf.phnum) return 0;
   off += sizeof(ELF64::PROG) * elf.phnum;
 
-  for (prog = progs; prog < progs_top; prog++) {
+  for (prog = progs.get(); prog < progs_top; prog++) {
     switch (prog->type) {
       case ELF64::PROG::PT_NULL: break;
       case ELF64::PROG::PT_PHDR:
-        if ((prog->offset != elf.phoff) || (prog->filesz != sizeof(ELF64::PROG) * elf.phnum))
-          goto err;
+        if ((prog->offset != elf.phoff) || (prog->filesz != sizeof(ELF64::PROG) * elf.phnum)) return 0;
         break;
       case ELF64::PROG::PT_LOAD:
         if (prog->flags & ELF64::PROG::PF_X) {
-          if (prog->flags & ELF64::PROG::PF_W) goto err;
+          if (prog->flags & ELF64::PROG::PF_W) return 0;
           type = SectionTypeCode;
         } else {
           if (prog->flags & ELF64::PROG::PF_W)
@@ -356,16 +353,15 @@ size_t readelf(Process *process, Stream *stream) {
             process->writeData(vaddr, &elf, sizeof(ELF::HDR));
             offset_load = sizeof(ELF::HDR) + sizeof(ELF64::PROG) * elf.phnum;
           }
-          if (prog->offset + offset_load < off) goto err;
+          if (prog->offset + offset_load < off) return 0;
           if (prog->offset + offset_load > off) {
             stream->seek(ptrdiff_t(prog->offset + offset_load - off), 0);
             off = prog->offset + offset_load;
           }
           buf = new char[prog->filesz - offset_load]();
-          if (stream->read(buf, prog->filesz - offset_load) != prog->filesz - offset_load) goto err;
+          if (stream->read(buf.get(), prog->filesz - offset_load) != prog->filesz - offset_load) return 0;
           off += prog->filesz - offset_load;
-          process->writeData(vaddr + offset_load, buf, prog->filesz - offset_load);
-          delete[] buf; buf = nullptr;
+          process->writeData(vaddr + offset_load, buf.get(), prog->filesz - offset_load);
           prog->vaddr = vaddr;
         }
         break;
@@ -373,20 +369,12 @@ size_t readelf(Process *process, Stream *stream) {
       default:
         if (prog->type >= ELF64::PROG::PT_LOOS && prog->type <= ELF64::PROG::PT_HIOS) break;
         if (prog->type >= ELF64::PROG::PT_LOPROC && prog->type <= ELF64::PROG::PT_HIPROC) break;
-        goto err;
+        return 0;
     }
   }
 
-  process->writeData(vaddr_start + sizeof(ELF::HDR), progs, sizeof(ELF64::PROG) * elf.phnum);
+  process->writeData(vaddr_start + sizeof(ELF::HDR), progs.get(), sizeof(ELF64::PROG) * elf.phnum);
 
-  goto done;
-err:
-  size = 0;
-done:
-  delete progs;
-  delete buf;
-  if (size != 0) {
-    if (!readelf_dylink(process, vaddr_start)) size = 0;
-  }
+  if (!readelf_dylink(process, vaddr_start)) return 0;
   return size;
 }

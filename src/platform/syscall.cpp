@@ -10,9 +10,8 @@
 
 static void syscall_puts(uintptr_t strptr) {
   Process *process = ProcessManager::getManager()->currentProcess();
-  const char *str = process->readString(strptr);
-  Display::getInstance()->write(str);
-  delete str;
+  ptr<char> str(process->readString(strptr));
+  Display::getInstance()->write(str.get());
 }
 
 static void syscall_exit(int code) {
@@ -37,11 +36,10 @@ static void syscall_kread(void *out, const void *kaddr, size_t size) {
   process->writeData(uintptr_t(out), kaddr, size);
 }
 
-static void syscall_ioprovide(const char *path, const void *ptr) {
+static void syscall_ioprovide(const char *path, const void *modptr) {
   Process *process = ProcessManager::getManager()->currentProcess();
-  char *str = process->readString(uintptr_t(path));
-  printf("ioprovide [%s(%#lx) / %p] [%s]\n", process->getName(), process->getId(), ptr, str);
-  delete str;
+  ptr<char> str(process->readString(uintptr_t(path)));
+  printf("ioprovide [%s(%#lx) / %p] [%s]\n", process->getName(), process->getId(), modptr, str.get());
 }
 
 #define SYSCALL_ENT(name) { \

@@ -20,3 +20,25 @@ class Heap {
 
   static void free(void* addr);
 };
+
+template<typename T> class ptr {
+ private:
+  T *value;
+ public:
+  ptr() : value(nullptr) {}
+  explicit ptr(T *value) : value(value) {}
+  ~ptr() { delete value; }
+
+  inline void reset(T* newvalue) { delete value; value = newvalue; }
+  inline void operator=(T* newvalue) { reset(newvalue); }
+
+  inline operator bool() const { return value != nullptr; }
+  inline T& operator*() { return *value; }
+  inline T* operator->() { return value; }
+  inline T* get() { return value; }
+  inline T& operator[](ptrdiff_t idx) { return value[idx]; }
+  inline const T& operator*() const { return *value; }
+  inline const T* operator->() const { return value; }
+  inline const T* get() const { return value; }
+  inline const T& operator[](ptrdiff_t idx) const { return value[idx]; }
+};

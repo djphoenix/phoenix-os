@@ -10,6 +10,12 @@ volatile ModuleManager* ModuleManager::manager = nullptr;
 Mutex ModuleManager::managerMutex;
 
 bool ModuleManager::parseModuleInfo(ModuleInfo *info, const Process *process) {
+  info->name = nullptr;
+  info->version = nullptr;
+  info->description = nullptr;
+  info->requirements = nullptr;
+  info->developer = nullptr;
+
   struct {
     uintptr_t name, version, desc, reqs, dev;
   } symbols = {
@@ -19,19 +25,16 @@ bool ModuleManager::parseModuleInfo(ModuleInfo *info, const Process *process) {
     process->getSymbolByName("module_requirements"),
     process->getSymbolByName("module_developer")
   };
-  ModuleInfo mod = { nullptr, nullptr, nullptr, nullptr, nullptr };
 
   if ((symbols.name == 0) || (symbols.version == 0)
       || (symbols.desc == 0) || (symbols.reqs == 0) || (symbols.dev == 0))
     return false;
 
-  mod.name = process->readString(symbols.name);
-  mod.version = process->readString(symbols.version);
-  mod.description = process->readString(symbols.desc);
-  mod.requirements = process->readString(symbols.reqs);
-  mod.developer = process->readString(symbols.dev);
-
-  *info = mod;
+  info->name = process->readString(symbols.name);
+  info->version = process->readString(symbols.version);
+  info->description = process->readString(symbols.desc);
+  info->requirements = process->readString(symbols.reqs);
+  info->developer = process->readString(symbols.dev);
 
   return true;
 }
@@ -127,24 +130,18 @@ void ModuleManager::loadStream(Stream *stream) {
   size_t size;
   ModuleInfo mod;
   for (;;) {
-    mod = {nullptr, nullptr, nullptr, nullptr, nullptr};
     process = new Process();
     size = readelf(process, sub);
     if (size == 0 || !parseModuleInfo(&mod, process)) {
       delete process;
       break;
     }
-    process->setName(mod.name);
-    if (bindRequirements(mod.requirements, process)) {
+    process->setName(mod.name.get());
+    if (bindRequirements(mod.requirements.get(), process)) {
       process->startup();
     } else {
       delete process;
     }
-    delete mod.name;
-    delete mod.version;
-    delete mod.description;
-    delete mod.requirements;
-    delete mod.developer;
 
     sub->seek(ptrdiff_t(size), -1);
     if (!stream->eof()) {
@@ -153,8 +150,7 @@ void ModuleManager::loadStream(Stream *stream) {
       sub = _sub;
     }
   }
-  if (sub != stream)
-    delete sub;
+  if (sub != stream) delete sub;
 }
 void ModuleManager::parseInternal() {
   const char *mods_start, *mods_end;
