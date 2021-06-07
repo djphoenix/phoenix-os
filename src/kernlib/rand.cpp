@@ -7,19 +7,32 @@
 static inline bool check_rdrand() {
   uint32_t cpuid;
   asm volatile("cpuid":"=c"(cpuid):"a"(uint32_t(1)), "c"(uint32_t(0)):"ebx", "edx");
-  return cpuid & (1 << 30);
+  return (cpuid & (1 << 30)) != 0;
 }
 
-static uint64_t _genseed() {
-  if (check_rdrand()) {
-    uint64_t val;
-    asm volatile("rdrandq %q0":"=r"(val));
-    return val;
+static inline bool check_rdseed() {
+  uint32_t cpuid;
+  asm volatile("cpuid":"=b"(cpuid):"a"(uint32_t(7)), "b"(uint32_t(0)):"ecx", "edx");
+  return (cpuid & (1 << 18)) != 0;
+}
+
+void RAND::setup() {
+  if (check_rdseed()) {
+    asm volatile(
+      "1: rdseedq %q0; jnc 1b"
+      :"=r"(seed)
+    );
+  } else if (check_rdrand()) {
+    asm volatile(
+      "1: rdrandq %q0; jnc 1b"
+      :"=r"(seed)
+    );
+  } else {
+    seed = klib::rdtsc();
   }
-  return klib::rdtsc();
 }
 
-static uint64_t seed = _genseed();
+uint64_t RAND::seed;
 
 uint64_t RAND::_get64() {
   uint64_t x = seed;

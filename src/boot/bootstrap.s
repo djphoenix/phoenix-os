@@ -200,6 +200,7 @@ x64_entry:
   and $(~0x0F), %rsp
   call reloc_vtables
   xor %rbp, %rbp
+  call _ZN4RAND5setupEv
   call _ZN9Pagetable4initEv
   call _ZN7Display5setupEv
   call _ZN10Interrupts4initEv

@@ -7,6 +7,8 @@
 
 class RAND {
  private:
+  static uint64_t seed;
+  static void setup();
   static uint64_t _get64();
  public:
   template<typename T> static inline T get() { return static_cast<T>(_get64()); }
