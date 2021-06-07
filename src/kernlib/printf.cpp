@@ -355,7 +355,7 @@ int vprintf(const char *format, va_list ap) {
   }
   len = vsnprintf(buf, size_t(len), format, ap);
   buf[len] = 0;
-  Display::getInstance()->write(buf);
+  klib::puts(buf);
   if (len > 511) Heap::free(buf);
   return len;
 }
@@ -375,4 +375,3 @@ int snprintf(char *str, size_t size, const char *format, ...) {
   va_end(args);
   return len;
 }
-

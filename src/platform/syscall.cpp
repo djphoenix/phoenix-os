@@ -11,7 +11,7 @@
 static void syscall_puts(uintptr_t strptr) {
   Process *process = ProcessManager::getManager()->currentProcess();
   ptr<char> str(process->readString(strptr));
-  Display::getInstance()->write(str.get());
+  klib::puts(str.get());
 }
 
 static void syscall_exit(int code) {

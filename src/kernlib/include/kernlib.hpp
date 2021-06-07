@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include "kernlib/display.hpp"
 #include "kernlib/mem.hpp"
 #include "kernlib/mutex.hpp"
 #include "kernlib/ports.hpp"

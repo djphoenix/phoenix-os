@@ -18,13 +18,11 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_EXTENSIONS ON)
 
 set(CROSS_LLVM_PATH /usr/local/opt/llvm/bin)
-set(CROSS_BINUTILS_PATH /usr/local/opt/binutils/bin)
 
 find_program(CMAKE_C_COMPILER clang HINTS ${CROSS_LLVM_PATH})
 find_program(CMAKE_CXX_COMPILER clang++ HINTS ${CROSS_LLVM_PATH})
 
 find_program(CMAKE_LLVM_OBJCOPY llvm-objcopy HINTS ${CROSS_LLVM_PATH})
-find_program(CMAKE_OBJCOPY objcopy HINTS ${CROSS_BINUTILS_PATH})
 find_program(CMAKE_AR llvm-ar HINTS ${CROSS_LLVM_PATH})
 find_program(CMAKE_NM llvm-nm HINTS ${CROSS_LLVM_PATH})
 find_program(CMAKE_RANLIB llvm-ranlib HINTS ${CROSS_LLVM_PATH})

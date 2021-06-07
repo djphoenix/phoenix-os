@@ -24,6 +24,7 @@ namespace klib {
   char* strndup(const char*, size_t len);
   int strncmp(const char*, const char*, int) PURE;
   int strcmp(const char*, const char*) PURE;
+  void puts(const char *str);
 
   inline static uint64_t rdtsc() {
     uint32_t eax, edx;

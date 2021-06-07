@@ -3,57 +3,51 @@
 */
 
 OUTPUT_FORMAT(elf64-x86-64)
-ENTRY(_efi_start)
-
-PROVIDE(__stack_end__ = 0x4000);
-
-PHDRS
-{
-  headers PT_PHDR PHDRS;
-  text PT_LOAD FILEHDR;
-  rodata PT_LOAD;
-  data PT_LOAD;
-}
 
 SECTIONS
 {
-    .reloc 0x400FE0 (NOLOAD) : ALIGN(1) {
-    	LONG(0) LONG(10) SHORT(0)
-    } :text
-    .text 0x401000 : ALIGN(0x1000) {
+    .text 0x400000 : ALIGN(0x1000) {
         __text_start__ = . ;
-        *boot.a:bootstrap.o(.text .text.*)
+        KEEP(*(.text.efi_head))
+        KEEP(*(.text.bs32))
+        KEEP(*(.text.bs64))
         *(.text .text.*)
-        *(.gnu.linkonce.t.*)
-        PROVIDE (etext = .);
-        . = ALIGN(64);
+        . = ALIGN(8);
         __text_end__ = . ;
-    } :text
-    .rodata : ALIGN(0x1000) {
-        . = ALIGN(8);
-        *(.modules)
 
+        PROVIDE(_sect_text_size = (__text_end__ - __text_start__));
+    }
+    .rodata : ALIGN(0x1000) {
+        __rodata_start__ = . ;
+        *(.modules)
         . = ALIGN(8);
-        __data_start__ = . ;
         *(.rodata .rodata.*)
-    } :rodata
-    .data : ALIGN(0x1000) {
         . = ALIGN(8);
+        __rodata_end__ = . ;
+
+        PROVIDE(_sect_rodata_size = (__rodata_end__ - __rodata_start__));
+    }
+    .data : ALIGN(0x1000) {
+        __data_start__ = . ;
         __VTABLE_START__ = . ;
-        __CTOR_LIST__ = . ; QUAD(0) *(.init_array*) *(.ctor*) QUAD(0)
-        __DTOR_LIST__ = . ; QUAD(0) *(.dtor*) QUAD(0)
-        *(.data.rel.ro.*)
-        *(.data.rel.*)
+        *(.data.rel.ro.* .data.rel.*)
         __VTABLE_END__ = . ;
         *(.got .got.*)
         *(.data .data.*)
+        . = ALIGN(8);
         __data_end__ = . ;
-    } :data
-    .bss (NOLOAD) : ALIGN(0x1000) {
+
+        PROVIDE(_sect_data_size = (__data_end__ - __data_start__));
+        PROVIDE(_full_data_size = (__data_end__ - __rodata_start__));
+    }
+    .bss (NOLOAD) : ALIGN(8) {
         __bss_start__ = . ;
         *(.bss .bss.*)
         *(COMMON)
+        . = ALIGN(8);
         __bss_end__ = . ;
-    } :data
+
+        PROVIDE(_sect_bss_size = (__bss_end__ - __bss_start__));
+    }
     /DISCARD/ : { *(.comment) *(.eh_frame) *(.note*) }
 }

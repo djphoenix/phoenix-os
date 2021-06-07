@@ -1,15 +1,173 @@
 #    PhoeniX OS 32-bit mode bootup process
 #    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
-.code32
-.section .text
 .global _start
 .global __main
 .global _efi_start
-_start:
-  jmp multiboot_entry
+.global x64_entry
 
-  .align 4
+.code32
+
+.section .text.bs32
+_start:
+  .short 0x5a4d /* MZ Signature */
+  .short 0x0000 /* MZ Extra bytes */
+  .short 0x0000 /* MZ Pages */
+  .short 0x0000 /* MZ Relocation items */
+
+  .short 0x0000 /* MZ Header size */
+  .short 0x0000 /* MZ Minimum allocation */
+  .short 0xFFFF /* MZ Maximum allocation */
+  .short 0x0000 /* MZ Initial SS */
+
+  .short 0x00B8 /* MZ Initial SP */
+  .short 0x0000 /* MZ Checksum */
+  .short 0x0000 /* MZ Initial IP */
+  .short 0x0000 /* MZ Initial CS */
+
+  .short 0x0000 /* MZ Relocation table */
+  .short 0x0000 /* MZ Overlay */
+
+  .quad  0 /* MZ-PE Reserved */
+  .short 0 /* MZ-PE OEM identifier */
+  .short 0 /* MZ-PE OEM info */
+  .long  0 /* MZ-PE Reserved 20 bytes */
+  .long  0 /* ... */
+  .long  0 /* ... */
+  .long  0 /* ... */
+  .long  0 /* ... */
+
+  .long  (pe_header - _start)
+
+pe_header:
+  .long  0x00004550 /* PE Magic */
+  .short 0x8664 /* PE Machine */
+  .short (pe_header_sect_end-pe_header_sect)/40 /* PE NumberOfSections */
+  .long  0 /* PE TimeDateStamp */
+  .long  0 /* PE PointerToSymbolTable */
+  .long  1 /* PE NumberOfSymbols */
+  .short (pe_header_sect - pe_header_opt) /* PE SizeOfOptionalHeader */
+  .short (0x0002 | 0x0200 | 0x0004) /* PE Characteristics */
+
+pe_header_opt:
+  .short 0x020b /* PE64 Magic */
+  .byte  0x02, 0x14 /* PE64 MajorLinkerVersion, MinorLinkerVersion */
+  .long  _sect_text_size-(_entry-_start) /* PE64 SizeOfCode */
+  .long  _full_data_size /* PE64 SizeOfInitializedData */
+  .long  _sect_bss_size /* PE64 SizeOfUninitializedData */
+
+  .long  _efi_start-_start /* PE64 AddressOfEntryPoint */
+  .long  0 /* PE64 BaseOfCode */
+
+  .quad  _start /* PE64 ImageBase */
+  .long  0x1000 /* PE64 SectionAlignment */
+  .long  0x1000 /* PE64 FileAlignment */
+
+  .short 1 /* PE64 MajorOperatingSystemVersion */
+  .short 0 /* PE64 MinorOperatingSystemVersion */
+  .short 0 /* PE64 MajorImageVersion */
+  .short 0 /* PE64 MinorImageVersion */
+
+  .short 0 /* PE64 MajorSubsystemVersion */
+  .short 0 /* PE64 MinorSubsystemVersion */
+  .long  0 /* PE64 Win32VersionValue */
+
+  .long  __data_end__-_start /* PE64 SizeOfImage */
+  .long  (pe_header_sect_end-_start) /* PE64 SizeOfHeaders */
+
+  .long  0 /* PE64 CheckSum */
+  .short 10 /* PE64 Subsystem */
+  .short 0 /* PE64 DllCharacteristics */
+
+  .quad  0 /* PE64 SizeOfStackReserve */
+  .quad  0 /* PE64 SizeOfStackCommit */
+  .quad  0 /* PE64 SizeOfHeapReserve */
+  .quad  0 /* PE64 SizeOfHeapCommit */
+
+  .long  0 /* PE64 LoaderFlags */
+  .long  (pe_header_sect-.) / 8 /* PE64 NumberOfRvaAndSizes */
+
+  .quad  0 /* ExportTable */
+  .quad  0 /* ImportTable */
+  .quad  0 /* ResourceTable */
+  .quad  0 /* ExceptionTable */
+  .quad  0 /* CertificationTable */
+  .long  pe_reloc-_start, pe_reloc_end-pe_reloc /* BaseRelocationTable */
+  .quad  0 /* DebugDirectory */
+  .quad  0 /* ArchitectureSpecificData */
+  .quad  0 /* RVAofGP */
+  .quad  0 /* TLSDirectory */
+  .quad  0 /* LoadConfigurationDirectory */
+  .quad  0 /* BoundImportDirectoryinheaders */
+  .quad  0 /* ImportAddressTable */
+  .quad  0 /* DelayLoadImportDescriptors */
+  .quad  0 /* COMRuntimedescriptor */
+  .quad  0 /* EOD */
+
+pe_header_sect:
+  .ascii	".reloc\0\0"
+  .long	pe_reloc_end-pe_reloc
+  .long	pe_reloc-_start
+  .long	pe_reloc_end-pe_reloc
+  .long	pe_reloc-_start
+	.long	0, 0    # PointerToRelocations, PointerToLineNumbers
+	.word	0, 0    # NumberOfRelocations, NumberOfLineNumbers
+  .long	0x00000040 | 0x40000000 | 0x02000000 | 0x00100000 # Characteristics
+
+/*  .ascii	".setup\0\0"
+  .long	0
+  .long	0x0     # startup_{32,64}
+  .long	0       # Size of initialized data on disk
+  .long	0x0     # startup_{32,64}
+  .long	0       # PointerToRelocations
+  .long	0       # PointerToLineNumbers
+  .word	0       # NumberOfRelocations
+  .word	0       # NumberOfLineNumbers
+  .long	0x00000020 | 0x40000000 | 0x20000000 | 0x00500000 # Characteristics */
+
+  .ascii	".text\0\0\0"
+	.long	_sect_text_size-(_entry-_start)
+	.long	_entry-_start
+	.long	_sect_text_size-(_entry-_start)
+	.long	_entry-_start
+	.long	0, 0    # PointerToRelocations, PointerToLineNumbers
+	.word	0, 0    # NumberOfRelocations, NumberOfLineNumbers
+	.long	0x00000020 | 0x40000000 | 0x20000000 | 0x00d00000 # Characteristics
+
+  .ascii	".rodata\0"
+	.long	_sect_rodata_size
+	.long	__rodata_start__-_start
+	.long	_sect_rodata_size
+	.long	__rodata_start__-_start
+	.long	0, 0    # PointerToRelocations, PointerToLineNumbers
+	.word	0, 0    # NumberOfRelocations, NumberOfLineNumbers
+	.long	0x00000040 | 0x40000000 | 0x00d00000 # Characteristics
+
+  .ascii	".data\0\0\0"
+	.long	_sect_data_size
+	.long	__data_start__-_start
+	.long	_sect_data_size
+	.long	__data_start__-_start
+	.long	0, 0    # PointerToRelocations, PointerToLineNumbers
+	.word	0, 0    # NumberOfRelocations, NumberOfLineNumbers
+	.long	0x00000040 | 0x40000000 | 0x80000000 | 0x00d00000 # Characteristics
+
+  .ascii	".bss\0\0\0\0"
+	.long	_sect_bss_size
+	.long	__bss_start__-_start
+	.long	0
+	.long	0
+	.long	0, 0    # PointerToRelocations, PointerToLineNumbers
+	.word	0, 0    # NumberOfRelocations, NumberOfLineNumbers
+	.long	0x00000080 | 0x40000000 | 0x80000000 | 0x00500000 # Characteristics
+
+pe_header_sect_end:
+pe_reloc:
+  .short 0
+  .long 0, 0
+pe_reloc_end:
+
+  .align 16
 multiboot_header:
   .long 0x1BADB002
   .long 0x00010005
@@ -17,12 +175,14 @@ multiboot_header:
 
   .long multiboot_header
   .long __text_start__
-  .long __bss_start__
+  .long __data_end__
   .long __bss_end__ + 0x80000
   .long multiboot_entry
 
   .long 0, 800, 600, 8
 
+  .align 0x1000
+_entry:
 multiboot_entry:
   cli
 
@@ -49,10 +209,10 @@ multiboot_entry:
 
   # Clear BSS
   lea __bss_start__-_start(%ebp), %edi
-  lea __bss_end__-_start(%ebp), %ecx
-  sub %edi, %ecx
+  mov $_sect_bss_size, %ecx
+  shr $2, %ecx
   xor %eax, %eax
-  rep stosb
+  rep stosl
 
   # Advance pointer to multiboot table if needed
   cmp $0x80000, %ebx
@@ -175,6 +335,7 @@ multiboot_entry:
   jmp 6b
 
 .code64
+.section .text.bs64
 
 _efi_start: # EFI
   cli
@@ -201,14 +362,15 @@ x64_entry:
   call reloc_vtables
   xor %rbp, %rbp
   call _ZN4RAND5setupEv
+  call _ZN13SerialConsole5setupEv
   call _ZN9Pagetable4initEv
-  call _ZN7Display5setupEv
   call _ZN10Interrupts4initEv
   call _ZN3SMP4initEv
   call _ZN13ModuleManager4initEv
   call _ZN7Syscall5setupEv
   jmp _ZN14ProcessManager12process_loopEv
 
+.section .text.reloc_vtables
 reloc_vtables:
   lea reloc_vtables-reloc_vtables(%rip), %rcx
   lea __VTABLE_START__(%rip), %rbp
@@ -229,22 +391,7 @@ reloc_vtables:
 3:
   ret
 
-static_init:
-  push %rbp
-  push %rax
-  lea __CTOR_LIST__(%rip), %rbp
-1:
-  add $8, %rbp
-  mov (%rbp), %rax
-  test %rax, %rax
-  je 2f
-  callq *%rax
-  jmp 1b
-2:
-  pop %rax
-  pop %rbp
-  ret
-
+.section .text.__main
 __main: # Fix for Windows builds
   ret
 
