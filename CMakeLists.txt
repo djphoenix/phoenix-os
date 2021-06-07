@@ -5,11 +5,10 @@ include(cmake/toolchain.cmake)
 project(pxos ASM C CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -nostdlib -ffreestanding")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -nostdlib -ffreestanding")
-
+SET_PROPERTY(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS TRUE)
 set(SRCDIR "${CMAKE_SOURCE_DIR}/src")
 
+include(cmake/compiler.cmake)
 include(cmake/modules.cmake)
 include(cmake/kernel.cmake)
 include(cmake/deps.cmake)
