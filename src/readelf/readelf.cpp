@@ -17,7 +17,23 @@ static uintptr_t readelf_find_load_addr(Process *process, uintptr_t start, uintp
         (prog.offset + prog.filesz > faddr)) break;
   }
   if (phdr == phdr_top) return 0;
-  return faddr + prog.vaddr - prog.offset;
+  return faddr + prog.paddr - prog.offset;
+}
+
+static uintptr_t readelf_find_load_offset(Process *process, uintptr_t start, uintptr_t faddr) {
+  ELF::HDR elf;
+  process->readData(&elf, start, sizeof(elf));
+  uintptr_t phdr_base = start + elf.phoff, phdr;
+  uintptr_t phdr_top = phdr_base + elf.phnum * sizeof(ELF64::PROG);
+  ELF64::PROG prog;
+  for (phdr = phdr_base; phdr < phdr_top; phdr += sizeof(ELF64::PROG)) {
+    process->readData(&prog, phdr, sizeof(ELF64::PROG));
+    if ((prog.type == ELF64::PROG::PT_LOAD) &&
+        (prog.vaddr <= faddr) &&
+        (prog.vaddr + prog.filesz > faddr)) break;
+  }
+  if (phdr == phdr_top) return 0;
+  return faddr + prog.offset - prog.vaddr;
 }
 
 static bool readelf_dylink_fix_phdr(Process *process, uintptr_t start) {
@@ -30,14 +46,13 @@ static bool readelf_dylink_fix_phdr(Process *process, uintptr_t start) {
 
   for (phdr = phdr_base; phdr < phdr_top; phdr += sizeof(ELF64::PROG)) {
     process->readData(&prog, phdr, sizeof(ELF64::PROG));
-    if (prog.type == ELF64::PROG::PT_NULL) continue;
     switch (prog.type) {
       case ELF64::PROG::PT_NULL:
       case ELF64::PROG::PT_LOAD:
         break;
       default:
-        prog.vaddr = readelf_find_load_addr(process, start, prog.offset);
-        if (prog.vaddr == 0) return 0;
+        prog.paddr = readelf_find_load_addr(process, start, prog.offset);
+        if (prog.paddr == 0) return 0;
         process->writeData(phdr, &prog, sizeof(ELF64::PROG));
         break;
     }
@@ -49,8 +64,10 @@ static bool readelf_dylink_fix_phdr(Process *process, uintptr_t start) {
 static bool readelf_dylink_fix_entry(Process *process, uintptr_t start) {
   ELF::HDR elf;
   process->readData(&elf, start, sizeof(elf));
-  elf.entry = readelf_find_load_addr(process, start, elf.entry);
-  if (elf.entry == 0) return 0;
+  uintptr_t offset = readelf_find_load_offset(process, start, elf.entry);
+  uintptr_t entry = readelf_find_load_addr(process, start, offset);
+  if (entry == 0) return 0;
+  elf.entry = entry;
   process->writeData(start, &elf, sizeof(elf));
   process->setEntryAddress(elf.entry);
   return 1;
@@ -60,6 +77,7 @@ static bool readelf_dylink_fix_dynamic_table(Process *process, uintptr_t start,
                                              uintptr_t dyntbl, size_t dynsz) {
   uintptr_t dyntop = dyntbl + dynsz, dynptr;
   ELF64::DYN dyn;
+  uintptr_t offset;
   for (dynptr = dyntbl; dynptr < dyntop; dynptr += sizeof(ELF64::DYN)) {
     process->readData(&dyn, dynptr, sizeof(ELF64::DYN));
     switch (dyn.tag) {
@@ -75,7 +93,8 @@ static bool readelf_dylink_fix_dynamic_table(Process *process, uintptr_t start,
       case ELF64::DYN::DT_JMPREL:
       case ELF64::DYN::DT_INIT_ARRAY:
       case ELF64::DYN::DT_FINI_ARRAY:
-        dyn.val = readelf_find_load_addr(process, start, dyn.val);
+        offset = readelf_find_load_offset(process, start, dyn.val);
+        dyn.val = readelf_find_load_addr(process, start, offset);
         if (dyn.val == 0) return 0;
         process->writeData(dynptr, &dyn, sizeof(dyn));
         break;
@@ -107,7 +126,8 @@ static bool readelf_dylink_process_reloc(Process *process, uintptr_t start, cons
 
   uintptr_t addr = 0;
   ptr<char> name(process->readString(strtab + sym.name));
-  uintptr_t ptr = readelf_find_load_addr(process, start, ent.addr);
+  uintptr_t offset = readelf_find_load_offset(process, start, ent.addr);
+  uintptr_t ptr = readelf_find_load_addr(process, start, offset);
 
   bool allownull = sym.bind == ELF64::SYM::STB_WEAK;
   addr = process->getSymbolByName(name.get());
@@ -276,8 +296,8 @@ static bool readelf_dylink_handle_dynamic(Process *process, uintptr_t start) {
   for (phdr = phdr_base; phdr < phdr_top; phdr += sizeof(ELF64::PROG)) {
     process->readData(&prog, phdr, sizeof(ELF64::PROG));
     if (prog.type != ELF64::PROG::PT_DYNAMIC) continue;
-    if (!readelf_dylink_fix_dynamic_table(process, start, prog.vaddr, prog.filesz) ||
-        !readelf_dylink_handle_dynamic_table(process, start, prog.vaddr, prog.filesz))
+    if (!readelf_dylink_fix_dynamic_table(process, start, prog.paddr, prog.filesz) ||
+        !readelf_dylink_handle_dynamic_table(process, start, prog.paddr, prog.filesz))
       return 0;
   }
 
@@ -291,18 +311,19 @@ static bool readelf_dylink(Process *process, uintptr_t start) {
       readelf_dylink_handle_dynamic(process, start);
 }
 
-size_t readelf(Process *process, Stream *stream) {
+size_t readelf(Process *process, const void *mem, size_t memsize) {
+  const uint8_t *elfbase = reinterpret_cast<const uint8_t*>(mem);
   ELF::HDR elf;
   size_t size = 0;
   ELF64::PROG *progs_top, *prog;
   ptr<ELF64::PROG> progs;
   ptr<char> buf;
   SectionType type;
-  uintptr_t vaddr, offset_load, vaddr_start = 0;
+  uintptr_t paddr, palign, offset_load, paddr_start = 0;
 
   // Read ELF header
   size_t off = 0;
-  if (stream->read(&elf, sizeof(ELF::HDR)) != sizeof(ELF::HDR)) return 0;
+  Memory::copy(&elf, elfbase, sizeof(ELF::HDR)); // TODO: validate
   off += sizeof(ELF::HDR);
 
   // Identify ELF
@@ -326,7 +347,7 @@ size_t readelf(Process *process, Stream *stream) {
   progs_top = progs.get() + elf.phnum;
 
   // Read linker program
-  if (stream->read(progs.get(), sizeof(ELF64::PROG) * elf.phnum) != sizeof(ELF64::PROG) * elf.phnum) return 0;
+  Memory::copy(progs.get(), elfbase + off, sizeof(ELF64::PROG) * elf.phnum); // TODO: validate
   off += sizeof(ELF64::PROG) * elf.phnum;
 
   for (prog = progs.get(); prog < progs_top; prog++) {
@@ -345,24 +366,24 @@ size_t readelf(Process *process, Stream *stream) {
           else
             type = SectionTypeROData;
         }
-        vaddr = process->addSection(type, prog->memsz);
+        palign = prog->offset & 0xFFF;
+        paddr = process->addSection(type, prog->memsz + palign) + palign;
         if (prog->memsz > 0) {
           offset_load = 0;
           if (prog->offset == 0) {
-            vaddr_start = vaddr;
-            process->writeData(vaddr, &elf, sizeof(ELF::HDR));
+            paddr_start = paddr;
+            process->writeData(paddr, &elf, sizeof(ELF::HDR));
             offset_load = sizeof(ELF::HDR) + sizeof(ELF64::PROG) * elf.phnum;
           }
           if (prog->offset + offset_load < off) return 0;
           if (prog->offset + offset_load > off) {
-            stream->seek(ptrdiff_t(prog->offset + offset_load - off), 0);
             off = prog->offset + offset_load;
           }
           buf = new char[prog->filesz - offset_load]();
-          if (stream->read(buf.get(), prog->filesz - offset_load) != prog->filesz - offset_load) return 0;
+          Memory::copy(buf.get(), elfbase + off, prog->filesz - offset_load); // TODO: validate
           off += prog->filesz - offset_load;
-          process->writeData(vaddr + offset_load, buf.get(), prog->filesz - offset_load);
-          prog->vaddr = vaddr;
+          process->writeData(paddr + offset_load, buf.get(), prog->filesz - offset_load);
+          prog->paddr = paddr;
         }
         break;
       case ELF64::PROG::PT_DYNAMIC: break;
@@ -373,8 +394,8 @@ size_t readelf(Process *process, Stream *stream) {
     }
   }
 
-  process->writeData(vaddr_start + sizeof(ELF::HDR), progs.get(), sizeof(ELF64::PROG) * elf.phnum);
+  process->writeData(paddr_start + sizeof(ELF::HDR), progs.get(), sizeof(ELF64::PROG) * elf.phnum);
 
-  if (!readelf_dylink(process, vaddr_start)) return 0;
+  if (!readelf_dylink(process, paddr_start)) return 0;
   return size;
 }

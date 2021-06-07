@@ -4,6 +4,5 @@
 #pragma once
 #include "kernlib.hpp"
 #include "process.hpp"
-#include "stream.hpp"
 
-size_t readelf(Process *process, Stream *stream);
+size_t readelf(Process *process, const void *mem, size_t size);

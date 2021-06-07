@@ -4,7 +4,6 @@
 #pragma once
 #include "kernlib.hpp"
 #include "process.hpp"
-#include "stream.hpp"
 
 class ModuleManager {
  private:
@@ -15,7 +14,7 @@ class ModuleManager {
   static volatile ModuleManager* manager;
   void parseInternal();
   void parseInitRD();
-  void loadStream(Stream *stream);
+  void loadMemory(const void *mem, size_t size);
   bool parseModuleInfo(ModuleInfo *info, const Process *process);
   bool bindRequirement(const char *req, Process *process);
   bool bindRequirements(const char *reqs, Process *process);
@@ -24,4 +23,3 @@ class ModuleManager {
  public:
   static ModuleManager* getManager();
 };
-

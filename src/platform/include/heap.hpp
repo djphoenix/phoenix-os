@@ -25,8 +25,8 @@ template<typename T> class ptr {
  private:
   T *value;
  public:
-  ptr() : value(nullptr) {}
-  explicit ptr(T *value) : value(value) {}
+  constexpr ptr() : value(nullptr) {}
+  explicit constexpr ptr(T *value) : value(value) {}
   ~ptr() { delete value; }
 
   inline void reset(T* newvalue) { delete value; value = newvalue; }
@@ -36,6 +36,7 @@ template<typename T> class ptr {
   inline T& operator*() { return *value; }
   inline T* operator->() { return value; }
   inline T* get() { return value; }
+  inline T* release() { T *val = value; value = nullptr; return val; }
   inline T& operator[](ptrdiff_t idx) { return value[idx]; }
   inline const T& operator*() const { return *value; }
   inline const T* operator->() const { return value; }

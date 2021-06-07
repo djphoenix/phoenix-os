@@ -183,7 +183,7 @@ namespace ELF {
         STT_HIPROC = 15,
       };
       uint32_t name;
-      BIND bind:4; TYPE type:4;
+      TYPE type:4; BIND bind:4;
       uint8_t other;
       uint16_t shndx;
       uint64_t value;

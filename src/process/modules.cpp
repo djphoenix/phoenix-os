@@ -106,7 +106,7 @@ bool ModuleManager::bindRequirement(const char *req, Process *process) {
 bool ModuleManager::bindRequirements(const char *reqs, Process *process) {
   if (reqs == nullptr) return 1;
   const char *re;
-  char *r;
+  ptr<char> r;
   while (*reqs != 0) {
     if (*reqs == ';') { reqs++; continue; }
     re = reqs;
@@ -114,54 +114,39 @@ bool ModuleManager::bindRequirements(const char *reqs, Process *process) {
     r = klib::strndup(reqs, size_t(re - reqs));
     reqs = re;
 
-    if (!bindRequirement(r, process)) {
-      printf("Unsatisfied requirement: %s\n", r);
-      Heap::free(r);
+    if (!bindRequirement(r.get(), process)) {
+      printf("Unsatisfied requirement: %s\n", r.get());
       return 0;
     }
-    Heap::free(r);
   }
   return 1;
 }
 
-void ModuleManager::loadStream(Stream *stream) {
-  Stream *sub = stream;
-  Process *process;
+void ModuleManager::loadMemory(const void *mem, size_t memsize) {
   size_t size;
   ModuleInfo mod;
-  for (;;) {
-    process = new Process();
-    size = readelf(process, sub);
-    if (size == 0 || !parseModuleInfo(&mod, process)) {
-      delete process;
+  while (memsize > 0) {
+    ptr<Process> process { new Process() };
+    size = readelf(process.get(), mem, memsize);
+    if (size == 0 || !parseModuleInfo(&mod, process.get())) {
       break;
     }
     process->setName(mod.name.get());
-    if (bindRequirements(mod.requirements.get(), process)) {
-      process->startup();
-    } else {
-      delete process;
+    if (bindRequirements(mod.requirements.get(), process.get())) {
+      process.release()->startup();
     }
 
-    sub->seek(ptrdiff_t(size), -1);
-    if (!stream->eof()) {
-      Stream *_sub = sub->substream();
-      if (sub != stream) delete sub;
-      sub = _sub;
-    }
+    mem = reinterpret_cast<const uint8_t*>(mem) + size;
+    memsize -= size;
   }
-  if (sub != stream) delete sub;
+}
+extern "C" {
+  extern const uint8_t __modules_start__[], __modules_end__[];
 }
 void ModuleManager::parseInternal() {
-  const char *mods_start, *mods_end;
-  asm volatile("lea __modules_start__(%%rip), %q0":"=r"(mods_start));
-  asm volatile("lea __modules_end__(%%rip), %q0":"=r"(mods_end));
-
-  size_t modules_size = size_t(mods_end - mods_start);
-
+  const size_t modules_size = size_t(__modules_end__ - __modules_start__);
   if (modules_size > 1) {
-    MemoryStream ms(mods_start, modules_size);
-    loadStream(&ms);
+    loadMemory(__modules_start__, modules_size);
   }
 }
 void ModuleManager::parseInitRD() {
@@ -170,11 +155,10 @@ void ModuleManager::parseInitRD() {
   const Multiboot::Module *mods =
       reinterpret_cast<const Multiboot::Module*>(uintptr_t(multiboot->mods.paddr));
   for (uint32_t i = 0; i < multiboot->mods.count; i++) {
-    const char *base = reinterpret_cast<const char*>(uintptr_t(mods[i].start));
-    const char *top = reinterpret_cast<const char*>(uintptr_t(mods[i].end));
+    const uint8_t *base = reinterpret_cast<const uint8_t*>(uintptr_t(mods[i].start));
+    const uint8_t *top = reinterpret_cast<const uint8_t*>(uintptr_t(mods[i].end));
     size_t length = size_t(top - base);
-    MemoryStream ms(base, length);
-    loadStream(&ms);
+    loadMemory(base, length);
   }
 }
 void ModuleManager::init() {
