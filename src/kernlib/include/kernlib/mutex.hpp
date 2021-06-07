@@ -28,13 +28,13 @@ class Mutex {
   bool state;
 
  public:
-  Mutex(): state(0) {}
+  constexpr Mutex(): state(0) {}
   inline void lock() {
     asm volatile(
         "1:"
         "testw $1, %0; jnz 1b;"
         "lock btsw $0, %0; jc 1b;"
-        ::"m"(state));
+        ::"m"(state):"cc","memory");
   }
   inline bool try_lock() {
     bool ret = 0;
@@ -42,7 +42,7 @@ class Mutex {
         "lock btsw $0, %1; jc 1f;"
         "mov $1, %0;"
         "1:"
-        :"=r"(ret):"m"(state));
+        :"+r"(ret):"m"(state):"cc","memory");
     return ret;
   }
   inline void release() {

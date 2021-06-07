@@ -48,17 +48,19 @@ struct GDT {
       seg_lim_high = (limit >> 16) & 0xF;
     }
 
-    Entry() :
-        type(0), system(0), dpl(0), present(0), avl(0), islong(0), db(0),
-        granularity(0) { setLimit(0); setBase(0); }
+    constexpr Entry() :
+        seg_lim_low(0), base_low(0), type(0), system(0), dpl(0), present(0),
+        seg_lim_high(0), avl(0), islong(0), db(0), granularity(0), base_high(0) {}
 
-    Entry(
+    constexpr Entry(
         uint64_t base, uint64_t limit,
         uint8_t type, uint8_t dpl,
         bool system, bool present, bool avl, bool islong,
-        bool db, bool granularity): type(type), system(system), dpl(dpl),
-            present(present), avl(avl), islong(islong), db(db),
-            granularity(granularity) { setLimit(limit); setBase(base); }
+        bool db, bool granularity):
+            seg_lim_low(limit & 0xFFFF), base_low(base & 0xFFFFFF),
+            type(type), system(system), dpl(dpl), present(present),
+            seg_lim_high((limit >> 16) & 0xF), avl(avl), islong(islong), db(db),
+            granularity(granularity), base_high((base >> 24) & 0xFF) {}
   } PACKED;
 
   struct SystemEntry {
@@ -73,9 +75,9 @@ struct GDT {
       base_high = (base >> 32);
     }
 
-    SystemEntry(): base_high(0), rsvd(0) { }
+    constexpr SystemEntry(): ent(), base_high(0), rsvd(0) { }
 
-    SystemEntry(uint64_t base, uint64_t limit, uint8_t type, uint8_t dpl,
+    constexpr SystemEntry(uint64_t base, uint64_t limit, uint8_t type, uint8_t dpl,
                 bool system, bool present, bool avl, bool islong, bool db,
                 bool granularity) :
         ent(base, limit, type, dpl, system, present, avl, islong, db,
@@ -130,10 +132,10 @@ class Interrupts {
     uint32_t offset_high;
     uint32_t rsvd3;
 
-    REC64():
+    constexpr REC64():
       offset_low(0), selector(0), ist(0), rsvd1(0), type(0), rsvd2(0), dpl(0),
       present(0), offset_middle(0), offset_high(0), rsvd3(0) {}
-    REC64(uint64_t offset, uint16_t selector, uint8_t ist, uint8_t type,
+    constexpr REC64(uint64_t offset, uint16_t selector, uint8_t ist, uint8_t type,
                 uint8_t dpl, bool present) :
         offset_low(uint16_t(offset)), selector(selector), ist(ist), rsvd1(0),
         type(type), rsvd2(0), dpl(dpl), present(present),

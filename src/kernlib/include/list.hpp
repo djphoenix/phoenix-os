@@ -14,21 +14,21 @@ class List {
  public:
   ~List() { Heap::free(items); }
 
-  Item& insert() {
+  inline Item& insert() {
     if (count == capacity) {
       capacity += klib::max(256 / sizeof(Item), size_t(1));
       items = static_cast<Item*>(Heap::realloc(items, sizeof(Item) * capacity));
     }
     return items[count++];
   }
-  void remove(size_t idx) {
+  inline void remove(size_t idx) {
     Memory::copy(items + idx, items + idx + 1, sizeof(Item) * ((--count) - idx));
   }
 
-  void add(const Item &item) { insert() = item; }
+  inline void add(const Item &item) { insert() = item; }
 
-  size_t getCount() const { return count; }
+  inline size_t getCount() const { return count; }
 
-  Item& operator[] (const size_t index) { return items[index]; }
-  const Item& operator[] (const size_t index) const { return items[index]; }
+  inline Item& operator[] (const size_t index) { return items[index]; }
+  inline const Item& operator[] (const size_t index) const { return items[index]; }
 };

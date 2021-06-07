@@ -155,7 +155,7 @@ struct SyscallEntry {
     0x0f, 0x05, 0xc3,
   };
 
-  explicit SyscallEntry(uint64_t idx) : syscall_id(idx) {}
+  explicit constexpr SyscallEntry(uint64_t idx) : syscall_id(idx) {}
 } PACKED;
 uintptr_t Process::linkLibrary(const char* funcname) {
   if (klib::strcmp(funcname, "kptr_acpi_rsdp") == 0) {
@@ -278,9 +278,8 @@ void Process::startup() {
       addPage(page, reinterpret_cast<void*>(page), 1);
     }
   }
-  uintptr_t handler, sc_wrapper;
+  uintptr_t handler, sc_wrapper = uintptr_t(Syscall::wrapper);
   asm volatile("lea __interrupt_wrap(%%rip), %q0":"=r"(handler));
-  asm volatile("lea _ZN7Syscall7wrapperEv(%%rip), %q0":"=r"(sc_wrapper));
   handler &= KB4;
   sc_wrapper &= KB4;
   addPage(handler, reinterpret_cast<void*>(handler), 1);
@@ -368,7 +367,7 @@ void Process::print_stacktrace(uintptr_t base, const Process *process) {
       }
       frame = &tmpframe;
     }
-    printf(" [%p]:%p", frame->rbp, reinterpret_cast<void*>(frame->rip));
+    printf(" [%p]:%p", reinterpret_cast<void*>(frame->rbp), reinterpret_cast<void*>(frame->rip));
     frame = frame->rbp;
   }
   printf("\n");

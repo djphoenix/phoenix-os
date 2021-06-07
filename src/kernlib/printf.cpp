@@ -21,7 +21,7 @@ static inline char *longlong_to_string(
     if (digit < 10) {
       buf[ --pos] = static_cast<char>(digit + '0');
     } else {
-      buf[ --pos] = digit - 10 + table_start;
+      buf[ --pos] = static_cast<char>(digit - 10 + table_start);
     }
   }
   if (buf[pos] == 0) buf[ --pos] = '0';

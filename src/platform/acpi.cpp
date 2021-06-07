@@ -330,7 +330,7 @@ void ACPI::initCPU() {
   LapicOut(LAPIC_LVT_LINT1, LAPIC_DISABLE);
   LapicOut(LAPIC_TASKPRIOR, 0);
 
-  asm volatile("rdmsr; bts $11,%%eax; wrmsr"::"c"(0x1B):"rax");
+  asm volatile("rdmsr; bts $11,%%eax; wrmsr"::"c"(0x1B):"rax","cc");
 
   LapicOut(LAPIC_SPURIOUS, 0x27 | LAPIC_SW_ENABLE);
 

@@ -43,9 +43,8 @@ void SMP::init() {
     DTREG gdtptr;
   } PACKED;
 
-  const char *smp_init, *smp_end;
-  asm volatile("lea _smp_init(%%rip), %q0":"=r"(smp_init));
-  asm volatile("lea _smp_end(%%rip), %q0":"=r"(smp_end));
+  const uint8_t *smp_init, *smp_end;
+  asm volatile("lea _smp_init(%%rip), %q0; lea _smp_end(%%rip), %q1":"=r"(smp_init),"=r"(smp_end));
 
   const size_t smp_init_size = size_t(smp_end - smp_init);
 
@@ -64,7 +63,7 @@ void SMP::init() {
   info->startup = startup;
 
   asm volatile("mov %%cr3, %q0":"=r"(info->pagetableptr));
-  asm volatile("sgdt %0":"=m"(info->gdtptr):"m"(info->gdtptr));
+  asm volatile("sgdtq %0":"+m"(info->gdtptr));
 
   uint32_t nullcpus = 0;
   for (uint32_t i = 0; i < cpuCount; i++) {

@@ -25,9 +25,9 @@ class Pagetable {
     uintptr_t _ptr :51;
     uint8_t nx :1;
 
-    uintptr_t getUintPtr() { return _ptr << 12; }
-    void *getPtr() { return reinterpret_cast<void*>(getUintPtr()); }
-    Entry *getPTE() { return static_cast<Entry*>(getPtr()); }
+    uintptr_t getUintPtr() const { return _ptr << 12; }
+    void *getPtr() const { return reinterpret_cast<void*>(getUintPtr()); }
+    Entry *getPTE() const { return static_cast<Entry*>(getPtr()); }
 
     Entry(): flags(0), rsvd(0), avl(0), _ptr(0), nx(0) {}
     Entry(uintptr_t ptr, uint8_t avl, uint8_t flags):

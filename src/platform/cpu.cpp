@@ -76,7 +76,7 @@ static const char CPUID_EXT_FEAT_STR[64][16] = {
 char* CPU::getVendor() {
   if (vendor[0] == 0) {
     uint32_t eax = 0, ebx, ecx, edx;
-    asm volatile("cpuid" : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) : "a"(eax));
+    asm volatile("cpuid" : "+a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx));
     uint32_t *v = reinterpret_cast<uint32_t*>(vendor);
     v[0] = ebx;
     v[1] = edx;
@@ -89,9 +89,7 @@ char* CPU::getVendor() {
 uint32_t CPU::getMaxCPUID() {
   if (maxCPUID == 0) {
     uint32_t eax = 0x80000000;
-    asm volatile("cpuid" :
-        "=a"(eax):
-        "a"(eax):"ecx","ebx","edx");
+    asm volatile("cpuid" : "+a"(eax)::"ecx","ebx","edx");
     maxCPUID = eax;
   }
   return maxCPUID;
@@ -100,9 +98,7 @@ uint32_t CPU::getMaxCPUID() {
 uint64_t CPU::getFeatures() {
   if (features == 0) {
     uint32_t eax = 1, ecx, edx;
-    asm volatile("cpuid" :
-        "=a"(eax), "=c"(ecx), "=d"(edx) :
-        "a"(eax) :"ebx");
+    asm volatile("cpuid" : "+a"(eax), "=c"(ecx), "=d"(edx) :: "ebx");
     features = (uint64_t(ecx) << 32) | uint64_t(edx);
     struct CPUID_INFO {
       uint32_t stepping:3;
@@ -128,9 +124,7 @@ uint64_t CPU::getFeatures() {
 uint64_t CPU::getFeaturesExt() {
   if (features_ext == 0) {
     uint32_t eax = 7, ebx, ecx = 0;
-    asm volatile("cpuid" :
-        "=a"(eax), "=b"(ebx), "=c"(ecx) :
-        "a"(eax), "c"(ecx): "edx");
+    asm volatile("cpuid" : "+a"(eax), "=b"(ebx), "+c"(ecx) :: "edx");
     features_ext = uint64_t(ebx) | (uint64_t(ecx) << 32);
   }
   return features_ext;
@@ -139,9 +133,7 @@ uint64_t CPU::getFeaturesExt() {
 uint64_t CPU::getExtFeatures() {
   if (ext_features == 0 && (getMaxCPUID() >= 0x80000001)) {
     uint32_t eax = 0x80000001, ecx, edx;
-    asm volatile("cpuid" :
-        "=a"(eax), "=c"(ecx), "=d"(edx) :
-        "a"(eax): "ebx");
+    asm volatile("cpuid" : "+a"(eax), "=c"(ecx), "=d"(edx) :: "ebx");
     ext_features = uint64_t(edx) | (uint64_t(ecx) << 32);
   }
   return ext_features;
@@ -200,19 +192,13 @@ char* CPU::getBrandString() {
   if ((brandString[0] == 0) && (getMaxCPUID() >= 0x80000004)) {
     uint32_t *v = reinterpret_cast<uint32_t*>(brandString);
     uint32_t eax = 0x80000002, ebx, ecx, edx;
-    asm volatile("cpuid" :
-        "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) :
-        "a"(eax));
+    asm volatile("cpuid" : "+a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx));
     v[0] = eax; v[1] = ebx; v[2] = ecx; v[3] = edx;
     eax = 0x80000003;
-    asm volatile("cpuid" :
-        "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) :
-        "a"(eax));
+    asm volatile("cpuid" : "+a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx));
     v[4] = eax; v[5] = ebx; v[6] = ecx; v[7] = edx;
     eax = 0x80000004;
-    asm volatile("cpuid" :
-        "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) :
-        "a"(eax));
+    asm volatile("cpuid" : "+a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx));
     v[8] = eax; v[9] = ebx; v[10] = ecx; v[11] = edx;
     brandString[48] = 0;
   }

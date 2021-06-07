@@ -14,5 +14,5 @@ struct Thread {
   } regs;
   uint64_t suspend_ticks;
   uint64_t stack_top;
-  Thread() : regs(), suspend_ticks(0), stack_top(0) {}
+  constexpr Thread() : regs(), suspend_ticks(0), stack_top(0) {}
 };

@@ -14,7 +14,7 @@ struct Interrupts::Handler {
   uint8_t reljmp[1] = { 0xE9 };
   uint32_t diff;
 
-  Handler(uint32_t int_num, uint32_t diff): int_num(int_num), diff(diff) {}
+  constexpr Handler(uint32_t int_num, uint32_t diff): int_num(int_num), diff(diff) {}
 } PACKED;
 
 Interrupts::REC64 *Interrupts::idt = nullptr;
@@ -172,7 +172,8 @@ struct int_info {
 
 void Interrupts::print(uint8_t num, CallbackRegs *regs, uint32_t code, const Process *process) {
   uint64_t cr2;
-  asm volatile("mov %%cr2, %0":"=a"(cr2));
+  uint64_t base;
+  asm volatile("mov %%cr2, %0 ; lea __text_start__(%%rip), %q1":"=r"(cr2),"=r"(base));
   uint32_t cpuid = ACPI::getController()->getCPUID();
   char rflags_buf[10] = "---------";
   if (regs->rflags & (1 << 0))
@@ -193,7 +194,6 @@ void Interrupts::print(uint8_t num, CallbackRegs *regs, uint32_t code, const Pro
     rflags_buf[1] = 'D';
   if (regs->rflags & (1 << 11))
     rflags_buf[0] = 'O';
-  uint64_t base; asm volatile("lea __text_start__(%%rip), %q0":"=r"(base));
   printf("\n%s fault %s (cpu=%u, error=0x%x)\n"
          "BASE=%016lx CS=%04hx SS=%04hx DPL=%hhu\n"
          "IP=%016lx FL=%016lx [%s]\n"
@@ -335,7 +335,7 @@ void Interrupts::init() {
       "mov %%ax, %%ds;"
       "mov %%ax, %%es;"
       "mov %%ax, %%gs;"
-      ::"m"(gdtreg):"rax", "rcx");
+      ::"m"(gdtreg):"ax", "rcx");
 
   uintptr_t addr;
   char *lapic_eoi =
@@ -394,7 +394,7 @@ void Interrupts::loadVector() {
   asm volatile(
       "lidtq %0;"
       "ltr %w1;"
-      "sti"::"m"(idtreg), "a"(tr));
+      "sti"::"m"(idtreg), "r"(tr));
 }
 
 uint16_t Interrupts::getIRQmask() {

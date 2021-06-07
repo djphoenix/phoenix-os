@@ -22,9 +22,9 @@ static void syscall_exit(int code) {
   Pagetable::Entry *pte = Pagetable::Entry::find(rsp, pt);
   asm volatile(
       "callq _ZN7Process4exitEi;"
-      "sti; movq $0, %q2;"
+      "sti; movq $0, %q2; xor %%rbp, %%rbp;"
       "jmp _ZN14ProcessManager12process_loopEv"
-      ::"D"(process), "S"(code), "a"(pte)
+      ::"D"(process), "S"(code), "a"(pte) : "cc"
       );
 }
 
@@ -142,5 +142,4 @@ void Syscall::setup() {
   wrmsr(MSR_STAR, uint64_t(0x10) << 48 | uint64_t(0x8) << 32);
   wrmsr(MSR_LSTAR, uintptr_t(wrapper));
   wrmsr(MSR_SFMASK, MSR_SFMASK_IE);
-  wrmsr(MSR_EFER, rdmsr(MSR_EFER) | MSR_EFER_SCE | MSR_EFER_NXE);
 }
