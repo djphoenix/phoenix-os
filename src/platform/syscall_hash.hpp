@@ -1,3 +1,5 @@
+#pragma once
+
 static const uint64_t hash_base = 0x467521903ff4ea37;
 static const uint64_t hash_mul = 0x0064006400640064;
 

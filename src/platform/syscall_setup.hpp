@@ -1,3 +1,5 @@
+#pragma once
+
 static const uint32_t MSR_EFER = 0xC0000080;
 static const uint32_t MSR_STAR = 0xC0000081;
 static const uint32_t MSR_LSTAR = 0xC0000082;
