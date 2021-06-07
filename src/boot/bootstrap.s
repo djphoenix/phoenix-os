@@ -82,31 +82,11 @@ multiboot_entry:
   or $0x20, %al
   out %al, %dx
 
-  # Check CPUID
-  pushfl
-  pop %eax
-  mov %eax, %ecx
-  xor $0x200000, %eax
-  push %eax
-  popfl
-  pushfl
-  pop %eax
-  push %ecx
-  popfl
-  xor %ecx, %eax
-  jz 3f
-
-  # Check extended CPUID is supported
-  mov $0x80000000, %eax
-  cpuid
-  cmp $0x80000001, %eax
-  jb 4f
-
   # Check longmode in CPUID
   mov $0x80000001, %eax
   cpuid
   test $0x20000000, %edx
-  jz 4f
+  jz 3f
 
   # Disable paging
   mov %cr0, %eax
@@ -114,34 +94,33 @@ multiboot_entry:
   mov %eax, %cr0
 
   # Fill pagetable
-  lea -0x203000+_start(%ebp), %edi
+  lea -0x203000(%ebp), %edi
   mov %edi, %cr3
   xor %eax, %eax
   mov $0x400, %ecx
   rep stosl
   mov %cr3, %edi
 
-  lea -0x203000+0x3+_start(%ebp), %esi
+  lea (-0x202000+0x3)(%ebp), %eax
 
-  add $0x1000, %esi
-  mov %esi, 0x0000(%edi)
-  add $0x1000, %esi
-  mov %esi, 0x1000(%edi)
+  mov %eax, (%edi)
+  add $0x1000, %eax
+  add $0x1000, %edi
+  mov %eax, (%edi)
+  add $0x1000, %edi
 
   mov $0x200, %ecx
 1:
-  add $0x1000, %esi
-  mov %esi, 0x2000(%edi)
+  add $0x1000, %eax
+  mov %eax, (%edi)
   add $8, %edi
   loop 1b
 
-  add $0x2000, %edi
-
-  mov $0x00000003, %ebx
-  mov $0x1000, %ecx
+  mov $0x00000003, %eax
+  mov $0x8000, %ecx
 1:
-  mov %ebx, (%edi)
-  add $0x1000, %ebx
+  mov %eax, (%edi)
+  add $0x1000, %eax
   add $8, %edi
   loop 1b
 
@@ -153,7 +132,7 @@ multiboot_entry:
   # Enable longmode
   mov $0xC0000080, %ecx
   rdmsr
-  or $0x100, %eax
+  or $0x901, %eax
   wrmsr
 
   # Enable paging
@@ -176,28 +155,23 @@ multiboot_entry:
 
 2:
   lea aNoMultiboot-_start(%ebp), %esi
-  jmp 5f
-
+  jmp 4f
 3:
-  lea aNoCPUID-_start(%ebp), %esi
-  jmp 5f
+  lea aNoLongMode-_start(%ebp), %esi
+#  jmp 4f
 
 4:
-  lea aNoLongMode-_start(%ebp), %esi
-#  jmp 5f
-
-5:
   mov $0xB8000, %edi
   mov $0x0C00, %ax
-6:
+5:
   mov (%esi), %al
   stosw
   inc %esi
   test %al, %al
-  jnz 6b
-7:
+  jnz 5b
+6:
   hlt
-  jmp 7b
+  jmp 6b
 
 .code64
 
@@ -207,6 +181,11 @@ _efi_start: # EFI
   mov %rdx, _ZN3EFI11SystemTableE(%rip)
   # EFI::ImageHandle
   mov %rcx, _ZN3EFI11ImageHandleE(%rip)
+  # Enable NX
+  mov $0xC0000080, %rcx
+  rdmsr
+  or $0x801, %rax
+  wrmsr
 
 x64_entry:
   call reloc_vtables
@@ -262,15 +241,14 @@ __main: # Fix for Windows builds
   .rodata
 
 aNoMultiboot: .ascii "This kernel can boot only from multiboot-compatible bootloader\0"
-aNoLongMode: .ascii "Your CPU are not support x86_64 mode\0"
-aNoCPUID: .ascii "Your CPU are not support CPUID instruction\0"
-  .align 4
+aNoLongMode: .ascii "Your CPU is not support 64-bit mode\0"
 
-GDT64_PTR:
+.align 16
 GDT64.Pointer:
   .short GDT64.End - GDT64 - 1
   .quad GDT64
 
+.align 16
 GDT64:
 GDT64.Null:
   .quad 0

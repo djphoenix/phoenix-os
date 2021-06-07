@@ -27,7 +27,7 @@ class Process {
   List<Thread*> threads;
   List<ProcessSymbol> symbols;
   uintptr_t entry;
-  Pagetable::Entry* addPage(uintptr_t vaddr, void* paddr, uint8_t flags);
+  Pagetable::Entry* addPage(uintptr_t vaddr, void* paddr, Pagetable::MemoryType type);
   uintptr_t _aslrCode, _aslrStack, _syscallPage;
   size_t _syscallNum;
   void *iomap[2];

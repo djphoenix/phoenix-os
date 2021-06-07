@@ -30,8 +30,8 @@ void* Heap::alloc(size_t size, size_t align) {
     return nullptr;
   Mutex::Lock lock(heap_mutex);
 
-  if (!heap_pages) heap_pages = reinterpret_cast<HeapPage*>(Pagetable::alloc());
-  if (!allocs) allocs = reinterpret_cast<AllocTable*>(Pagetable::alloc());
+  if (!heap_pages) heap_pages = reinterpret_cast<HeapPage*>(Pagetable::alloc(1, Pagetable::MemoryType::DATA_RW));
+  if (!allocs) allocs = reinterpret_cast<AllocTable*>(Pagetable::alloc(1, Pagetable::MemoryType::DATA_RW));
 
   uintptr_t ptr = 0, ptr_top;
 
@@ -60,12 +60,12 @@ new_page:
     while (pages) {
       for (size_t i = 0; i < 511; i++) {
         if (pages->pages[i] != nullptr) continue;
-        pages->pages[i] = Pagetable::alloc();
+        pages->pages[i] = Pagetable::alloc(1, Pagetable::MemoryType::DATA_RW);
         ptr = 0;
         goto find_page;
       }
       if (!pages->next)
-        pages->next = reinterpret_cast<HeapPage*>(Pagetable::alloc());
+        pages->next = reinterpret_cast<HeapPage*>(Pagetable::alloc(1, Pagetable::MemoryType::DATA_RW));
       pages = pages->next;
     }
   }
@@ -117,7 +117,7 @@ next_page:
       goto done;
     }
     if (!table->next)
-      table->next = reinterpret_cast<AllocTable*>(Pagetable::alloc());
+      table->next = reinterpret_cast<AllocTable*>(Pagetable::alloc(1, Pagetable::MemoryType::DATA_RW));
     table = table->next;
   }
 done:

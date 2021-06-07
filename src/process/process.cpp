@@ -68,31 +68,31 @@ Process::~Process() {
   delete name;
 }
 
-PTE* Process::addPage(uintptr_t vaddr, void* paddr, uint8_t flags) {
+PTE* Process::addPage(uintptr_t vaddr, void* paddr, Pagetable::MemoryType type) {
   uint16_t ptx = (vaddr >> (12 + 9 + 9 + 9)) & 0x1FF;
   uint16_t pdx = (vaddr >> (12 + 9 + 9)) & 0x1FF;
   uint16_t pdpx = (vaddr >> (12 + 9)) & 0x1FF;
   uint16_t pml4x = (vaddr >> (12)) & 0x1FF;
   if (pagetable == nullptr) {
-    pagetable = static_cast<PTE*>(Pagetable::alloc());
-    addPage(uintptr_t(pagetable), pagetable, 5);
+    pagetable = static_cast<PTE*>(Pagetable::alloc(1, Pagetable::MemoryType::DATA_RW));
+    addPage(uintptr_t(pagetable), pagetable, Pagetable::MemoryType::USER_TABLE);
   }
   if (!pagetable[ptx].present) {
-    pagetable[ptx] = PTE(Pagetable::alloc(), 7);
-    addPage(pagetable[ptx].getUintPtr(), pagetable[ptx].getPtr(), 5);
+    pagetable[ptx] = PTE(Pagetable::alloc(1, Pagetable::MemoryType::DATA_RW), Pagetable::MemoryType::USER_TABLE);
+    addPage(pagetable[ptx].getUintPtr(), pagetable[ptx].getPtr(), Pagetable::MemoryType::USER_TABLE);
   }
   PTE *pde = pagetable[ptx].getPTE();
   if (!pde[pdx].present) {
-    pde[pdx] = PTE(Pagetable::alloc(), 7);
-    addPage(pde[pdx].getUintPtr(), pde[pdx].getPtr(), 5);
+    pde[pdx] = PTE(Pagetable::alloc(1, Pagetable::MemoryType::DATA_RW), Pagetable::MemoryType::USER_TABLE);
+    addPage(pde[pdx].getUintPtr(), pde[pdx].getPtr(), Pagetable::MemoryType::USER_TABLE);
   }
   PTE *pdpe = pde[pdx].getPTE();
   if (!pdpe[pdpx].present) {
-    pdpe[pdpx] = PTE(Pagetable::alloc(), 7);
-    addPage(pdpe[pdpx].getUintPtr(), pdpe[pdpx].getPtr(), 5);
+    pdpe[pdpx] = PTE(Pagetable::alloc(1, Pagetable::MemoryType::DATA_RW), Pagetable::MemoryType::USER_TABLE);
+    addPage(pdpe[pdpx].getUintPtr(), pdpe[pdpx].getPtr(), Pagetable::MemoryType::USER_TABLE);
   }
   PTE *pml4e = pdpe[pdpx].getPTE();
-  pml4e[pml4x] = PTE(paddr, flags | 1);
+  pml4e[pml4x] = PTE(paddr, type);
   return &pml4e[pml4x];
 }
 
@@ -115,18 +115,18 @@ uintptr_t Process::addSection(SectionType type, size_t size) {
   }
   uintptr_t addr = vaddr;
   while (pages-- > 0) {
-    uint8_t flags = 4;
+    Pagetable::MemoryType ptype;
     switch (type) {
-      case SectionTypeCode:
-      case SectionTypeROData:
-        break;
+      case SectionTypeCode: ptype = Pagetable::MemoryType::USER_CODE_RX; break;
+      case SectionTypeROData: ptype = Pagetable::MemoryType::USER_DATA_RO; break;
+
       case SectionTypeData:
       case SectionTypeBSS:
       case SectionTypeStack:
-        flags |= 2;
+        ptype = Pagetable::MemoryType::USER_DATA_RW;
         break;
     }
-    addPage(vaddr, Pagetable::alloc(), flags)->nx = type != SectionTypeCode;
+    addPage(vaddr, Pagetable::alloc(1, Pagetable::MemoryType::DATA_RW), ptype);
     vaddr += 0x1000;
   }
   return addr;
@@ -193,7 +193,7 @@ void Process::writeData(uintptr_t address, const void* src, size_t size) {
   }
 }
 void Process::readData(void* dst, uintptr_t address, size_t size) const {
-  char *ptr = static_cast<char*>(dst);
+  uint8_t *ptr = static_cast<uint8_t*>(dst);
   while (size > 0) {
     void *src = getPhysicalAddress(address);
     size_t limit = 0x1000 - (uintptr_t(src) & 0xFFF);
@@ -206,12 +206,12 @@ void Process::readData(void* dst, uintptr_t address, size_t size) const {
 }
 char *Process::readString(uintptr_t address) const {
   size_t length = 0;
-  const char *src = static_cast<const char*>(getPhysicalAddress(address));
+  const uint8_t *src = static_cast<const uint8_t*>(getPhysicalAddress(address));
   size_t limit = 0x1000 - (uintptr_t(src) & 0xFFF);
   while (limit-- && src[length] != 0) {
     length++;
     if (limit == 0) {
-      src = static_cast<const char*>(getPhysicalAddress(address + length));
+      src = static_cast<const uint8_t*>(getPhysicalAddress(address + length));
       limit += 0x1000;
     }
   }
@@ -247,7 +247,7 @@ void Process::allowIOPorts(uint16_t min, uint16_t max) {
     size_t bit = port % 8;
     uint8_t *map;
     if (!(map = reinterpret_cast<uint8_t*>(iomap[space]))) {
-      map = reinterpret_cast<uint8_t*>(iomap[space] = Pagetable::alloc());
+      map = reinterpret_cast<uint8_t*>(iomap[space] = Pagetable::alloc(1, Pagetable::MemoryType::DATA_RW));
       Memory::fill(map, 0xFF, 0x1000);
     }
     map[byte] &= ~(1 << bit);
@@ -261,11 +261,11 @@ void Process::startup() {
   static const uintptr_t KB4 = 0xFFFFFFFFFFFFF000;
   for (uintptr_t addr = uintptr_t(gdt.addr) & KB4;
       addr < (uintptr_t(gdt.addr) + gdt.limit); addr += 0x1000) {
-    addPage(addr, reinterpret_cast<void*>(addr), 1);
+    addPage(addr, reinterpret_cast<void*>(addr), Pagetable::MemoryType::DATA_RW);
   }
   for (uintptr_t addr = uintptr_t(idt.addr) & KB4;
       addr < (uintptr_t(idt.addr) + idt.limit); addr += 0x1000) {
-    addPage(addr, reinterpret_cast<void*>(addr), 1);
+    addPage(addr, reinterpret_cast<void*>(addr), Pagetable::MemoryType::DATA_RO);
   }
   Interrupts::REC64 *recs = static_cast<Interrupts::REC64*>(idt.addr);
   uintptr_t page = 0;
@@ -275,26 +275,26 @@ void Process::startup() {
         | (uintptr_t(recs[i].offset_high) << 32));
     if (page != (handler & KB4)) {
       page = handler & KB4;
-      addPage(page, reinterpret_cast<void*>(page), 1);
+      addPage(page, reinterpret_cast<void*>(page), Pagetable::MemoryType::CODE_RX);
     }
   }
   uintptr_t handler, sc_wrapper = uintptr_t(Syscall::wrapper);
   asm volatile("lea __interrupt_wrap(%%rip), %q0":"=r"(handler));
   handler &= KB4;
   sc_wrapper &= KB4;
-  addPage(handler, reinterpret_cast<void*>(handler), 1);
-  addPage(handler + 0x1000, reinterpret_cast<void*>(handler + 0x1000), 1);
-  addPage(sc_wrapper, reinterpret_cast<void*>(sc_wrapper), 1);
-  addPage(sc_wrapper + 0x1000, reinterpret_cast<void*>(sc_wrapper + 0x1000), 1);
+  addPage(handler, reinterpret_cast<void*>(handler), Pagetable::MemoryType::CODE_RX);
+  addPage(handler + 0x1000, reinterpret_cast<void*>(handler + 0x1000), Pagetable::MemoryType::CODE_RX);
+  addPage(sc_wrapper, reinterpret_cast<void*>(sc_wrapper), Pagetable::MemoryType::CODE_RX);
+  addPage(sc_wrapper + 0x1000, reinterpret_cast<void*>(sc_wrapper + 0x1000), Pagetable::MemoryType::CODE_RX);
   GDT::Entry *gdt_ent = reinterpret_cast<GDT::Entry*>(uintptr_t(gdt.addr) + 8 * 3);
   GDT::Entry *gdt_top = reinterpret_cast<GDT::Entry*>(uintptr_t(gdt.addr) + gdt.limit);
 
   if (!iomap[0]) {
-    iomap[0] = Pagetable::alloc();
+    iomap[0] = Pagetable::alloc(1, Pagetable::MemoryType::DATA_RW);
     Memory::fill(iomap[0], 0xFF, 0x1000);
   }
   if (!iomap[1]) {
-    iomap[1] = Pagetable::alloc();
+    iomap[1] = Pagetable::alloc(1, Pagetable::MemoryType::DATA_RW);
     Memory::fill(iomap[1], 0xFF, 0x1000);
   }
 
@@ -309,14 +309,14 @@ void Process::startup() {
     base = sysent->getBase();
 
     uintptr_t page = base & KB4;
-    addPage(page, reinterpret_cast<void*>(page), 1);
-    addPage(page + 0x1000, iomap[0], 1);
-    addPage(page + 0x2000, iomap[1], 1);
+    addPage(page, reinterpret_cast<void*>(page), Pagetable::MemoryType::DATA_RO);
+    addPage(page + 0x1000, iomap[0], Pagetable::MemoryType::DATA_RO);
+    addPage(page + 0x2000, iomap[1], Pagetable::MemoryType::DATA_RO);
 
     TSS64_ENT *tss = reinterpret_cast<TSS64_ENT*>(base);
     uintptr_t stack = tss->ist[0];
     page = stack - 0x1000;
-    addPage(page, reinterpret_cast<void*>(page), 3);
+    addPage(page, reinterpret_cast<void*>(page), Pagetable::MemoryType::DATA_RW);
     gdt_ent = reinterpret_cast<GDT::Entry*>(sysent + 1);
   }
 

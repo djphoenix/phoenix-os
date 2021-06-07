@@ -23,6 +23,7 @@ List<Interrupts::Callback*> *Interrupts::callbacks = nullptr;
 Mutex Interrupts::callback_locks[256];
 Mutex Interrupts::fault;
 Interrupts::Handler* Interrupts::handlers = nullptr;
+uintptr_t Interrupts::eoi_vector = 0;
 
 asm(
     ".global __interrupt_wrap;"
@@ -60,7 +61,7 @@ asm(
 
     // Load kernel pagetable
     "__interrupt_pagetable_mov:"
-    "mov $0xF0123456, %rax;"
+    "movabsq $0, %rax;"
     "mov %rax, %cr3;"
 
     // Call actual handler (Interrupts::handle)
@@ -91,12 +92,9 @@ asm(
     "1:"
 
     // Send EOI to local APIC
-    "cmpl $0, 2+_intr_lapic_eoi(%rip);"
-    "jz 1f;"
-    "_intr_lapic_eoi:"
-    "mov $0xF0123456, %rax;"
-    "movl $0, (%rax);"
-    "1:"
+    "mov _ZN10Interrupts10eoi_vectorE(%rip), %rax;"
+    "test %rax, %rax; jz 1f;"
+    "movl $0, (%rax); 1:"
 
     // Restore caller pagetable
     "mov 8(%rsp), %rax;"
@@ -288,11 +286,9 @@ void Interrupts::init() {
   uint64_t ncpu = ACPI::getController()->getCPUCount();
 
   gdt = reinterpret_cast<GDT*>(
-      Pagetable::lowalloc((GDT::size(ncpu) + 0xFFF) / 0x1000));
+      Pagetable::lowalloc((GDT::size(ncpu) + 0xFFF) / 0x1000, Pagetable::MemoryType::DATA_RW));
   idt = reinterpret_cast<REC64*>(
-      Pagetable::alloc((sizeof(REC64) * 256 + 0xFFF) / 0x1000));
-  handlers = reinterpret_cast<Interrupts::Handler*>(
-      Pagetable::alloc((sizeof(Handler) * 256 + 0xFFF) / 0x1000));
+      Pagetable::alloc((sizeof(REC64) * 256 + 0xFFF) / 0x1000, Pagetable::MemoryType::DATA_RW));
 
   gdt->ents[0] = GDT::Entry();
   gdt->ents[1] = GDT::Entry(0, 0xFFFFFFFFFFFFFFFF, 0xA, 0, 1, 1, 0, 1, 0, 1);
@@ -302,13 +298,13 @@ void Interrupts::init() {
 
   size_t tss_size = sizeof(TSS64_ENT) * ncpu;
   size_t tss_size_pad = klib::__align(tss_size, 0x1000);
-  char *tssbuf = reinterpret_cast<char*>(Pagetable::alloc(2 + tss_size_pad / 0x1000));
-  char *tsstop = tssbuf + tss_size_pad;
+  uint8_t *tssbuf = reinterpret_cast<uint8_t*>(Pagetable::alloc(2 + tss_size_pad / 0x1000, Pagetable::MemoryType::DATA_RW));
+  uint8_t *tsstop = tssbuf + tss_size_pad;
   Memory::fill(tsstop, 0xFF, 0x2000);
   for (uint32_t idx = 0; idx < ncpu; idx++) {
-    void *stack = Pagetable::alloc();
+    void *stack = Pagetable::alloc(1, Pagetable::MemoryType::DATA_RW);
     uintptr_t stack_ptr = uintptr_t(stack) + 0x1000;
-    char *entbuf = tssbuf + sizeof(TSS64_ENT) * idx;
+    uint8_t *entbuf = tssbuf + sizeof(TSS64_ENT) * idx;
     TSS64_ENT *ent = reinterpret_cast<TSS64_ENT*>(entbuf);
     ent->ist[0] = stack_ptr;
     ent->iomap_base = uint16_t(tsstop - entbuf);
@@ -338,16 +334,21 @@ void Interrupts::init() {
       ::"m"(gdtreg):"ax", "rcx");
 
   uintptr_t addr;
-  char *lapic_eoi =
-      reinterpret_cast<char*>(ACPI::getController()->getLapicAddr());
+  uint8_t *lapic_eoi =
+      reinterpret_cast<uint8_t*>(ACPI::getController()->getLapicAddr());
   if (lapic_eoi) lapic_eoi += ACPI::LAPIC_EOI;
+  eoi_vector = uintptr_t(lapic_eoi);
   asm volatile("lea __interrupt_wrap(%%rip), %q0":"=r"(addr));
+  Pagetable::map(reinterpret_cast<void*>(addr), Pagetable::MemoryType::CODE_RW);
   asm volatile(
-      "mov %%eax, 2+_intr_lapic_eoi(%%rip);"
-      "mov %%cr3, %%rax;"
-      "mov %%eax, 2+__interrupt_pagetable_mov(%%rip)"
-      ::"a"(lapic_eoi)
-      );
+    "mov %%cr3, %%rax;"
+    "mov %%eax, 2+__interrupt_pagetable_mov(%%rip)"
+    :::"rax"
+  );
+  Pagetable::map(reinterpret_cast<void*>(addr), Pagetable::MemoryType::CODE_RX);
+
+  handlers = reinterpret_cast<Interrupts::Handler*>(
+      Pagetable::alloc((sizeof(Handler) * 256 + 0xFFF) / 0x1000, Pagetable::MemoryType::CODE_RW));
   for (uint32_t i = 0; i < 256; i++) {
     uintptr_t jmp_from = uintptr_t(&(handlers[i].reljmp));
     uintptr_t diff = addr - jmp_from - 5;
@@ -356,6 +357,7 @@ void Interrupts::init() {
     uintptr_t hptr = uintptr_t(&handlers[i]);
     idt[i] = REC64(hptr, 8, 1, 0xE, 0, true);
   }
+  Pagetable::map(handlers, handlers + 256, Pagetable::MemoryType::CODE_RX);
   callbacks = new List<Callback*>[256]();
 
   Port<0x20>::out<uint8_t>(0x11);

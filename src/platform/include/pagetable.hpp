@@ -4,8 +4,29 @@
 #pragma once
 #include "kernlib.hpp"
 
+namespace EFI { struct SystemTable; }
 class Pagetable {
  public:
+  enum class MemoryType : uint8_t {
+    FLAG_W = 1,
+    FLAG_X = 2,
+    FLAG_U = 4,
+
+    DATA_RO = 0,
+    DATA_RW = FLAG_W,
+    CODE_RX = FLAG_X,
+    CODE_RW = FLAG_X | FLAG_W,
+
+    USER_DATA_RO = FLAG_U | DATA_RO,
+    USER_DATA_RW = FLAG_U | DATA_RW,
+    USER_CODE_RX = FLAG_U | CODE_RX,
+    USER_CODE_RW = FLAG_U | CODE_RW,
+    USER_TABLE = USER_CODE_RW,
+
+    TABLE = CODE_RW,
+    NULLPAGE = 8,
+  };
+  friend constexpr bool operator&(const MemoryType &a, const MemoryType &b) { return (uint8_t(a) & uint8_t(b)) != 0; }
   struct Entry {
     union {
       struct {
@@ -29,50 +50,60 @@ class Pagetable {
     void *getPtr() const { return reinterpret_cast<void*>(getUintPtr()); }
     Entry *getPTE() const { return static_cast<Entry*>(getPtr()); }
 
-    Entry(): flags(0), rsvd(0), avl(0), _ptr(0), nx(0) {}
-    Entry(uintptr_t ptr, uint8_t avl, uint8_t flags):
-      flags(flags), rsvd(0), avl(avl), _ptr(ptr >> 12), nx(0) {}
-    Entry(uintptr_t ptr, uint8_t flags):
-      flags(flags), rsvd(0), avl(0), _ptr(ptr >> 12), nx(0) {}
-    Entry(const void *ptr, uint8_t avl, uint8_t flags):
-      flags(flags), rsvd(0), avl(avl), _ptr(uintptr_t(ptr) >> 12), nx(0) {}
-    Entry(const void *ptr, uint8_t flags):
-      flags(flags), rsvd(0), avl(0), _ptr(uintptr_t(ptr) >> 12), nx(0) {}
+    constexpr Entry(): flags(0), rsvd(0), avl(0), _ptr(0), nx(0) {}
+    constexpr Entry(uintptr_t ptr, uint8_t avl, MemoryType type):
+      flags(
+        ((type & MemoryType::NULLPAGE) ? 0 : 1) |
+        ((type & MemoryType::FLAG_W) ? 2 : 0) |
+        ((type & MemoryType::FLAG_U) ? 4 : 0)
+      ),
+      rsvd(0), avl(avl), _ptr(ptr >> 12),
+      nx((type & MemoryType::FLAG_X) ? 0 : 1) {}
+    constexpr Entry(uintptr_t ptr, MemoryType type): Entry(ptr, 0, type) {}
+    Entry(const void *ptr, uint8_t avl, MemoryType type): Entry(uintptr_t(ptr), avl, type) {}
+    Entry(const void *ptr, MemoryType type): Entry(ptr, 0, type) {}
 
-    static Entry* find(uintptr_t ptr, Entry *pagetable) {
-      uint16_t ptx = (ptr >> (12 + 9 + 9 + 9)) & 0x1FF;
-      uint16_t pdx = (ptr >> (12 + 9 + 9)) & 0x1FF;
-      uint16_t pdpx = (ptr >> (12 + 9)) & 0x1FF;
-      uint16_t pml4x = (ptr >> (12)) & 0x1FF;
+    static inline Entry* find(uintptr_t ptr, Entry *pagetable) {
+      uintptr_t ptx   = (ptr >> (12 + 9 + 9 + 9)) & 0x1FF;
+      uintptr_t pdx   = (ptr >> (12 + 9 + 9    )) & 0x1FF;
+      uintptr_t pdpx  = (ptr >> (12 + 9        )) & 0x1FF;
+      uintptr_t pml4x = (ptr >> (12            )) & 0x1FF;
 
-      Entry *pde = pagetable[ptx].present ? pagetable[ptx].getPTE() : nullptr;
-      if (pde == nullptr) return nullptr;
-      Entry *pdpe = pde[pdx].present ? pde[pdx].getPTE() : nullptr;
-      if (pdpe == nullptr) return nullptr;
-      Entry *page = pdpe[pdpx].present ? pdpe[pdpx].getPTE() : nullptr;
-      if (page == nullptr) return nullptr;
+      Entry *pt = pagetable + ptx;
 
-      return &page[pml4x];
+      if (!pt->present) return nullptr;
+      pt = pt->getPTE() + pdx;
+      if (!pt->present) return nullptr;
+      pt = pt->getPTE() + pdpx;
+      if (!pt->present) return nullptr;
+      pt = pt->getPTE() + pml4x;
+
+      return pt;
     }
-    static Entry* find(const void *addr, Entry *pagetable) {
+    static inline Entry* find(const void *addr, Entry *pagetable) {
       return find(uintptr_t(addr), pagetable);
     }
   } PACKED;
 
  private:
   static const size_t rsvd_num = 16;
+  static uintptr_t max_page;
   static void* rsvd_pages[rsvd_num];
+  static size_t rsvd_r, rsvd_w;
   static Mutex page_mutex;
-  static uint64_t last_page;
-  static void* _alloc(bool low, size_t count);
-  static void* _map(const void* addr);
+  static uintptr_t last_page;
+  static void* _alloc(bool low, size_t count, MemoryType type, Entry *pagetable);
+  static void* _map(const void* low, const void* top, MemoryType type, Entry *pagetable);
   static void* _getRsvd();
-  static void _renewRsvd();
+  static void _renewRsvd(Entry *pagetable);
+  static inline void initMB(Entry **pagetable, uint8_t **newbase);
+  static inline void initEFI(const EFI::SystemTable *ST, Entry **pagetable, uint8_t **newbase);
   static void init();
 
  public:
-  static void* map(const void* mem);
-  static void* alloc(size_t count = 1);
-  static void* lowalloc(size_t count = 1);
+  static void* map(const void* low, const void* top, MemoryType type);
+  static void* map(const void* mem, MemoryType type);
+  static void* alloc(size_t count, MemoryType type);
+  static void* lowalloc(size_t count, MemoryType type);
   static void free(void* page);
 };

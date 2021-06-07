@@ -54,10 +54,11 @@ class ACPI {
   static Mutex controllerMutex;
   static volatile ACPI *controller;
 
-  char *localApicAddr, *ioApicAddr;
+  uint8_t *localApicAddr, *ioApicAddr;
   const void *rsdpAddr;
   uint8_t ioApicMaxCount;
-  uint32_t acpiCpuIds[256];
+  uint8_t acpiCpuLapicIds[256];
+  uint8_t acpiLapicCpuIds[256];
   uint8_t acpiCpuCount;
   uint8_t activeCpuCount;
   uint64_t busfreq;
@@ -72,8 +73,8 @@ class ACPI {
  public:
   ACPI();
   static ACPI* getController();
-  uint32_t getLapicID();
-  uint32_t getCPUID();
+  uint8_t getLapicID();
+  uint8_t getCPUID();
   const void* getRSDPAddr() PURE;
   void* getLapicAddr() PURE;
   uint32_t getCPUCount() PURE;
@@ -85,8 +86,8 @@ class ACPI {
   void IOapicMap(uint32_t idx, const IOApicRedir &r);
   IOApicRedir IOapicReadMap(uint32_t idx);
   void activateCPU();
-  uint32_t getLapicIDOfCPU(uint32_t cpuId) PURE;
-  uint32_t getCPUIDOfLapic(uint32_t lapicId) PURE;
+  uint8_t getLapicIDOfCPU(uint8_t cpuId) PURE;
+  uint8_t getCPUIDOfLapic(uint8_t lapicId) PURE;
   void sendCPUInit(uint32_t id);
   void sendCPUStartup(uint32_t id, uint8_t vector);
   bool initAPIC();

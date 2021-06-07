@@ -10,22 +10,19 @@ class SMP {
  private:
   static Mutex startupMutex;
   static void setup();
-  static void NORETURN startup();
   static void init();
 };
 
 Mutex SMP::startupMutex;
 
 void SMP::setup() {
-  Interrupts::loadVector();
-  ACPI::getController()->activateCPU();
-  Syscall::setup();
-  Mutex::Lock lock(startupMutex);
-}
-
-void SMP::startup() {
-  setup();
-  ProcessManager::process_loop();
+  {
+    Interrupts::loadVector();
+    ACPI::getController()->activateCPU();
+    Syscall::setup();
+    Mutex::Lock lock(startupMutex);
+  }
+  asm volatile("jmp *%0"::"r"(ProcessManager::process_loop));
 }
 
 void SMP::init() {
@@ -38,7 +35,7 @@ void SMP::init() {
     const void *pagetableptr;
     const void *lapicAddr;
     uint64_t *cpuids;
-    const char **stacks;
+    const uint8_t **stacks;
     void(*startup)();
     DTREG gdtptr;
   } PACKED;
@@ -48,10 +45,10 @@ void SMP::init() {
 
   const size_t smp_init_size = size_t(smp_end - smp_init);
 
-  char *startupCode;
+  uint8_t *startupCode;
   StartupInfo *info;
 
-  startupCode = static_cast<char*>(Pagetable::lowalloc());
+  startupCode = static_cast<uint8_t*>(Pagetable::lowalloc(1, Pagetable::MemoryType::CODE_RW));
   info = reinterpret_cast<StartupInfo*>(startupCode + klib::__align(smp_init_size, 8));
 
   Memory::copy(startupCode, smp_init, smp_init_size);
@@ -59,20 +56,21 @@ void SMP::init() {
 
   info->lapicAddr = acpi->getLapicAddr();
   info->cpuids = new uint64_t[cpuCount]();
-  info->stacks = new const char*[cpuCount]();
-  info->startup = startup;
+  info->stacks = new const uint8_t*[cpuCount]();
+  info->startup = setup;
 
   asm volatile("mov %%cr3, %q0":"=r"(info->pagetableptr));
   asm volatile("sgdtq %0":"+m"(info->gdtptr));
 
   uint32_t nullcpus = 0;
   for (uint32_t i = 0; i < cpuCount; i++) {
-    info->cpuids[i] = acpi->getLapicIDOfCPU(i);
+    info->cpuids[i] = acpi->getLapicIDOfCPU(uint8_t(i));
     if (info->cpuids[i] != localId)
-      info->stacks[i] = static_cast<char*>(Pagetable::alloc()) + 0x1000;
+      info->stacks[i] = static_cast<uint8_t*>(Pagetable::alloc(1, Pagetable::MemoryType::DATA_RW)) + 0x1000;
     else
       nullcpus++;
   }
+  Pagetable::map(startupCode, Pagetable::MemoryType::CODE_RX);
   if (nullcpus > 0)
     nullcpus--;
 

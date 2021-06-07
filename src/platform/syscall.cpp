@@ -31,7 +31,7 @@ static void syscall_exit(int code) {
 static void syscall_kread(void *out, const void *kaddr, size_t size) {
   Process *process = ProcessManager::getManager()->currentProcess();
   for (size_t p = 0; p < size; p += 0x1000) {
-    Pagetable::map(reinterpret_cast<const void*>(uintptr_t(kaddr) + p));
+    Pagetable::map(reinterpret_cast<const void*>(uintptr_t(kaddr) + p), Pagetable::MemoryType::DATA_RO);
   }
   process->writeData(uintptr_t(out), kaddr, size);
 }
@@ -138,7 +138,10 @@ void __attribute((naked)) Syscall::wrapper() {
 }
 
 void Syscall::setup() {
-  asm volatile("mov %%cr3, %%rax; mov %%rax, 2 + _wrapper_mov_cr3(%%rip)":::"%rax");
+  // Patch kernel CR3 address
+  Pagetable::map(reinterpret_cast<const void*>(wrapper), Pagetable::MemoryType::CODE_RW);
+  asm volatile("mov %%cr3, %%rax; mov %%rax, 2 + _wrapper_mov_cr3(%%rip)":::"rax");
+  Pagetable::map(reinterpret_cast<const void*>(wrapper), Pagetable::MemoryType::CODE_RX);
   wrmsr(MSR_STAR, uint64_t(0x10) << 48 | uint64_t(0x8) << 32);
   wrmsr(MSR_LSTAR, uintptr_t(wrapper));
   wrmsr(MSR_SFMASK, MSR_SFMASK_IE);

@@ -1,7 +1,7 @@
 #    PhoeniX OS Application Processors bootup
 #    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
-.section .data
+.section .rodata
 .global _smp_init
 .global _smp_end
 .code16
@@ -15,7 +15,7 @@ _smp_init:
   shl $4, %ebp
 
   # Fix entry point addr
-  lea (x64_entry-_smp_init)(%ebp), %eax
+  lea (x64_smp-_smp_init)(%ebp), %eax
   mov %eax, (1f-_smp_init+2)
 
   # Load pagetable
@@ -31,7 +31,7 @@ _smp_init:
   # Enable LME
   mov $0xC0000080, %ecx
   rdmsr
-  or $0x100, %eax
+  or $0x900, %eax
   wrmsr
   
   # Enable PG & PE
@@ -40,11 +40,11 @@ _smp_init:
   mov %eax, %cr0
 
   # Jump to 64-bit mode
-1:ljmpl $8, $(x64_entry-_smp_init)
+1:ljmpl $8, $(x64_smp-_smp_init)
   
 .align 4
 .code64
-x64_entry:
+x64_smp:
   # Load params
   add $_smp_end-_smp_init, %bp
   mov  8(%rbp), %rbx  # Local APIC address
