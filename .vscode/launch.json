@@ -1,0 +1,18 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "QEMU Debug",
+      "type": "lldb",
+      "request": "custom",
+      "targetCreateCommands": [
+        "target create ${workspaceFolder}/build/pxkrnl.elf",
+      ],
+      "processCreateCommands": [
+        "platform shell qemu-system-x86_64 -smp cores=2,threads=2 -machine q35 -cpu max -kernel ${workspaceFolder}/build/pxkrnl -serial stdio -s -S &",
+        "gdb-remote 1234",
+        "continue"
+      ],
+    }
+  ]
+}
