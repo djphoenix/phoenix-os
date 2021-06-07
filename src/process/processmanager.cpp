@@ -57,6 +57,7 @@ bool ProcessManager::SwitchProcess(Interrupts::CallbackRegs *regs) {
       regs->r8, regs->r9, regs->r10, regs->r11,
       regs->r12, regs->r13, regs->r14, regs->r15
     };
+    th->sse = regs->sse;
     if (lastThread != nullptr) {
       lastThread->next = cth;
       lastThread = cth;
@@ -75,7 +76,8 @@ bool ProcessManager::SwitchProcess(Interrupts::CallbackRegs *regs) {
     th->regs.rax, th->regs.rcx, th->regs.rdx, th->regs.rbx,
     th->regs.rbp, th->regs.rsi, th->regs.rdi,
     th->regs.r8, th->regs.r9, th->regs.r10, th->regs.r11,
-    th->regs.r12, th->regs.r13, th->regs.r14, th->regs.r15
+    th->regs.r12, th->regs.r13, th->regs.r14, th->regs.r15,
+    th->sse,
   };
   return true;
 }
@@ -97,6 +99,7 @@ bool ProcessManager::HandleFault(uint8_t intr, uint32_t code, Interrupts::Callba
     Mutex::CriticalLock lock(processSwitchMutex);
     asm volatile("mov %%cr3, %0":"=r"(regs->cr3));
     regs->rip = uintptr_t(&process_loop);
+    regs->sse.mxcsr = 0x1F80;
     regs->cs = 0x08;
     regs->ss = 0x10;
     regs->dpl = 0;

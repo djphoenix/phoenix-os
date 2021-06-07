@@ -3,6 +3,7 @@
 
 #pragma once
 #include "kernlib.hpp"
+#include "interrupts.hpp"
 
 struct Thread {
   struct {
@@ -12,6 +13,7 @@ struct Thread {
     uint64_t r8, r9, r10, r11;
     uint64_t r12, r13, r14, r15;
   } regs;
+  Interrupts::CallbackRegs::SSE sse;
   uint64_t suspend_ticks;
   uint64_t stack_top;
   constexpr Thread() : regs(), suspend_ticks(0), stack_top(0) {}

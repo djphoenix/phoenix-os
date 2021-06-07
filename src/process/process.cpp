@@ -231,7 +231,7 @@ void *Process::getPhysicalAddress(uintptr_t ptr) const {
 }
 void Process::addThread(Thread *thread, bool suspended) {
   if (thread->stack_top == 0) {
-    thread->stack_top = addSection(SectionTypeStack, 0x7FFF) + 0x8000;
+    thread->stack_top = addSection(SectionTypeStack, 0x7FFF) + 0x8000 - 8;
     thread->regs.rsp = thread->stack_top;
   }
   thread->suspend_ticks = suspended ? uint64_t(-1) : 0;
@@ -322,6 +322,7 @@ void Process::startup() {
 
   Thread *thread = new Thread();
   thread->regs.rip = entry;
+  thread->sse.mxcsr = 0x1F80;
   thread->regs.rflags = 0;
   id = (ProcessManager::getManager())->registerProcess(this);
   addThread(thread, false);

@@ -64,10 +64,20 @@ asm(
     "movabsq $0, %rax;"
     "mov %rax, %cr3;"
 
+    "sub $0x208, %rsp;"
+    "stmxcsr 0x200(%rsp);"
+    "fxsave (%rsp);"
+    // Set pointer to SSE regietsrs to 4th arg
+    "mov %rsp, %rcx;"
+
     // Call actual handler (Interrupts::handle)
-    "call _ZN10Interrupts6handleEhmPm;"
+    "call _ZN10Interrupts6handleEhmPmS0_;"
+
+    "fxrstor (%rsp);"
+    "ldmxcsr 0x200(%rsp);"
 
     // Restore registers
+    "add $0x208, %rsp;"
     "pop %r15;"
     "pop %r14;"
     "pop %r13;"
@@ -213,7 +223,7 @@ void Interrupts::print(uint8_t num, CallbackRegs *regs, uint32_t code, const Pro
 }
 
 uint64_t __attribute__((sysv_abi)) Interrupts::handle(
-    unsigned char intr, uint64_t stack, uint64_t *pagetable) {
+    unsigned char intr, uint64_t stack, uint64_t *pagetable, uint64_t *sse_regs) {
   {
     Mutex::Lock lock(fault);
   }
@@ -223,6 +233,7 @@ uint64_t __attribute__((sysv_abi)) Interrupts::handle(
   int_regs *regs = reinterpret_cast<int_regs*>(rsp - (12 + 3) - 1);
   if (has_code)
     error_code = uint32_t(*(rsp++));
+  CallbackRegs::SSE *sse = reinterpret_cast<CallbackRegs::SSE*>(sse_regs);
   int_info *info = reinterpret_cast<int_info*>(rsp);
   bool handled = false;
 
@@ -238,7 +249,8 @@ uint64_t __attribute__((sysv_abi)) Interrupts::handle(
       regs->rax, regs->rcx, regs->rdx, regs->rbx,
       regs->rbp, regs->rsi, regs->rdi,
       regs->r8, regs->r9, regs->r10, regs->r11,
-      regs->r12, regs->r13, regs->r14, regs->r15
+      regs->r12, regs->r13, regs->r14, regs->r15,
+      *sse,
   };
 
   size_t idx = 0;
@@ -261,6 +273,7 @@ uint64_t __attribute__((sysv_abi)) Interrupts::handle(
       cb_regs.rdi, cb_regs.rsi, cb_regs.rbp,
       cb_regs.rbx, cb_regs.rdx, cb_regs.rcx, cb_regs.rax,
     };
+    *sse = cb_regs.sse;
     *info = {
       cb_regs.rip, uint64_t(cb_regs.cs | cb_regs.dpl),
       cb_regs.rflags | 0x202,

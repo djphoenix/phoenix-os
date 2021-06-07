@@ -124,9 +124,9 @@ multiboot_entry:
   add $8, %edi
   loop 1b
 
-  # Enable PAE
+  # Enable PAE, PSE & SSE
   mov %cr4, %eax
-  or $0x20, %eax
+  or $0x630, %ax
   mov %eax, %cr4
 
   # Enable longmode
@@ -135,9 +135,10 @@ multiboot_entry:
   or $0x901, %eax
   wrmsr
 
-  # Enable paging
+  # Enable paging & SSE
   mov %cr0, %eax
-  or $0x80000000, %eax
+  and $0xFFFB, %ax
+  or $0x80000002, %eax
   mov %eax, %cr0
 
   # Load GDT
@@ -186,10 +187,18 @@ _efi_start: # EFI
   rdmsr
   or $0x801, %rax
   wrmsr
+  # Enable SSE
+  mov %cr0, %rax
+  and $0xFFFB, %ax
+  or $0x02, %ax
+  mov %rax, %cr0
+  mov %cr4, %rax
+  or $0x600, %ax
+  mov %rax, %cr4
 
 x64_entry:
+  and $(~0x0F), %rsp
   call reloc_vtables
-  call static_init
   xor %rbp, %rbp
   call _ZN9Pagetable4initEv
   call _ZN7Display5setupEv

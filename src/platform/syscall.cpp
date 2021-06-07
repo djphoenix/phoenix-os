@@ -107,6 +107,13 @@ void __attribute((naked)) Syscall::wrapper() {
       // Set kernel pagetable
       "_wrapper_mov_cr3: movabsq $0, %r13; mov %r13, %cr3;"
 
+      // Align stack
+      "and $(~0x0F), %rsp;"
+
+      "sub $0x210, %rsp;"
+      "stmxcsr 0x200(%rsp);"
+      "fxsave (%rsp);"
+
       // Find syscall handler
       "lea _ZL11syscall_map(%rip), %r13;"
       "1:"
@@ -119,6 +126,9 @@ void __attribute((naked)) Syscall::wrapper() {
 
       "1:"
       "mov %rcx, %r14; callq *8(%r13); mov %r14, %rcx;"
+
+      "fxrstor (%rsp);"
+      "ldmxcsr 0x200(%rsp);"
 
       // Restore process stack & pagetable
       "mov %r12, %rsp; mov %rbx, %cr3;"

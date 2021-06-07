@@ -7,7 +7,7 @@ add_compile_options("-pipe")
 
 add_compile_options("-Wno-unused-command-line-argument")
 add_compile_options("-nostdlib" "-ffreestanding")
-add_compile_options("-m64" "-mno-sse")
+add_compile_options("-m64")
 
 add_compile_options("-fno-exceptions" "-fno-rtti")
 
