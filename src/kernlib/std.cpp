@@ -10,22 +10,12 @@ class SerialConsole {
   static const uint16_t divisor = 115200 / baud;
   Mutex mutex;
 
-  static void setup() __attribute__((used)) {
-    // Disable interrupts
-    Port<port + 1>::out<uint8_t>(0);
-    // Enable DLAB
-    Port<port + 3>::out<uint8_t>(0x80);
-    // Set divisor
-    Port<port + 0>::out<uint8_t>(divisor & 0xFF);
-    Port<port + 1>::out<uint8_t>((divisor >> 16) & 0xFF);
-    // Set port mode (8N1), disable DLAB
-    Port<port + 3>::out<uint8_t>(0x03);
-  }
+  static void setup();
 
  public:
   static SerialConsole instance;
-  constexpr SerialConsole() {}
-  void write(const char *str) {
+  inline constexpr SerialConsole() {}
+  inline void write(const char *str) {
     Mutex::CriticalLock lock(mutex);
     char c;
     while ((c = *str++) != 0) {
@@ -34,6 +24,18 @@ class SerialConsole {
     }
   }
 };
+
+void SerialConsole::setup() {
+  // Disable interrupts
+  Port<port + 1>::out<uint8_t>(0);
+  // Enable DLAB
+  Port<port + 3>::out<uint8_t>(0x80);
+  // Set divisor
+  Port<port + 0>::out<uint8_t>(divisor & 0xFF);
+  Port<port + 1>::out<uint8_t>((divisor >> 16) & 0xFF);
+  // Set port mode (8N1), disable DLAB
+  Port<port + 3>::out<uint8_t>(0x03);
+}
 
 SerialConsole SerialConsole::instance;
 
