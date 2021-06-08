@@ -52,7 +52,7 @@ pe_header:
 pe_header_opt:
   .short 0x020b /* PE64 Magic */
   .byte  0x02, 0x14 /* PE64 MajorLinkerVersion, MinorLinkerVersion */
-  .long  _sect_text_size-(_entry-_start) /* PE64 SizeOfCode */
+  .long  _sect_text_size-(multiboot_entry-_start) /* PE64 SizeOfCode */
   .long  _full_data_size /* PE64 SizeOfInitializedData */
   .long  _sect_bss_size /* PE64 SizeOfUninitializedData */
 
@@ -126,10 +126,10 @@ pe_header_sect:
   .long	0x00000020 | 0x40000000 | 0x20000000 | 0x00500000 # Characteristics */
 
   .ascii	".text\0\0\0"
-	.long	_sect_text_size-(_entry-_start)
-	.long	_entry-_start
-	.long	_sect_text_size-(_entry-_start)
-	.long	_entry-_start
+	.long	_sect_text_size-(multiboot_entry-_start)
+	.long	multiboot_entry-_start
+	.long	_sect_text_size-(multiboot_entry-_start)
+	.long	multiboot_entry-_start
 	.long	0, 0    # PointerToRelocations, PointerToLineNumbers
 	.word	0, 0    # NumberOfRelocations, NumberOfLineNumbers
 	.long	0x00000020 | 0x40000000 | 0x20000000 | 0x00d00000 # Characteristics
@@ -160,12 +160,15 @@ pe_header_sect:
 	.long	0, 0    # PointerToRelocations, PointerToLineNumbers
 	.word	0, 0    # NumberOfRelocations, NumberOfLineNumbers
 	.long	0x00000080 | 0x40000000 | 0x80000000 | 0x00500000 # Characteristics
-
 pe_header_sect_end:
+  .size pe_header_sect, .-pe_header_sect
+  .size pe_header, .-pe_header
+
 pe_reloc:
   .short 0
   .long 0, 0
 pe_reloc_end:
+  .size pe_reloc, .-pe_reloc
 
   .align 16
 multiboot_header:
@@ -180,9 +183,9 @@ multiboot_header:
   .long multiboot_entry
 
   .long 0, 800, 600, 8
+.size multiboot_header, .-multiboot_header
 
   .align 0x1000
-_entry:
 multiboot_entry:
   cli
 
@@ -334,6 +337,9 @@ multiboot_entry:
   hlt
   jmp 6b
 
+.type multiboot_entry, function
+.size multiboot_entry, .-multiboot_entry
+
 .code64
 .section .text.bs64
 
@@ -356,6 +362,8 @@ _efi_start: # EFI
   mov %cr4, %rax
   or $0x600, %ax
   mov %rax, %cr4
+.type _efi_start, function
+.size _efi_start, .-_efi_start
 
 x64_entry:
   and $(~0x0F), %rsp
@@ -369,6 +377,8 @@ x64_entry:
   call _ZN13ModuleManager4initEv
   call _ZN7Syscall5setupEv
   jmp _ZN14ProcessManager12process_loopEv
+.type x64_entry, function
+.size x64_entry, .-x64_entry
 
 .section .text.reloc_vtables
 reloc_vtables:
@@ -390,27 +400,38 @@ reloc_vtables:
   jmp 1b
 3:
   ret
+.type reloc_vtables, function
+.size reloc_vtables, .-reloc_vtables
 
 .section .text.__main
 __main: # Fix for Windows builds
   ret
+.type __main, function
+.size __main, .-__main
 
   .rodata
 
-aNoMultiboot: .ascii "This kernel can boot only from multiboot-compatible bootloader\0"
-aNoLongMode: .ascii "Your CPU is not support 64-bit mode\0"
+aNoMultiboot:
+  .ascii "This kernel can boot only from multiboot-compatible bootloader\0"
+.size aNoMultiboot, .-aNoMultiboot
+
+aNoLongMode:
+  .ascii "Your CPU is not support 64-bit mode\0"
+.size aNoLongMode, .-aNoLongMode
 
 .align 16
 GDT64.Pointer:
   .short GDT64.End - GDT64 - 1
   .quad GDT64
+.size GDT64.Pointer, .-GDT64.Pointer
 
 .align 16
 GDT64:
-GDT64.Null:
+  # Null
   .quad 0
-GDT64.Code:
+  # Code
   .quad 0x00AF9A000000FFFF
-GDT64.Data:
+  # Data
   .quad 0x00CF92000000FFFF
 GDT64.End:
+.size GDT64, .-GDT64

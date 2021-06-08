@@ -27,6 +27,7 @@ uintptr_t Interrupts::eoi_vector = 0;
 
 asm(
     ".global __interrupt_wrap;"
+    ".type __interrupt_wrap, function;"
     "__interrupt_wrap:;"
 
     // Save registers
@@ -123,7 +124,9 @@ asm(
     // Return from interrupt
     "iretq;"
 
-    ".align 16");
+    ".size __interrupt_wrap, .-__interrupt_wrap;"
+    ".align 16"
+);
 
 struct FAULT {
   char code[5];

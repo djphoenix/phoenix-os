@@ -41,7 +41,10 @@ _smp_init:
 
   # Jump to 64-bit mode
 1:ljmpl $8, $(x64_smp-_smp_init)
-  
+
+.type _smp_init, function
+.size _smp_init, .-_smp_init
+
 .align 4
 .code64
 x64_smp:
@@ -72,6 +75,8 @@ x64_smp:
   # Jump back to SMP initializer
   xor %rbp, %rbp
   jmpq *%rdx
+.type x64_smp, function
+.size x64_smp, .-x64_smp
 
 .align 8
 _smp_end:
