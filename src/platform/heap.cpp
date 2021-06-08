@@ -177,11 +177,9 @@ void *Heap::realloc(void *addr, size_t size, size_t align) {
   return newptr;
 }
 
-void* operator new(size_t a) {
+void* __attribute__((always_inline)) operator new(size_t a) {
   return Heap::alloc(a);
 }
-void* operator new[](size_t a) {
-  return Heap::alloc(a);
-}
+void* operator new[](size_t a) __attribute__((alias("_Znwm")));
 void operator delete(void* a) noexcept __attribute__((alias("_ZN4Heap4freeEPv")));
 void operator delete[](void* a) noexcept __attribute__((alias("_ZN4Heap4freeEPv")));
