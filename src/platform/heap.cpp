@@ -183,9 +183,5 @@ void* operator new(size_t a) {
 void* operator new[](size_t a) {
   return Heap::alloc(a);
 }
-void operator delete(void* a) noexcept {
-  return Heap::free(a);
-}
-void operator delete[](void* a) noexcept {
-  return Heap::free(a);
-}
+void operator delete(void* a) noexcept __attribute__((alias("_ZN4Heap4freeEPv")));
+void operator delete[](void* a) noexcept __attribute__((alias("_ZN4Heap4freeEPv")));
