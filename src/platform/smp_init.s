@@ -25,7 +25,8 @@ _smp_init:
   lgdt _smp_end-_smp_init+40
   
   # Enable PAE & PGE
-  mov $0xA0, %eax
+  mov %cr4, %eax
+  or $0x6B0, %eax
   mov %eax, %cr4
   
   # Enable LME
@@ -36,7 +37,8 @@ _smp_init:
   
   # Enable PG & PE
   mov %cr0, %eax
-  or $0x80000001, %eax
+  and $0xFFFB, %ax
+  or $0x80000003, %eax
   mov %eax, %cr0
 
   # Jump to 64-bit mode

@@ -289,19 +289,19 @@ multiboot_entry:
 
   # Enable PAE, PSE & SSE
   mov %cr4, %eax
-  or $0x630, %ax
+  or $0x6B0, %ax
   mov %eax, %cr4
 
   # Enable longmode
   mov $0xC0000080, %ecx
   rdmsr
-  or $0x901, %eax
+  or $0x900, %eax
   wrmsr
 
   # Enable paging & SSE
   mov %cr0, %eax
   and $0xFFFB, %ax
-  or $0x80000002, %eax
+  or $0x80000003, %eax
   mov %eax, %cr0
 
   # Load GDT
@@ -352,7 +352,7 @@ _efi_start: # EFI
   # Enable NX
   mov $0xC0000080, %rcx
   rdmsr
-  or $0x801, %rax
+  or $0x800, %rax
   wrmsr
   # Enable SSE
   mov %cr0, %rax
@@ -360,7 +360,7 @@ _efi_start: # EFI
   or $0x02, %ax
   mov %rax, %cr0
   mov %cr4, %rax
-  or $0x600, %ax
+  or $0x6B0, %ax
   mov %rax, %cr4
 .type _efi_start, function
 .size _efi_start, .-_efi_start
@@ -374,8 +374,8 @@ x64_entry:
   call _ZN9Pagetable4initEv
   call _ZN10Interrupts4initEv
   call _ZN3SMP4initEv
-  call _ZN13ModuleManager4initEv
   call _ZN7Syscall5setupEv
+  call _ZN13ModuleManager4initEv
   jmp _ZN14ProcessManager12process_loopEv
 .type x64_entry, function
 .size x64_entry, .-x64_entry

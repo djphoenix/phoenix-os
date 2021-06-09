@@ -7,14 +7,17 @@
 #include "process.hpp"
 
 struct Interrupts::Handler {
-  // 68 04 03 02 01  pushq  ${int_num}
-  // e9 46 ec 3f 00  jmp . + {diff}
-  uint8_t push[1] = { 0x68 };
-  uint32_t int_num;
+  // 48 83 ec 00     sub    ${subrsp}, rsp
+  // 6A 01           pushq  ${int_num}
+  // e9 46 ec 3f 00  jmp    . + {diff}
+  uint8_t sub_rsp[3] = { 0x48, 0x83, 0xEC };
+  uint8_t subrsp;
+  uint8_t push[1] = { 0x6A };
+  uint8_t int_num;
   uint8_t reljmp[1] = { 0xE9 };
   uint32_t diff;
 
-  constexpr Handler(uint32_t int_num, uint32_t diff): int_num(int_num), diff(diff) {}
+  constexpr Handler(uint8_t int_num, uint8_t subrsp, uint32_t diff): subrsp(subrsp), int_num(int_num), diff(diff) {}
 } PACKED;
 
 Interrupts::REC64 *Interrupts::idt = nullptr;
@@ -25,48 +28,42 @@ Mutex Interrupts::fault;
 Interrupts::Handler* Interrupts::handlers = nullptr;
 uintptr_t Interrupts::eoi_vector = 0;
 
-asm(
-    ".global __interrupt_wrap;"
-    ".type __interrupt_wrap, function;"
-    "__interrupt_wrap:;"
-
+extern "C" void __attribute__((naked)) __interrupt_wrap() {
+  asm(
     // Save registers
-    "push %rax;"
-    "push %rcx;"
-    "push %rdx;"
-    "push %rbx;"
-    "push %rbp;"
-    "push %rsi;"
-    "push %rdi;"
-    "push %r8;"
-    "push %r9;"
-    "push %r10;"
-    "push %r11;"
-    "push %r12;"
-    "push %r13;"
-    "push %r14;"
     "push %r15;"
+    "push %r14;"
+    "push %r13;"
+    "push %r12;"
+    "push %r11;"
+    "push %r10;"
+    "push %r9;"
+    "push %r8;"
+    "push %rdi;"
+    "push %rsi;"
+    "push %rbp;"
+    "push %rbx;"
+    "push %rdx;"
+    "push %rcx;"
+    "push %rax;"
 
     // Move interrupt number to first arg
-    "mov 120(%rsp), %rdi;"
+    // Save pagetable address in place of interrupt number
+    "mov %cr3, %rdi;"
+    "xchg %rdi, 0x78(%rsp);"
 
     // Set interrupt stack pointer to second arg
-    "lea 128(%rsp), %rsi;"
-
-    // Save pagetable address in place of interrupt number
-    "mov %cr3, %rax;"
-    "mov %rax, 120(%rsp);"
+    "lea 0x80(%rsp), %rsi;"
 
     // Set pointer of pagetable address to third arg
-    "lea 120(%rsp), %rdx;"
+    "lea 0x78(%rsp), %rdx;"
 
     // Load kernel pagetable
     "__interrupt_pagetable_mov:"
     "movabsq $0, %rax;"
     "mov %rax, %cr3;"
 
-    "sub $0x208, %rsp;"
-    "stmxcsr 0x200(%rsp);"
+    "sub $0x200, %rsp;"
     "fxsave (%rsp);"
     // Set pointer to SSE regietsrs to 4th arg
     "mov %rsp, %rcx;"
@@ -75,32 +72,24 @@ asm(
     "call _ZN10Interrupts6handleEhmPmS0_;"
 
     "fxrstor (%rsp);"
-    "ldmxcsr 0x200(%rsp);"
 
     // Restore registers
-    "add $0x208, %rsp;"
-    "pop %r15;"
-    "pop %r14;"
-    "pop %r13;"
-    "pop %r12;"
-    "pop %r11;"
-    "pop %r10;"
-    "pop %r9;"
-    "pop %r8;"
-    "pop %rdi;"
-    "pop %rsi;"
-    "pop %rbp;"
-    "pop %rbx;"
-    "pop %rdx;"
-    "pop %rcx;"
+    "add $0x200, %rsp;"
 
-    // Fix stack for error-code padding
-    "test %rax, %rax;"
-    "jz 1f;"
-    "mov 8(%rsp), %rax; mov %rax, 16(%rsp);"
-    "mov 0(%rsp), %rax; mov %rax, 8(%rsp);"
-    "add $8, %rsp;"
-    "1:"
+    "pop %r15;"
+    "pop %rcx;"
+    "pop %rdx;"
+    "pop %rbx;"
+    "pop %rbp;"
+    "pop %rsi;"
+    "pop %rdi;"
+    "pop %r8;"
+    "pop %r9;"
+    "pop %r10;"
+    "pop %r11;"
+    "pop %r12;"
+    "pop %r13;"
+    "pop %r14;"
 
     // Send EOI to local APIC
     "mov _ZN10Interrupts10eoi_vectorE(%rip), %rax;"
@@ -108,7 +97,7 @@ asm(
     "movl $0, (%rax); 1:"
 
     // Restore caller pagetable
-    "mov 8(%rsp), %rax;"
+    "mov 0x8(%rsp), %rax;"
     "mov %rax, %cr3;"
 
     // Send EOI to PIC
@@ -117,16 +106,15 @@ asm(
 
     // Restore last register
     "pop %rax;"
+    "xchg %rax, %r15;"
 
     // Fix stack for interrupt number (actually pagetable address)
-    "add $8, %rsp;"
+    "add $0x10, %rsp;"
 
     // Return from interrupt
     "iretq;"
-
-    ".size __interrupt_wrap, .-__interrupt_wrap;"
-    ".align 16"
-);
+  );
+}
 
 struct FAULT {
   char code[5];
@@ -171,12 +159,6 @@ static const FAULT FAULTS[] = {
   /* 1F */{ "", false }
 };
 
-struct int_regs {
-  uint64_t r15, r14, r13, r12;
-  uint64_t r11, r10, r9, r8;
-  uint64_t rdi, rsi, rbp;
-  uint64_t rbx, rdx, rcx, rax;
-} PACKED;
 struct int_info {
   uint64_t rip, cs, rflags, rsp, ss;
 } PACKED;
@@ -216,26 +198,23 @@ void Interrupts::print(uint8_t num, CallbackRegs *regs, uint32_t code, const Pro
          regs->dpl ? "Userspace" : "Kernel", FAULTS[num].code, cpuid, code,
          base, regs->cs, regs->ss, regs->dpl,
          regs->rip, regs->rflags, rflags_buf,
-         regs->rsp, regs->rbp, cr2,
-         regs->rsi, regs->rdi,
-         regs->rax, regs->rcx, regs->rdx, regs->rbx,
-         regs->r8, regs->r9, regs->r10, regs->r11,
-         regs->r12, regs->r13, regs->r14, regs->r15);
+         regs->rsp, regs->general.rbp, cr2,
+         regs->general.rsi, regs->general.rdi,
+         regs->general.rax, regs->general.rcx, regs->general.rdx, regs->general.rbx,
+         regs->general.r8, regs->general.r9, regs->general.r10, regs->general.r11,
+         regs->general.r12, regs->general.r13, regs->general.r14, regs->general.r15);
 
-  Process::print_stacktrace(regs->rbp, process);
+  Process::print_stacktrace(regs->general.rbp, process);
 }
 
-uint64_t __attribute__((sysv_abi)) Interrupts::handle(
+void __attribute__((sysv_abi)) Interrupts::handle(
     unsigned char intr, uint64_t stack, uint64_t *pagetable, uint64_t *sse_regs) {
   {
     Mutex::Lock lock(fault);
   }
   uint64_t *rsp = reinterpret_cast<uint64_t*>(stack);
-  bool has_code = (intr < 0x20) && FAULTS[intr].has_error_code;
-  uint32_t error_code = 0;
-  int_regs *regs = reinterpret_cast<int_regs*>(rsp - (12 + 3) - 1);
-  if (has_code)
-    error_code = uint32_t(*(rsp++));
+  CallbackRegs::General *regs = reinterpret_cast<CallbackRegs::General*>(rsp - (12 + 3) - 1);
+  uint32_t error_code = uint32_t(*(rsp++));
   CallbackRegs::SSE *sse = reinterpret_cast<CallbackRegs::SSE*>(sse_regs);
   int_info *info = reinterpret_cast<int_info*>(rsp);
   bool handled = false;
@@ -249,10 +228,7 @@ uint64_t __attribute__((sysv_abi)) Interrupts::handle(
       uint16_t(info->cs & 0xFFF8), info->rflags, info->rsp,
       uint16_t(info->ss & 0xFFF8), uint8_t(info->cs & 7),
 
-      regs->rax, regs->rcx, regs->rdx, regs->rbx,
-      regs->rbp, regs->rsi, regs->rdi,
-      regs->r8, regs->r9, regs->r10, regs->r11,
-      regs->r12, regs->r13, regs->r14, regs->r15,
+      *regs,
       *sse,
   };
 
@@ -270,12 +246,7 @@ uint64_t __attribute__((sysv_abi)) Interrupts::handle(
   }
 
   if (handled) {
-    *regs = {
-      cb_regs.r15, cb_regs.r14, cb_regs.r13, cb_regs.r12,
-      cb_regs.r11, cb_regs.r10, cb_regs.r9, cb_regs.r8,
-      cb_regs.rdi, cb_regs.rsi, cb_regs.rbp,
-      cb_regs.rbx, cb_regs.rdx, cb_regs.rcx, cb_regs.rax,
-    };
+    Memory::copy(regs, &cb_regs.general, sizeof(cb_regs.general));
     *sse = cb_regs.sse;
     *info = {
       cb_regs.rip, uint64_t(cb_regs.cs | cb_regs.dpl),
@@ -283,7 +254,7 @@ uint64_t __attribute__((sysv_abi)) Interrupts::handle(
       cb_regs.rsp, uint64_t(cb_regs.ss | cb_regs.dpl)
     };
     *pagetable = cb_regs.cr3;
-    return has_code ? 8 : 0;
+    return;
   }
 
   if (intr < 0x20) {
@@ -296,7 +267,6 @@ uint64_t __attribute__((sysv_abi)) Interrupts::handle(
   } else if (intr != 0x20) {
     printf("INT %02xh\n", intr);
   }
-  return 0;
 }
 void Interrupts::init() {
   uint64_t ncpu = ACPI::getController()->getCPUCount();
@@ -368,7 +338,7 @@ void Interrupts::init() {
   for (uint32_t i = 0; i < 256; i++) {
     uintptr_t jmp_from = uintptr_t(&(handlers[i].reljmp));
     uintptr_t diff = addr - jmp_from - 5;
-    handlers[i] = Handler(i, uint32_t(diff));
+    handlers[i] = Handler(uint8_t(i), uint8_t((i < 0x20) ? (FAULTS[i].has_error_code ? 0 : 8) : 8), uint32_t(diff));
 
     uintptr_t hptr = uintptr_t(&handlers[i]);
     idt[i] = REC64(hptr, 8, 1, 0xE, 0, true);

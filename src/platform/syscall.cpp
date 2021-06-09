@@ -110,8 +110,7 @@ void __attribute((naked)) Syscall::wrapper() {
       // Align stack
       "and $(~0x0F), %rsp;"
 
-      "sub $0x210, %rsp;"
-      "stmxcsr 0x200(%rsp);"
+      "sub $0x200, %rsp;"
       "fxsave (%rsp);"
 
       // Find syscall handler
@@ -128,7 +127,6 @@ void __attribute((naked)) Syscall::wrapper() {
       "mov %rcx, %r14; callq *8(%r13); mov %r14, %rcx;"
 
       "fxrstor (%rsp);"
-      "ldmxcsr 0x200(%rsp);"
 
       // Restore process stack & pagetable
       "mov %r12, %rsp; mov %rbx, %cr3;"
@@ -155,4 +153,5 @@ void Syscall::setup() {
   wrmsr(MSR_STAR, uint64_t(0x10) << 48 | uint64_t(0x8) << 32);
   wrmsr(MSR_LSTAR, uintptr_t(wrapper));
   wrmsr(MSR_SFMASK, MSR_SFMASK_IE);
+  wrmsr(MSR_EFER, rdmsr(MSR_EFER) | MSR_EFER_SCE);
 }

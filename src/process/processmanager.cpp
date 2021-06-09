@@ -50,13 +50,10 @@ bool ProcessManager::SwitchProcess(Interrupts::CallbackRegs *regs) {
   if (cpuThreads[regs->cpuid] != nullptr) {
     QueuedThread *cth = cpuThreads[regs->cpuid];
     Thread *th = cth->thread;
-    th->regs = {
-      regs->rip, regs->rflags,
-      regs->rsi, regs->rdi, regs->rbp, regs->rsp,
-      regs->rax, regs->rcx, regs->rdx, regs->rbx,
-      regs->r8, regs->r9, regs->r10, regs->r11,
-      regs->r12, regs->r13, regs->r14, regs->r15
-    };
+    th->rip = regs->rip;
+    th->rflags = regs->rflags;
+    th->rsp = regs->rsp;
+    th->regs = regs->general;
     th->sse = regs->sse;
     if (lastThread != nullptr) {
       lastThread->next = cth;
@@ -69,14 +66,11 @@ bool ProcessManager::SwitchProcess(Interrupts::CallbackRegs *regs) {
   Thread *th = thread->thread;
   *regs = {
     regs->cpuid, uintptr_t(thread->process->pagetable),
-    th->regs.rip, 0x20,
-    th->regs.rflags,
-    th->regs.rsp, 0x18,
+    th->rip, 0x20,
+    th->rflags,
+    th->rsp, 0x18,
     3,
-    th->regs.rax, th->regs.rcx, th->regs.rdx, th->regs.rbx,
-    th->regs.rbp, th->regs.rsi, th->regs.rdi,
-    th->regs.r8, th->regs.r9, th->regs.r10, th->regs.r11,
-    th->regs.r12, th->regs.r13, th->regs.r14, th->regs.r15,
+    th->regs,
     th->sse,
   };
   return true;
@@ -99,7 +93,7 @@ bool ProcessManager::HandleFault(uint8_t intr, uint32_t code, Interrupts::Callba
     Mutex::CriticalLock lock(processSwitchMutex);
     asm volatile("mov %%cr3, %0":"=r"(regs->cr3));
     regs->rip = uintptr_t(&process_loop);
-    regs->sse.mxcsr = 0x1F80;
+    regs->sse.sse[3] = 0x0000ffff00001F80llu;
     regs->cs = 0x08;
     regs->ss = 0x10;
     regs->dpl = 0;

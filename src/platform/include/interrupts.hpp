@@ -104,13 +104,14 @@ class Interrupts {
     uint64_t rsp;
     uint16_t ss;
     uint8_t dpl;
-    uint64_t rax, rcx, rdx, rbx;
-    uint64_t rbp, rsi, rdi;
-    uint64_t r8, r9, r10, r11;
-    uint64_t r12, r13, r14, r15;
+    struct General {
+      uint64_t rax, rcx, rdx, rbx;
+      uint64_t rbp, rsi, rdi;
+      uint64_t r8, r9, r10, r11;
+      uint64_t r12, r13, r14, r15;
+    } general;
     struct SSE {
       uint64_t sse[64];
-      uint64_t mxcsr;
     } __attribute__((aligned(16))) sse;
   } __attribute__((aligned(16)));
   typedef bool Callback(uint8_t intr, uint32_t code, CallbackRegs *regs);
@@ -157,7 +158,7 @@ class Interrupts {
   static REC64 *idt;
   static GDT *gdt;
   static void init();
-  static uint64_t handle(uint8_t intr, uint64_t stack, uint64_t *cr3, uint64_t *sse);
+  static void handle(uint8_t intr, uint64_t stack, uint64_t *cr3, uint64_t *sse);
 
  public:
   static void print(uint8_t num, CallbackRegs *regs, uint32_t code, const Process *process = nullptr);
