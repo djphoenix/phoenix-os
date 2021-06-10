@@ -15,8 +15,8 @@ class Heap {
   static Mutex heap_mutex;
 
  public:
-  static void* alloc(size_t size, size_t align = 4);
-  static void* realloc(void *addr, size_t size, size_t align = 4);
+  static void* alloc(size_t size, size_t align = 16);
+  static void* realloc(void *addr, size_t size, size_t align = 16);
 
   static void free(void* addr);
 };

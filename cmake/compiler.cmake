@@ -1,15 +1,12 @@
 add_link_options("-nostdlib")
-add_link_options("--hash-style=sysv")
+add_compile_options("-nostdlib")
 
 add_link_options("-g")
 add_compile_options("-g")
-add_compile_options("-pipe")
 
-add_compile_options("-Wno-unused-command-line-argument")
-add_compile_options("-nostdlib" "-ffreestanding")
+add_link_options("--hash-style=sysv")
+
 add_compile_options("-m64")
-
-add_compile_options("-fno-exceptions" "-fno-rtti")
 
 include(CheckCXXCompilerFlag)
 macro (CHECK_ADD_CXX_COMPILER_FLAG _FLAG _VAR)
@@ -19,8 +16,13 @@ macro (CHECK_ADD_CXX_COMPILER_FLAG _FLAG _VAR)
   endif()
 endmacro ()
 
+check_add_cxx_compiler_flag("-pipe" HAVE_CXX_PIPE)
+
 check_add_cxx_compiler_flag("-fpic" HAVE_FPIC)
 check_add_cxx_compiler_flag("-fpie" HAVE_FPIE)
+check_add_cxx_compiler_flag("-ffreestanding" HAVE_FFREESTANDING)
+check_add_cxx_compiler_flag("-fno-exceptions" HAVE_FNO_EXCEPTIONS)
+check_add_cxx_compiler_flag("-fno-rtti" HAVE_FNO_RTTI)
 check_add_cxx_compiler_flag("-ffunction-sections" HAVE_FFUNCTION_SECTIONS)
 check_add_cxx_compiler_flag("-fdata-sections" HAVE_FDATA_SECTIONS)
 check_add_cxx_compiler_flag("-fshort-wchar" HAVE_FSHORT_WCHAR)
@@ -35,6 +37,7 @@ check_add_cxx_compiler_flag("-Werror" HAVE_WERROR)
 check_add_cxx_compiler_flag("-Wpedantic" HAVE_WPEDANTIC)
 check_add_cxx_compiler_flag("-Wconversion" HAVE_WCONVERSION)
 check_add_cxx_compiler_flag("-Wno-unused-parameter" HAVE_WNO_UNUSED_PARAMETER)
+check_add_cxx_compiler_flag("-Wno-unused-command-line-argument" HAVE_WNO_UNUSED_COMMAND_LINE_ARGUMENT)
 
 check_add_cxx_compiler_flag("-Wno-gnu-anonymous-struct" HAVE_WNO_GNU_ANONYMOUS_STRUCT)
 check_add_cxx_compiler_flag("-Wno-gnu-empty-struct" HAVE_WNO_GNU_EMPTY_STRUCT)
@@ -83,8 +86,8 @@ check_add_cxx_compiler_flag("-Wcast-function-type" HAVE_WCAST_FUNCTION_TYPE)
 check_add_cxx_compiler_flag("-Wwrite-strings" HAVE_WWRITE_STRINGS)
 check_add_cxx_compiler_flag("-Wredundant-decls" HAVE_WREDUNDANT_DECLS)
 
-# check_add_cxx_compiler_flag("-fstack-protector" HAVE_FSTACK_PROTECTOR)
-# check_add_cxx_compiler_flag("-Wstack-protector" HAVE_WSTACK_PROTECTOR)
+check_add_cxx_compiler_flag("-fstack-protector-strong" HAVE_FSTACK_PROTECTOR)
+check_add_cxx_compiler_flag("-Wstack-protector" HAVE_WSTACK_PROTECTOR)
 
 check_add_cxx_compiler_flag("-Wproperty-attribute-mismatch" HAVE_WPROPERTY_ATTRIBUTE_MISMATCH)
 check_add_cxx_compiler_flag("-Wold-style-cast" HAVE_WOLD_STYLE_CAST)

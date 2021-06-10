@@ -165,6 +165,25 @@ uintptr_t Process::linkLibrary(const char* funcname) {
   uintptr_t ptr = getSymbolByName(funcname);
   if (ptr != 0) return ptr;
 
+  if (klib::strcmp(funcname, "__stack_chk_guard") == 0) {
+    uint64_t rnd = RAND::get<uint64_t>();
+    uintptr_t page = addSection(SectionTypeData, sizeof(rnd));
+    writeData(page, &rnd, sizeof(rnd));
+    addSymbol(funcname, page);
+    return page;
+  }
+  if (klib::strcmp(funcname, "__stack_chk_fail") == 0) {
+    static const constexpr size_t countInPage = 0x1000 / sizeof(SyscallEntry);
+    if (_syscallPage == 0 || _syscallNum == countInPage) {
+      _syscallPage = addSection(SectionTypeCode, sizeof(SyscallEntry) * countInPage);
+      _syscallNum = 0;
+    }
+    uint8_t call[sizeof(SyscallEntry)] = { 0x0B, 0x0F, };
+    ptr = _syscallPage + (_syscallNum++) * sizeof(SyscallEntry);
+    writeData(ptr, call, sizeof(call));
+    addSymbol(funcname, ptr);
+  }
+
   uint64_t syscall_id;
   if ((syscall_id = Syscall::callByName(funcname)) != 0) {
     static const constexpr size_t countInPage = 0x1000 / sizeof(SyscallEntry);
@@ -172,7 +191,7 @@ uintptr_t Process::linkLibrary(const char* funcname) {
       _syscallPage = addSection(SectionTypeCode, sizeof(SyscallEntry) * countInPage);
       _syscallNum = 0;
     }
-    struct SyscallEntry call(syscall_id);
+    SyscallEntry call(syscall_id);
     ptr = _syscallPage + (_syscallNum++) * sizeof(SyscallEntry);
     writeData(ptr, &call, sizeof(call));
     addSymbol(funcname, ptr);
