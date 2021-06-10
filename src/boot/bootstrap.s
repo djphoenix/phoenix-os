@@ -345,10 +345,12 @@ multiboot_entry:
 
 _efi_start: # EFI
   cli
-  # EFI::SystemTable
-  mov %rdx, _ZN3EFI11SystemTableE(%rip)
-  # EFI::ImageHandle
-  mov %rcx, _ZN3EFI11ImageHandleE(%rip)
+  # EFI::systemTable
+  mov %rdx, _ZN3EFI11systemTableE(%rip)
+  # EFI::imageHandle
+  mov %rcx, _ZN3EFI11imageHandleE(%rip)
+  # EFI::load()
+  call _ZN3EFI4loadEv
   # Enable NX
   mov $0xC0000080, %rcx
   rdmsr

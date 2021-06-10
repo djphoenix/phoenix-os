@@ -3,8 +3,8 @@
 
 #pragma once
 #include "kernlib.hpp"
+#include "efi.hpp"
 
-namespace EFI { struct SystemTable; }
 class Pagetable {
  public:
   enum class MemoryType : uint8_t {

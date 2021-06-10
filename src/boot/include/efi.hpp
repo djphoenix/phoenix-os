@@ -6,20 +6,30 @@
 
 #define EFIAPI __attribute__((ms_abi))
 
-namespace EFI {
+class EFI {
+public:
   struct GUID {
     uint32_t Data1;
     uint16_t Data2;
     uint16_t Data3;
     uint16_t Data4;
     uint64_t Data5:48;
+
+    inline bool operator==(const EFI::GUID &rhs) const {
+      return
+        Data1 == rhs.Data1 &&
+        Data2 == rhs.Data2 &&
+        Data3 == rhs.Data3 &&
+        Data4 == rhs.Data4 &&
+        Data5 == rhs.Data5;
+    }
   };
 
-  static const constexpr uint64_t SystemHandleSignature = 0x4942492053595354LL;
-  static const constexpr GUID GUID_ConfigTableACPI1 = { 0xEB9D2D30, 0x2D88, 0x11D3, 0x169A, 0x4DC13F279000 };
-  static const constexpr GUID GUID_ConfigTableACPI2 = { 0x8868E871, 0xE4F1, 0x11D3, 0x22BC, 0x81883CC78000 };
-  static const constexpr GUID GUID_LoadedImageProtocol = { 0x5B1B31A1, 0x9562, 0x11d2, 0x3F8E, 0x3B7269C9A000 };
-  static const constexpr GUID GUID_GraphicsOutputProtocol = { 0x9042A9DE, 0x23DC, 0x4A38, 0xFB96, 0x6A5180D0DE7A };
+  static constexpr uint64_t SystemHandleSignature = 0x4942492053595354LL;
+  static const GUID GUID_ConfigTableACPI1;
+  static const GUID GUID_ConfigTableACPI2;
+  static const GUID GUID_LoadedImageProtocol;
+  static const GUID GUID_GraphicsOutputProtocol;
 
   enum Status: uint64_t {
     SUCCESS = 0,
@@ -330,24 +340,21 @@ namespace EFI {
     const void *Blt;
     GraphicsOutputProtocolMode *Mode;
   };
-  const struct SystemTable *getSystemTable() PURE;
-  const void *getImageHandle() PURE;
-  const void *getACPI1Addr() PURE;
-  const void *getACPI2Addr() PURE;
+  static inline const struct SystemTable *getSystemTable() PURE { return systemTable; }
+  static inline const void *getImageHandle() PURE { return imageHandle; }
+  static inline const void *getACPI1Addr() PURE { return acpi[0]; }
+  static inline const void *getACPI2Addr() PURE { return acpi[1]; }
   struct Framebuffer {
     void *base;
     size_t width, height;
     GraphicsPixelFormat pixelFormat;
   };
-  const Framebuffer *getFramebuffer() PURE;
-};  // namespace EFI
-
-static inline bool operator ==(const EFI::GUID &lhs, const EFI::GUID &rhs) {
-  return
-      lhs.Data1 == rhs.Data1 &&
-      lhs.Data2 == rhs.Data2 &&
-      lhs.Data3 == rhs.Data3 &&
-      lhs.Data4 == rhs.Data4 &&
-      lhs.Data5 == rhs.Data5;
-}
+  static const Framebuffer *getFramebuffer() PURE { return fb.base ? &fb : nullptr; }
+private:
+  static const struct SystemTable *systemTable;
+  static const void *imageHandle;
+  static const void *(acpi[2]);
+  static Framebuffer fb;
+  static void load();
+};
 #undef EFIAPI
