@@ -317,7 +317,7 @@ void Interrupts::init() {
       "mov %%ax, %%ds;"
       "mov %%ax, %%es;"
       "mov %%ax, %%gs;"
-      ::"m"(gdtreg):"ax", "rcx");
+      ::"m"(gdtreg):"ax", "rcx", "rsp");
 
   uintptr_t addr;
   uint8_t *lapic_eoi =
