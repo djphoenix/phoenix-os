@@ -26,9 +26,10 @@ List<Interrupts::Callback*> *Interrupts::callbacks = nullptr;
 Mutex Interrupts::callback_locks[256];
 Mutex Interrupts::fault;
 Interrupts::Handler* Interrupts::handlers = nullptr;
+__attribute__((used))
 uintptr_t Interrupts::eoi_vector = 0;
 
-extern "C" void __attribute__((naked)) __interrupt_wrap() {
+extern "C" void __attribute__((naked)) __attribute__((used)) __interrupt_wrap() {
   asm(
     // Save registers
     "push %r15;"
@@ -207,7 +208,7 @@ void Interrupts::print(uint8_t num, CallbackRegs *regs, uint32_t code, const Pro
   Process::print_stacktrace(regs->general.rbp, process);
 }
 
-void __attribute__((sysv_abi)) Interrupts::handle(
+void __attribute__((sysv_abi)) __attribute__((used)) Interrupts::handle(
     unsigned char intr, uint64_t stack, uint64_t *pagetable, uint64_t *sse_regs) {
   {
     Mutex::Lock lock(fault);

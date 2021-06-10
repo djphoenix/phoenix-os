@@ -347,6 +347,7 @@ void Process::startup() {
   addThread(thread, false);
 }
 
+__attribute__((used))
 void Process::exit(int code) {
   (void)code;  // TODO: handle
   for (size_t i = 0; i < threads.getCount(); i++) {
