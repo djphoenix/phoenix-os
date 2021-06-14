@@ -70,7 +70,7 @@ extern "C" void __attribute__((naked)) __attribute__((used)) __interrupt_wrap() 
     "mov %rsp, %rcx;"
 
     // Call actual handler (Interrupts::handle)
-    "call _ZN10Interrupts6handleEhmPmS0_;"
+    "call _ZN10Interrupts6handleEhmPmPNS_12CallbackRegs3SSEE;"
 
     "fxrstor (%rsp);"
 
@@ -161,76 +161,89 @@ static const FAULT FAULTS[] = {
 };
 
 struct int_info {
+  uint64_t error_code;
   uint64_t rip, cs, rflags, rsp, ss;
 } PACKED;
 
 void Interrupts::print(uint8_t num, CallbackRegs *regs, uint32_t code, const Process *process) {
   uint64_t cr2;
   uint64_t base;
-  asm volatile("mov %%cr2, %0 ; lea __text_start__(%%rip), %q1":"=r"(cr2),"=r"(base));
+  asm volatile("mov %%cr2, %0":"=r"(cr2));
+  if (process) {
+    base = uintptr_t(process->getBase());
+  } else {
+    asm volatile("lea __text_start__(%%rip), %q0":"=r"(base));
+  }
   uint32_t cpuid = ACPI::getController()->getCPUID();
   char rflags_buf[10] = "---------";
-  if (regs->rflags & (1 << 0))
+  if (regs->info->rflags & (1 << 0))
     rflags_buf[8] = 'C';
-  if (regs->rflags & (1 << 2))
+  if (regs->info->rflags & (1 << 2))
     rflags_buf[7] = 'P';
-  if (regs->rflags & (1 << 4))
+  if (regs->info->rflags & (1 << 4))
     rflags_buf[6] = 'A';
-  if (regs->rflags & (1 << 6))
+  if (regs->info->rflags & (1 << 6))
     rflags_buf[5] = 'Z';
-  if (regs->rflags & (1 << 7))
+  if (regs->info->rflags & (1 << 7))
     rflags_buf[4] = 'S';
-  if (regs->rflags & (1 << 8))
+  if (regs->info->rflags & (1 << 8))
     rflags_buf[3] = 'T';
-  if (regs->rflags & (1 << 9))
+  if (regs->info->rflags & (1 << 9))
     rflags_buf[2] = 'I';
-  if (regs->rflags & (1 << 10))
+  if (regs->info->rflags & (1 << 10))
     rflags_buf[1] = 'D';
-  if (regs->rflags & (1 << 11))
+  if (regs->info->rflags & (1 << 11))
     rflags_buf[0] = 'O';
-  printf("\n%s fault %s (cpu=%u, error=0x%x)\n"
+  printf("\n%s%s%s%s fault %s (cpu=%u, error=0x%x)\n"
          "BASE=%016lx CS=%04hx SS=%04hx DPL=%hhu\n"
          "IP=%016lx FL=%016lx [%s]\n"
-         "SP=%016lx BP=%016lx CR2=%08lx\n"
-         "SI=%016lx DI=%016lx\n"
+         "SP=%016lx BP=%016lx CR2=%016lx\n"
+         "SI=%016lx DI=%016lx CR3=%016lx\n"
          "A =%016lx C =%016lx D =%016lx B =%016lx\n"
          "8 =%016lx 9 =%016lx 10=%016lx 11=%016lx\n"
          "12=%016lx 13=%016lx 14=%016lx 15=%016lx\n",
-         regs->dpl ? "Userspace" : "Kernel", FAULTS[num].code, cpuid, code,
-         base, regs->cs, regs->ss, regs->dpl,
-         regs->rip, regs->rflags, rflags_buf,
-         regs->rsp, regs->general.rbp, cr2,
-         regs->general.rsi, regs->general.rdi,
-         regs->general.rax, regs->general.rcx, regs->general.rdx, regs->general.rbx,
-         regs->general.r8, regs->general.r9, regs->general.r10, regs->general.r11,
-         regs->general.r12, regs->general.r13, regs->general.r14, regs->general.r15);
+         regs->info->dpl ? "Userspace" : "Kernel",
+         process ? " (" : "",
+         process ? process->getName() : "",
+         process ? ")" : "",
+         FAULTS[num].code, cpuid, code,
+         base, regs->info->cs, regs->info->ss, regs->info->dpl,
+         regs->info->rip, regs->info->rflags, rflags_buf,
+         regs->info->rsp, regs->general->rbp, cr2,
+         regs->general->rsi, regs->general->rdi, regs->info->cr3,
+         regs->general->rax, regs->general->rcx, regs->general->rdx, regs->general->rbx,
+         regs->general->r8 , regs->general->r9 , regs->general->r10, regs->general->r11,
+         regs->general->r12, regs->general->r13, regs->general->r14, regs->general->r15);
 
-  Process::print_stacktrace(regs->general.rbp, process);
+  Process::print_stacktrace(regs->general->rbp, process);
 }
 
 void __attribute__((sysv_abi)) __attribute__((used)) Interrupts::handle(
-    unsigned char intr, uint64_t stack, uint64_t *pagetable, uint64_t *sse_regs) {
+    unsigned char intr, uint64_t stack, uint64_t *pagetable, CallbackRegs::SSE *sse) {
   {
     Mutex::Lock lock(fault);
   }
-  uint64_t *rsp = reinterpret_cast<uint64_t*>(stack);
-  CallbackRegs::General *regs = reinterpret_cast<CallbackRegs::General*>(rsp - (12 + 3) - 1);
-  uint32_t error_code = uint32_t(*(rsp++));
-  CallbackRegs::SSE *sse = reinterpret_cast<CallbackRegs::SSE*>(sse_regs);
-  int_info *info = reinterpret_cast<int_info*>(rsp);
+  uint64_t *const rsp = reinterpret_cast<uint64_t*>(stack);
+  CallbackRegs::General *const regs = reinterpret_cast<CallbackRegs::General*>(rsp - (12 + 3) - 1);
+  int_info *const info = reinterpret_cast<int_info*>(rsp);
   bool handled = false;
 
   uint32_t cpuid = ACPI::getController()->getCPUID();
 
+  CallbackRegs::Info cb_info = {
+    *pagetable,
+    info->rip,
+    info->rflags,
+    info->rsp,
+    uint16_t(info->cs & 0xFFF8), 
+    uint16_t(info->ss & 0xFFF8),
+    uint8_t(info->cs & 7),
+  };
   CallbackRegs cb_regs = {
-      cpuid, *pagetable,
-
-      info->rip,
-      uint16_t(info->cs & 0xFFF8), info->rflags, info->rsp,
-      uint16_t(info->ss & 0xFFF8), uint8_t(info->cs & 7),
-
-      *regs,
-      *sse,
+    cpuid,
+    &cb_info,
+    regs,
+    sse,
   };
 
   size_t idx = 0;
@@ -242,25 +255,24 @@ void __attribute__((sysv_abi)) __attribute__((used)) Interrupts::handle(
       idx++;
     }
     if (cb == nullptr) break;
-    handled = cb(intr, error_code, &cb_regs);
+    handled = cb(intr, uint32_t(info->error_code), &cb_regs);
     if (handled) break;
   }
 
   if (handled) {
-    Memory::copy(regs, &cb_regs.general, sizeof(cb_regs.general));
-    *sse = cb_regs.sse;
     *info = {
-      cb_regs.rip, uint64_t(cb_regs.cs | cb_regs.dpl),
-      cb_regs.rflags | 0x202,
-      cb_regs.rsp, uint64_t(cb_regs.ss | cb_regs.dpl)
+      info->error_code,
+      cb_info.rip, uint64_t(cb_info.cs | cb_info.dpl),
+      cb_info.rflags | 0x202,
+      cb_info.rsp, uint64_t(cb_info.ss | cb_info.dpl)
     };
-    *pagetable = cb_regs.cr3;
+    *pagetable = cb_info.cr3;
     return;
   }
 
   if (intr < 0x20) {
     fault.lock();
-    print(intr, &cb_regs, error_code);
+    print(intr, &cb_regs, uint32_t(info->error_code));
     for (;;)
       asm volatile("hlt");
   } else if (intr == 0x21) {

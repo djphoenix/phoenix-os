@@ -96,24 +96,30 @@ class Process;
 class Interrupts {
  public:
   struct CallbackRegs {
-    uint32_t cpuid;
-    uint64_t cr3;
-    uint64_t rip;
-    uint16_t cs;
-    uint64_t rflags;
-    uint64_t rsp;
-    uint16_t ss;
-    uint8_t dpl;
+    struct Info {
+      uint64_t cr3;
+      uint64_t rip;
+      uint64_t rflags;
+      uint64_t rsp;
+      uint16_t cs;
+      uint16_t ss;
+      uint8_t dpl;
+    } __attribute__((packed));
     struct General {
       uint64_t rax, rcx, rdx, rbx;
       uint64_t rbp, rsi, rdi;
       uint64_t r8, r9, r10, r11;
       uint64_t r12, r13, r14, r15;
-    } general;
+    } __attribute__((packed));
     struct SSE {
       uint64_t sse[64];
-    } __attribute__((aligned(16))) sse;
-  } __attribute__((aligned(16)));
+    } __attribute__((packed));
+
+    uint32_t cpuid;
+    Info *info;
+    General *general;
+    SSE *sse;
+  } __attribute__((packed));
   typedef bool Callback(uint8_t intr, uint32_t code, CallbackRegs *regs);
 
   struct REC32 {
@@ -158,7 +164,7 @@ class Interrupts {
   static REC64 *idt;
   static GDT *gdt;
   static void init();
-  static void handle(uint8_t intr, uint64_t stack, uint64_t *cr3, uint64_t *sse);
+  static void handle(uint8_t intr, uint64_t stack, uint64_t *cr3, CallbackRegs::SSE *sse);
 
  public:
   static void print(uint8_t num, CallbackRegs *regs, uint32_t code, const Process *process = nullptr);

@@ -55,8 +55,9 @@ class Process {
   void readData(void* dst, uintptr_t address, size_t size) const;
   char* readString(uintptr_t address) const;
 
-  const char *getName() const;
+  const char *getName() const PURE;
   void setName(const char *name);
+  uintptr_t getBase() const PURE { return _aslrCode; }
 
   void* getPhysicalAddress(uintptr_t ptr) const PURE;
 

@@ -41,7 +41,7 @@ bool ProcessManager::SwitchProcess(Interrupts::CallbackRegs *regs) {
   uintptr_t loopbase = uintptr_t(&process_loop), looptop;
   asm volatile("lea process_loop_top(%%rip), %q0":"=r"(looptop));
   Mutex::Lock lock(processSwitchMutex);
-  if (regs->dpl == 0 && (regs->rip < loopbase || regs->rip >= looptop)) return false;
+  if (regs->info->dpl == 0 && (regs->info->rip < loopbase || regs->info->rip >= looptop)) return false;
   QueuedThread *thread = nextThread;
   if (thread == nullptr) return false;
   nextThread = thread->next;
@@ -50,11 +50,11 @@ bool ProcessManager::SwitchProcess(Interrupts::CallbackRegs *regs) {
   if (cpuThreads[regs->cpuid] != nullptr) {
     QueuedThread *cth = cpuThreads[regs->cpuid];
     Thread *th = cth->thread;
-    th->rip = regs->rip;
-    th->rflags = regs->rflags;
-    th->rsp = regs->rsp;
-    th->regs = regs->general;
-    th->sse = regs->sse;
+    th->rip = regs->info->rip;
+    th->rflags = regs->info->rflags;
+    th->rsp = regs->info->rsp;
+    th->regs = *regs->general;
+    th->sse = *regs->sse;
     if (lastThread != nullptr) {
       lastThread->next = cth;
       lastThread = cth;
@@ -64,20 +64,18 @@ bool ProcessManager::SwitchProcess(Interrupts::CallbackRegs *regs) {
   }
   cpuThreads[regs->cpuid] = thread;
   Thread *th = thread->thread;
-  *regs = {
-    regs->cpuid, uintptr_t(thread->process->pagetable),
-    th->rip, 0x20,
-    th->rflags,
-    th->rsp, 0x18,
-    3,
-    th->regs,
-    th->sse,
+  *regs->info = {
+    uintptr_t(thread->process->pagetable),
+    th->rip, th->rflags, th->rsp,
+    0x20, 0x18, 3,
   };
+  *regs->general = th->regs;
+  *regs->sse = th->sse;
   return true;
 }
 
 bool ProcessManager::HandleFault(uint8_t intr, uint32_t code, Interrupts::CallbackRegs *regs) {
-  if (regs->dpl == 0) return false;
+  if (regs->info->dpl == 0) return false;
   QueuedThread *thread;
   {
     Mutex::CriticalLock lock(processSwitchMutex);
@@ -91,12 +89,12 @@ bool ProcessManager::HandleFault(uint8_t intr, uint32_t code, Interrupts::Callba
   if (SwitchProcess(regs)) return true;
   {
     Mutex::CriticalLock lock(processSwitchMutex);
-    asm volatile("mov %%cr3, %0":"=r"(regs->cr3));
-    regs->rip = uintptr_t(&process_loop);
-    regs->sse.sse[3] = 0x0000ffff00001F80llu;
-    regs->cs = 0x08;
-    regs->ss = 0x10;
-    regs->dpl = 0;
+    asm volatile("mov %%cr3, %0":"=r"(regs->info->cr3));
+    regs->info->rip = uintptr_t(&process_loop);
+    regs->sse->sse[3] = 0x0000ffff00001F80llu;
+    regs->info->cs = 0x08;
+    regs->info->ss = 0x10;
+    regs->info->dpl = 0;
   }
   return true;
 }
