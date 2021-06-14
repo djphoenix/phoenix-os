@@ -29,6 +29,7 @@ static void syscall_exit(int code) {
 }
 
 static void syscall_kread(void *out, const void *kaddr, size_t size) {
+  if (kaddr == nullptr) return;
   Process *process = ProcessManager::getManager()->currentProcess();
   for (size_t p = 0; p < size; p += 0x1000) {
     Pagetable::map(reinterpret_cast<const void*>(uintptr_t(kaddr) + p), Pagetable::MemoryType::DATA_RO);
