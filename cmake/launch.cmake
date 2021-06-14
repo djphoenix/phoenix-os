@@ -16,9 +16,9 @@ add_custom_target(launch-efi
 )
 add_custom_target(launch-iso
   ${QEMU} ${QEMU_FLAGS} -cdrom phoenixos.iso
-  DEPENDS iso
+  DEPENDS phoenixos.iso
 )
 add_custom_target(launch-iso-efi
   ${QEMU} ${QEMU_FLAGS} -cdrom phoenixos.iso -bios ${OVMF_PATH}
-  DEPENDS iso ovmf.fd
+  DEPENDS phoenixos.iso ovmf.fd
 )

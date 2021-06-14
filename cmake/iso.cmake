@@ -15,4 +15,3 @@ add_custom_target(phoenixos.iso
   COMMAND ${MKISO} ${ISOOPTS} -o phoenixos.iso ${ISOROOT}
   DEPENDS pxkrnl syslinux
 )
-add_custom_target(iso DEPENDS phoenixos.iso)
