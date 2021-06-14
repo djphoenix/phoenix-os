@@ -264,7 +264,7 @@ void __attribute__((sysv_abi)) __attribute__((used)) Interrupts::handle(
     for (;;)
       asm volatile("hlt");
   } else if (intr == 0x21) {
-    printf("KBD %02xh\n", Port<0x60>::in<uint8_t>());
+    printf("KBD %02xh\n", Port<0x60>::in8());
   } else if (intr != 0x20) {
     printf("INT %02xh\n", intr);
   }
@@ -347,29 +347,29 @@ void Interrupts::init() {
   Pagetable::map(handlers, handlers + 256, Pagetable::MemoryType::CODE_RX);
   callbacks = new List<Callback*>[256]();
 
-  Port<0x20>::out<uint8_t>(0x11);
-  Port<0xA0>::out<uint8_t>(0x11);
-  Port<0x21>::out<uint8_t>(0x20);
-  Port<0xA1>::out<uint8_t>(0x28);
-  Port<0x21>::out<uint8_t>(0x04);
-  Port<0xA1>::out<uint8_t>(0x02);
-  Port<0x21>::out<uint8_t>(0x01);
-  Port<0xA1>::out<uint8_t>(0x01);
+  Port<0x20>::out8(0x11);
+  Port<0xA0>::out8(0x11);
+  Port<0x21>::out8(0x20);
+  Port<0xA1>::out8(0x28);
+  Port<0x21>::out8(0x04);
+  Port<0xA1>::out8(0x02);
+  Port<0x21>::out8(0x01);
+  Port<0xA1>::out8(0x01);
 
   loadVector();
 
   if (!(ACPI::getController())->initAPIC()) {
-    Port<0x43>::out<uint8_t>(0x34);
+    Port<0x43>::out8(0x34);
     static const uint16_t rld = 0x000F;
-    Port<0x40>::out<uint8_t>(rld & 0xFF);
-    Port<0x40>::out<uint8_t>((rld >> 8) & 0xFF);
+    Port<0x40>::out8(rld & 0xFF);
+    Port<0x40>::out8((rld >> 8) & 0xFF);
   }
   maskIRQ(0);
 }
 
 void Interrupts::maskIRQ(uint16_t mask) {
-  Port<0x21>::out<uint8_t>(mask & 0xFF);
-  Port<0xA1>::out<uint8_t>((mask >> 8) & 0xFF);
+  Port<0x21>::out8(mask & 0xFFu);
+  Port<0xA1>::out8(uint8_t(mask >> 8));
 }
 
 void Interrupts::loadVector() {
@@ -388,8 +388,8 @@ void Interrupts::loadVector() {
 
 uint16_t Interrupts::getIRQmask() {
   return uint16_t(
-      (uint16_t(Port<0x21>::in<uint8_t>())) |
-      (uint16_t(Port<0xA1>::in<uint8_t>()) << 8));
+      (uint16_t(Port<0x21>::in8())) |
+      (uint16_t(Port<0xA1>::in8()) << 8));
 }
 
 void Interrupts::addCallback(uint8_t intr, Callback* cb) {

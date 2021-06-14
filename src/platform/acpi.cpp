@@ -132,16 +132,16 @@ ACPI::ACPI() {
 
   LapicOut(LAPIC_TMRDIV, 3);
   LapicOut(LAPIC_LVT_TMR, 0x20 | LAPIC_SW_ENABLE);
-  Port<0x61>::out<uint8_t>((Port<0x61>::in<uint8_t>() & 0xFD) | 1);
-  Port<0x43>::out<uint8_t>(0xB2);
-  Port<0x42>::out<uint8_t>(0x9B);
-  Port<0x60>::in<uint8_t>();
-  Port<0x42>::out<uint8_t>(0x2E);
-  uint8_t t = Port<0x61>::in<uint8_t>() & 0xFE;
-  Port<0x61>::out<uint8_t>(t);
-  Port<0x61>::out<uint8_t>(t | 1);
+  Port<0x61>::out8((Port<0x61>::in8() & 0xFD) | 1);
+  Port<0x43>::out8(0xB2);
+  Port<0x42>::out8(0x9B);
+  Port<0x60>::in8();
+  Port<0x42>::out8(0x2E);
+  uint8_t t = Port<0x61>::in8() & 0xFE;
+  Port<0x61>::out8(t);
+  Port<0x61>::out8(t | 1);
   LapicOut(LAPIC_TMRINITCNT, 0xFFFFFFFF);
-  while ((Port<0x61>::in<uint8_t>() & 0x20) == (t & 0x20)) {}
+  while ((Port<0x61>::in8() & 0x20) == (t & 0x20)) {}
   LapicOut(LAPIC_LVT_TMR, LAPIC_DISABLE);
   busfreq = (static_cast<uint64_t>(0xFFFFFFFF - LapicIn(LAPIC_TMRCURRCNT)) << 4) * 100;
 }

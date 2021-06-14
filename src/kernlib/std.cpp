@@ -19,22 +19,22 @@ class SerialConsole {
     Mutex::CriticalLock lock(mutex);
     char c;
     while ((c = *str++) != 0) {
-      while ((Port<port + 5>::in<uint8_t>() & (1 << 5)) == 0) ;
-      Port<port>::out(uint8_t(c));
+      while ((Port<port + 5>::in8() & (1 << 5)) == 0) ;
+      Port<port>::out8(uint8_t(c));
     }
   }
 };
 
 void SerialConsole::setup() {
   // Disable interrupts
-  Port<port + 1>::out<uint8_t>(0);
+  Port<port + 1>::out8(0);
   // Enable DLAB
-  Port<port + 3>::out<uint8_t>(0x80);
+  Port<port + 3>::out8(0x80);
   // Set divisor
-  Port<port + 0>::out<uint8_t>(divisor & 0xFF);
-  Port<port + 1>::out<uint8_t>((divisor >> 16) & 0xFF);
+  Port<port + 0>::out8(divisor & 0xFF);
+  Port<port + 1>::out8((divisor >> 16) & 0xFF);
   // Set port mode (8N1), disable DLAB
-  Port<port + 3>::out<uint8_t>(0x03);
+  Port<port + 3>::out8(0x03);
 }
 
 SerialConsole SerialConsole::instance;
