@@ -384,7 +384,10 @@ x64_entry:
 
 .section .text.reloc_vtables
 reloc_vtables:
-  lea reloc_vtables-reloc_vtables(%rip), %rcx
+  lea reloc_vtables(%rip), %rcx
+  sub $reloc_vtables, %rcx
+  test %rcx, %rcx
+  je 3f
   lea __VTABLE_START__(%rip), %rbp
   lea __VTABLE_END__(%rip), %rdx
   lea __text_start__, %rax
