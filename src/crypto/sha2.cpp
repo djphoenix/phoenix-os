@@ -74,39 +74,40 @@ SHA224::SHA2() : state { .h = {
   0xFFC00B31, 0x68581511, 0x64F98FA7, 0xBEFA4FA4,
 } } {}
 
-template<typename W, size_t N>
-void _SHA2State<W, N>::_transform(const W (&K)[N], const uint32_t (&shifts)[12]) {
+template<typename C>
+void _SHA2Op<C>::_transform(State &state) {
+  using W = typename C::word;
   W w[16] __attribute__((aligned(16)));
   W a, b, c, d, e, f, g, h, wi;
   W s0, s1, ch, maj, temp1;
   size_t i;
 
-  a = this->h[0];
-  b = this->h[1];
-  c = this->h[2];
-  d = this->h[3];
-  e = this->h[4];
-  f = this->h[5];
-  g = this->h[6];
-  h = this->h[7];
+  a = state.h[0];
+  b = state.h[1];
+  c = state.h[2];
+  d = state.h[3];
+  e = state.h[4];
+  f = state.h[5];
+  g = state.h[6];
+  h = state.h[7];
 
-  const W *chunk64 = reinterpret_cast<const W*>(this->chunk);
-  for (i = 0; i < N; i++) {
+  const W *chunk64 = reinterpret_cast<const W*>(state.chunk);
+  for (i = 0; i < C::rounds; i++) {
     if (i < 16) {
       w[i] = wi = revb(chunk64[i]);
     } else {
-      s0 = ror(w[(i-15)%16], shifts[6]) ^ ror(w[(i-15)%16], shifts[ 7]) ^ (w[(i-15)%16] >> shifts[ 8]);
-      s1 = ror(w[(i- 2)%16], shifts[9]) ^ ror(w[(i- 2)%16], shifts[10]) ^ (w[(i- 2)%16] >> shifts[11]);
+      s0 = ror(w[(i-15)%16], C::shifts[6]) ^ ror(w[(i-15)%16], C::shifts[ 7]) ^ (w[(i-15)%16] >> C::shifts[ 8]);
+      s1 = ror(w[(i- 2)%16], C::shifts[9]) ^ ror(w[(i- 2)%16], C::shifts[10]) ^ (w[(i- 2)%16] >> C::shifts[11]);
       w[i%16] = wi = w[(i-16)%16] + s0 + w[(i-7)%16] + s1;
     }
 
-    s0 = ror(a, shifts[0]) ^ ror(a, shifts[1]) ^ ror(a, shifts[2]);
-    s1 = ror(e, shifts[3]) ^ ror(e, shifts[4]) ^ ror(e, shifts[5]);
+    s0 = ror(a, C::shifts[0]) ^ ror(a, C::shifts[1]) ^ ror(a, C::shifts[2]);
+    s1 = ror(e, C::shifts[3]) ^ ror(e, C::shifts[4]) ^ ror(e, C::shifts[5]);
 
     ch = (e & f) ^ ((~e) & g);
     maj = (a & b) ^ (a & c) ^ (b & c);
 
-    temp1 = h + s1 + ch + K[i] + wi;
+    temp1 = h + s1 + ch + C::K[i] + wi;
  
     h = g;
     g = f;
@@ -118,26 +119,26 @@ void _SHA2State<W, N>::_transform(const W (&K)[N], const uint32_t (&shifts)[12])
     a = temp1 + s0 + maj;
   }
 
-  this->h[0] += a;
-  this->h[1] += b;
-  this->h[2] += c;
-  this->h[3] += d;
-  this->h[4] += e;
-  this->h[5] += f;
-  this->h[6] += g;
-  this->h[7] += h;
+  state.h[0] += a;
+  state.h[1] += b;
+  state.h[2] += c;
+  state.h[3] += d;
+  state.h[4] += e;
+  state.h[5] += f;
+  state.h[6] += g;
+  state.h[7] += h;
 }
 
-template<typename W, size_t N>
-void _SHA2State<W, N>::_update(const void *ptr, size_t num, const W (&K)[N], const uint32_t (&shifts)[12]) {
-  size_t byte = msgbytes % sizeof(chunk);
+template<typename C>
+void _SHA2Op<C>::_update(State &state, const void *ptr, size_t num) {
+  size_t byte = state.msgbytes % sizeof(state.chunk);
   const uint8_t *bytes = reinterpret_cast<const uint8_t*>(ptr);
-  uint8_t *chunkb = reinterpret_cast<uint8_t*>(chunk);
+  uint8_t *chunkb = reinterpret_cast<uint8_t*>(state.chunk);
   while (num--) {
     chunkb[byte++] = *(bytes++);
-    msgbytes++;
-    if (byte == sizeof(chunk)) {
-      _transform(K, shifts);
+    state.msgbytes++;
+    if (byte == sizeof(state.chunk)) {
+      _transform(state);
       byte = 0;
     }
   }
@@ -145,17 +146,17 @@ void _SHA2State<W, N>::_update(const void *ptr, size_t num, const W (&K)[N], con
 
 static constexpr uint8_t fb1 = 0x80, fb0 = 0x00;
 
-template<typename W, size_t N>
-void _SHA2State<W, N>::_final(const W (&K)[N], const uint32_t (&shifts)[12]) {
-  uint64_t msgbits = revb(msgbytes << 3);
-  _update(&fb1, 1, K, shifts);
-  while ((msgbytes % sizeof(chunk)) != (sizeof(chunk) - 8)) _update(&fb0, 1, K, shifts);
-  uint8_t *chunkb = reinterpret_cast<uint8_t*>(chunk);
-  *reinterpret_cast<uint64_t*>(chunkb + (sizeof(chunk) - 8)) = msgbits;
-  _transform(K, shifts);
-  msgbytes = 0;
-  for (auto &i : h) i = revb(i);
+template<typename C>
+void _SHA2Op<C>::_final(State &state) {
+  uint64_t msgbits = revb(state.msgbytes << 3);
+  _update(state, &fb1, 1);
+  while ((state.msgbytes % sizeof(state.chunk)) != (sizeof(state.chunk) - 8)) _update(state, &fb0, 1);
+  reinterpret_cast<uint32_t*>(state.chunk)[(sizeof(state.chunk) - 8) / 4] = uint32_t(msgbits);
+  reinterpret_cast<uint32_t*>(state.chunk)[(sizeof(state.chunk) - 4) / 4] = uint32_t(msgbits >> 32);
+  _transform(state);
+  state.msgbytes = 0;
+  for (auto &i : state.h) i = revb(i);
 }
 
-template struct kcrypto::hash::_SHA2State<uint64_t, 80>;
-template struct kcrypto::hash::_SHA2State<uint32_t, 64>;
+template struct kcrypto::hash::_SHA2Op<_SHA2Config<512>>;
+template struct kcrypto::hash::_SHA2Op<_SHA2Config<256>>;
