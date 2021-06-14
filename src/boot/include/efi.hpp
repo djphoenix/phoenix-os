@@ -273,11 +273,11 @@ public:
     Status EFIAPI(*const ResetSystem)(
         ResetType ResetType, Status ResetStatus, uint64_t DataSize, const wchar_t *ResetData);
   };
-  struct ConfigurationTable {
+  struct ConfigurationTable_t {
     GUID VendorGuid;
     const void *VendorTable;
   };
-  struct SystemTable {
+  struct SystemTable_t {
     TableHeader Hdr;
     const wchar_t *FirmwareVendor;
     uint32_t FirmwareRevision;
@@ -290,12 +290,12 @@ public:
     const RuntimeServicesTable *RuntimeServices;
     const BootServicesTable *BootServices;
     uint64_t NumberOfTableEntries;
-    const ConfigurationTable *ConfigurationTable;
+    const ConfigurationTable_t *ConfigurationTable;
   };
   struct LoadedImage {
     uint32_t Revision;
     void *ParentHandle;
-    SystemTable *SystemTable;
+    SystemTable_t *SystemTable;
 
     void *DeviceHandle;
     wchar_t *FilePath;
@@ -340,7 +340,7 @@ public:
     const void *Blt;
     GraphicsOutputProtocolMode *Mode;
   };
-  static inline const struct SystemTable *getSystemTable() PURE { return systemTable; }
+  static inline const struct SystemTable_t *getSystemTable() PURE { return systemTable; }
   static inline const void *getImageHandle() PURE { return imageHandle; }
   static inline const void *getACPI1Addr() PURE { return acpi[0]; }
   static inline const void *getACPI2Addr() PURE { return acpi[1]; }
@@ -351,9 +351,9 @@ public:
   };
   static const Framebuffer *getFramebuffer() PURE { return fb.base ? &fb : nullptr; }
 private:
-  static const struct SystemTable *systemTable;
+  static const struct SystemTable_t *systemTable;
   static const void *imageHandle;
-  static const void *(acpi[2]);
+  static const void *acpi[2];
   static Framebuffer fb;
   static void load();
 };

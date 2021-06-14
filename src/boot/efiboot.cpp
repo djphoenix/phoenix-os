@@ -4,9 +4,9 @@
 #include "kernlib.hpp"
 #include "efi.hpp"
 
-const EFI::SystemTable *EFI::systemTable = nullptr;
+const EFI::SystemTable_t *EFI::systemTable = nullptr;
 const void *EFI::imageHandle = nullptr;
-const void *(EFI::acpi[2]) = { nullptr, nullptr };
+const void *EFI::acpi[2] = { nullptr, nullptr };
 EFI::Framebuffer EFI::fb {};
 
 const EFI::GUID EFI::GUID_ConfigTableACPI1 { 0xEB9D2D30, 0x2D88, 0x11D3, 0x169A, 0x4DC13F279000 };
@@ -19,7 +19,7 @@ void EFI::load() {
 
   if (systemTable->ConfigurationTable) {
     for (uint64_t i = 0; i < systemTable->NumberOfTableEntries; i++) {
-      const EFI::ConfigurationTable *tbl = systemTable->ConfigurationTable + i;
+      const EFI::ConfigurationTable_t *tbl = systemTable->ConfigurationTable + i;
       if (tbl->VendorGuid == EFI::GUID_ConfigTableACPI1) acpi[0] = tbl->VendorTable;
       if (tbl->VendorGuid == EFI::GUID_ConfigTableACPI2) acpi[1] = tbl->VendorTable;
     }

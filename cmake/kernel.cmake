@@ -37,6 +37,6 @@ set_target_properties(
 )
 
 add_custom_target(pxkrnl ALL
-  ${CMAKE_LLVM_OBJCOPY} -Obinary pxkrnl.elf pxkrnl
+  ${CMAKE_OBJCOPY} -Obinary pxkrnl.elf pxkrnl
   DEPENDS pxkrnl.elf
 )

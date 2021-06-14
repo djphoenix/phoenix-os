@@ -17,16 +17,37 @@ set(CMAKE_C_EXTENSIONS ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_EXTENSIONS ON)
 
-set(CROSS_LLVM_PATH /usr/local/opt/llvm/bin)
+enable_language(CXX)
 
-find_program(CMAKE_C_COMPILER clang HINTS ${CROSS_LLVM_PATH})
-find_program(CMAKE_CXX_COMPILER clang++ HINTS ${CROSS_LLVM_PATH})
+unset(CMAKE_AR CACHE)
+unset(CMAKE_AR)
+set(CMAKE_AR ${CMAKE_CXX_COMPILER_AR})
 
-find_program(CMAKE_LLVM_OBJCOPY llvm-objcopy HINTS ${CROSS_LLVM_PATH})
-find_program(CMAKE_AR llvm-ar HINTS ${CROSS_LLVM_PATH})
-find_program(CMAKE_NM llvm-nm HINTS ${CROSS_LLVM_PATH})
-find_program(CMAKE_RANLIB llvm-ranlib HINTS ${CROSS_LLVM_PATH})
-find_program(CMAKE_LINKER ld.lld HINTS ${CROSS_LLVM_PATH})
+unset(CMAKE_RANLIB CACHE)
+unset(CMAKE_RANLIB)
+set(CMAKE_RANLIB ${CMAKE_CXX_COMPILER_RANLIB})
+
+get_filename_component(CROSS_BINUTILS_PATH ${CMAKE_CXX_COMPILER_AR} DIRECTORY)
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  find_program(
+    CMAKE_OBJCOPY llvm-objcopy
+    NAMES llvm-objcopy x86_64-elf-objcopy objcopy
+    HINTS ${CROSS_BINUTILS_PATH}
+  )
+  unset(CMAKE_LINKER CACHE)
+  unset(CMAKE_LINKER)
+  find_program(
+    CMAKE_LINKER ld.lld
+    HINTS ${CROSS_BINUTILS_PATH}
+  )
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  find_program(
+    CMAKE_OBJCOPY x86_64-elf-objcopy
+    NAMES x86_64-elf-objcopy objcopy
+    HINTS ${CROSS_BINUTILS_PATH}
+  )
+endif()
 
 set(CMAKE_CXX_LINK_EXECUTABLE "<CMAKE_LINKER> -o <TARGET> <LINK_FLAGS> <OBJECTS> <LINK_LIBRARIES>")
 set(CMAKE_CXX_CREATE_SHARED_LIBRARY "<CMAKE_LINKER> --shared -o <TARGET> <LINK_FLAGS> <OBJECTS> <LINK_LIBRARIES>")

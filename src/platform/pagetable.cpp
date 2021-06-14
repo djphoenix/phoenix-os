@@ -14,7 +14,7 @@ void *Pagetable::rsvd_pages[rsvd_num] {};
 size_t Pagetable::rsvd_r = 0, Pagetable::rsvd_w = 0;
 uintptr_t Pagetable::max_page;
 
-static void *efiAllocatePages(uintptr_t min, size_t count, const struct EFI::SystemTable *ST) {
+static void *efiAllocatePages(uintptr_t min, size_t count, const struct EFI::SystemTable_t *ST) {
   size_t mapSize = 0, entSize = 0;
   EFI::MemoryDescriptor *map = nullptr, *ent;
   uint64_t mapKey;
@@ -45,7 +45,7 @@ static void *efiAllocatePages(uintptr_t min, size_t count, const struct EFI::Sys
 }
 
 static void efiMapPage(PTE *pagetable, const void *page,
-                       const struct EFI::SystemTable *ST, Pagetable::MemoryType type) {
+                       const struct EFI::SystemTable_t *ST, Pagetable::MemoryType type) {
   uintptr_t ptr = uintptr_t(page), min = uintptr_t(pagetable);
   uint64_t ptx = (ptr >> (12 + 9*3)) & 0x1FF;
   uint64_t pdx = (ptr >> (12 + 9*2)) & 0x1FF;
@@ -72,7 +72,7 @@ static void efiMapPage(PTE *pagetable, const void *page,
 }
 
 static void fillPagesEfi(uintptr_t low, uintptr_t top, PTE *pagetable,
-                         const struct EFI::SystemTable *ST, Pagetable::MemoryType type) {
+                         const struct EFI::SystemTable_t *ST, Pagetable::MemoryType type) {
   low &= 0xFFFFFFFFFFFFF000;
   top = klib::__align(top, 0x1000);
   for (; low < top; low += 0x1000) {
@@ -81,7 +81,7 @@ static void fillPagesEfi(uintptr_t low, uintptr_t top, PTE *pagetable,
 }
 
 static inline void fillPagesEfi(const void *low, const void *top, PTE *pagetable,
-                                const struct EFI::SystemTable *ST, Pagetable::MemoryType type) {
+                                const struct EFI::SystemTable_t *ST, Pagetable::MemoryType type) {
   fillPagesEfi(uintptr_t(low), uintptr_t(top), pagetable, ST, type);
 }
 
@@ -116,7 +116,7 @@ static inline __attribute__((always_inline)) void newkern_relocstack(ptrdiff_t k
   }
 }
 
-void __attribute__((always_inline)) Pagetable::initEFI(const EFI::SystemTable *ST, Entry **newpt, uint8_t **newbase) {
+void __attribute__((always_inline)) Pagetable::initEFI(const EFI::SystemTable_t *ST, Entry **newpt, uint8_t **newbase) {
   const size_t kernsz = size_t(__bss_end__ - __text_start__);
 
   EFI::LoadedImage *loaded_image = nullptr;
@@ -259,7 +259,7 @@ void __attribute__((always_inline)) Pagetable::initMB(Entry **newpt, uint8_t **n
 }
 
 void Pagetable::init() {
-  const EFI::SystemTable *ST = EFI::getSystemTable();
+  const EFI::SystemTable_t *ST = EFI::getSystemTable();
   Multiboot::Payload *multiboot = Multiboot::getPayload();
 
   const uint8_t *defbase;
@@ -303,12 +303,12 @@ void Pagetable::init() {
     }
     if (multiboot->flags & Multiboot::FLAG_CMDLINE) {
       if (multiboot->pcmdline < 0x80000)
-        multiboot->pcmdline += uintptr_t(__bss_end__);
+        multiboot->pcmdline = uint32_t(uintptr_t(__bss_end__) + multiboot->pcmdline);
       _map(reinterpret_cast<void*>(uintptr_t(multiboot->pcmdline)), reinterpret_cast<void*>(uintptr_t(multiboot->pcmdline + 0x1000)), MemoryType::DATA_RW, newpt);
     }
     if (multiboot->flags & Multiboot::FLAG_MODS) {
       if (multiboot->mods.paddr < 0x80000)
-        multiboot->mods.paddr += uintptr_t(__bss_end__);
+        multiboot->mods.paddr = uint32_t(uintptr_t(__bss_end__) + multiboot->mods.paddr);
 
       uintptr_t low = uintptr_t(multiboot->mods.paddr) & 0xFFFFFFFFFFFFF000;
       uintptr_t top = klib::__align(
@@ -328,7 +328,7 @@ void Pagetable::init() {
 
     if (multiboot->flags & Multiboot::FLAG_MEMMAP) {
       if (multiboot->mmap.paddr < 0x80000)
-        multiboot->mmap.paddr += uintptr_t(__bss_end__);
+        multiboot->mmap.paddr = uint32_t(uintptr_t(__bss_end__) + multiboot->mmap.paddr);
 
       max_page = 0;
       uint8_t *mmap = reinterpret_cast<uint8_t*>(uintptr_t(multiboot->mmap.paddr));
@@ -348,9 +348,9 @@ void Pagetable::init() {
     }
     if (multiboot->flags & Multiboot::FLAG_VBETAB) {
       if (multiboot->vbe.pcontrol_info < 0x80000)
-        multiboot->vbe.pcontrol_info += uintptr_t(__bss_end__);
+        multiboot->vbe.pcontrol_info = uint32_t(uintptr_t(__bss_end__) + multiboot->vbe.pcontrol_info);
       if (multiboot->vbe.pmode_info < 0x80000)
-        multiboot->vbe.pmode_info += uintptr_t(__bss_end__);
+        multiboot->vbe.pmode_info = uint32_t(uintptr_t(__bss_end__) + multiboot->vbe.pmode_info);
       Multiboot::VBEInfo *vbe = reinterpret_cast<Multiboot::VBEInfo*>(multiboot->vbe.pcontrol_info);
       _map(vbe, vbe + 1, MemoryType::DATA_RO, newpt);
       uint8_t *vendor = reinterpret_cast<uint8_t*>(vbe->vendor_string);

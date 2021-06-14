@@ -185,21 +185,22 @@ class CPU {
   };
 
  private:
-  static char vendor[16];
   static uint64_t features;
   static uint64_t features_ext;
   static uint64_t ext_features;
   static struct Info info;
   static uint32_t maxCPUID;
-  static char brandString[52];
+
+  static uint32_t vendor[4];
+  static uint32_t brandString[13];
 
  public:
-  static char* getVendor();
+  static const char* getVendor();
   static uint64_t getFeatures();
   static uint64_t getFeaturesExt();
   static uint64_t getExtFeatures();
   static char* getFeaturesStr();
   static struct Info getInfo();
   static uint32_t getMaxCPUID();
-  static char* getBrandString();
+  static const char* getBrandString();
 };

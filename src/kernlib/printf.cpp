@@ -16,7 +16,7 @@ static inline char *longlong_to_string(
   }
   buf[ --pos] = 0;
   while (n) {
-    uint8_t digit = n % base;
+    uint8_t digit = uint8_t(n % base);
     n /= base;
     if (digit < 10) {
       buf[ --pos] = static_cast<char>(digit + '0');
@@ -252,6 +252,7 @@ parse_size:
       case 'o':
         numbase = 8;
         /* @suppress("No break at end of case") */
+        /* fallthrough */
       case 'u':
 get_num:
         numsig = 0;

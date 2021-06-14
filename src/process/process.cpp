@@ -123,6 +123,7 @@ uintptr_t Process::addSection(uintptr_t offset, SectionType type, size_t size) {
       case SectionTypeData:
       case SectionTypeBSS:
       case SectionTypeStack:
+      default:
         ptype = Pagetable::MemoryType::USER_DATA_RW;
         break;
     }
@@ -270,7 +271,7 @@ void Process::allowIOPorts(uint16_t min, uint16_t max) {
       map = reinterpret_cast<uint8_t*>(iomap[space] = Pagetable::alloc(1, Pagetable::MemoryType::DATA_RW));
       Memory::fill(map, 0xFF, 0x1000);
     }
-    map[byte] &= ~(1 << bit);
+    map[byte] &= uint8_t(~(1 << bit));
   }
 }
 void Process::startup() {

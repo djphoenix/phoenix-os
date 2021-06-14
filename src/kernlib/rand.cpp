@@ -19,12 +19,12 @@ static inline bool check_rdseed() {
 void RAND::setup() {
   if (check_rdseed()) {
     asm volatile(
-      "1: rdseedq %q0; jnc 1b"
+      "1: rdseed %q0; jnc 1b"
       :"=r"(seed)
     );
   } else if (check_rdrand()) {
     asm volatile(
-      "1: rdrandq %q0; jnc 1b"
+      "1: rdrand %q0; jnc 1b"
       :"=r"(seed)
     );
   } else {

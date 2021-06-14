@@ -51,6 +51,8 @@ class Pagetable {
     Entry *getPTE() const { return static_cast<Entry*>(getPtr()); }
 
     constexpr Entry(): flags(0), rsvd(0), avl(0), _ptr(0), nx(0) {}
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wconversion"
     constexpr Entry(uintptr_t ptr, uint8_t avl, MemoryType type):
       flags(
         ((type & MemoryType::NULLPAGE) ? 0 : 1) |
@@ -59,6 +61,7 @@ class Pagetable {
       ),
       rsvd(0), avl(avl), _ptr(ptr >> 12),
       nx((type & MemoryType::FLAG_X) ? 0 : 1) {}
+    #pragma GCC diagnostic pop
     constexpr Entry(uintptr_t ptr, MemoryType type): Entry(ptr, 0, type) {}
     Entry(const void *ptr, uint8_t avl, MemoryType type): Entry(uintptr_t(ptr), avl, type) {}
     Entry(const void *ptr, MemoryType type): Entry(ptr, 0, type) {}
@@ -97,7 +100,7 @@ class Pagetable {
   static void* _getRsvd();
   static void _renewRsvd(Entry *pagetable);
   static inline void initMB(Entry **pagetable, uint8_t **newbase);
-  static inline void initEFI(const EFI::SystemTable *ST, Entry **pagetable, uint8_t **newbase);
+  static inline void initEFI(const EFI::SystemTable_t *ST, Entry **pagetable, uint8_t **newbase);
   static void init();
 
  public:

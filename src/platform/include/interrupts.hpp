@@ -52,6 +52,8 @@ struct GDT {
         seg_lim_low(0), base_low(0), type(0), system(0), dpl(0), present(0),
         seg_lim_high(0), avl(0), islong(0), db(0), granularity(0), base_high(0) {}
 
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wconversion"
     constexpr Entry(
         uint64_t base, uint64_t limit,
         uint8_t type, uint8_t dpl,
@@ -61,6 +63,7 @@ struct GDT {
             type(type), system(system), dpl(dpl), present(present),
             seg_lim_high((limit >> 16) & 0xF), avl(avl), islong(islong), db(db),
             granularity(granularity), base_high((base >> 24) & 0xFF) {}
+    #pragma GCC diagnostic pop
   } PACKED;
 
   struct SystemEntry {
@@ -72,7 +75,7 @@ struct GDT {
 
     void setBase(uint64_t base) {
       ent.setBase(base);
-      base_high = (base >> 32);
+      base_high = uint32_t(base >> 32);
     }
 
     constexpr SystemEntry(): ent(), base_high(0), rsvd(0) { }
@@ -81,7 +84,7 @@ struct GDT {
                 bool system, bool present, bool avl, bool islong, bool db,
                 bool granularity) :
         ent(base, limit, type, dpl, system, present, avl, islong, db,
-            granularity), base_high(base >> 32), rsvd(0) { }
+            granularity), base_high(uint32_t(base >> 32)), rsvd(0) { }
   } PACKED;
 
   Entry ents[5];
@@ -146,11 +149,14 @@ class Interrupts {
     constexpr REC64():
       offset_low(0), selector(0), ist(0), rsvd1(0), type(0), rsvd2(0), dpl(0),
       present(0), offset_middle(0), offset_high(0), rsvd3(0) {}
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wconversion"
     constexpr REC64(uint64_t offset, uint16_t selector, uint8_t ist, uint8_t type,
                 uint8_t dpl, bool present) :
         offset_low(uint16_t(offset)), selector(selector), ist(ist), rsvd1(0),
         type(type), rsvd2(0), dpl(dpl), present(present),
         offset_middle(uint16_t(offset >> 16)), offset_high(offset >> 32), rsvd3(0) {}
+    #pragma GCC diagnostic pop
   } PACKED;
 
  private:

@@ -5,8 +5,8 @@
 #include "kernlib.hpp"
 #include "heap.hpp"
 
-char CPU::vendor[16] = "";
-char CPU::brandString[52] = "";
+uint32_t CPU::vendor[4] {};
+uint32_t CPU::brandString[13] {};
 uint64_t CPU::features = 0;
 uint64_t CPU::features_ext = 0;
 uint64_t CPU::ext_features = 0;
@@ -73,17 +73,13 @@ static const char CPUID_EXT_FEAT_STR[64][16] = {
   /* 60-63 */"pcx_l2i", "", "", ""
 };
 
-char* CPU::getVendor() {
+const char* CPU::getVendor() {
   if (vendor[0] == 0) {
-    uint32_t eax = 0, ebx, ecx, edx;
-    asm volatile("cpuid" : "+a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx));
-    uint32_t *v = reinterpret_cast<uint32_t*>(vendor);
-    v[0] = ebx;
-    v[1] = edx;
-    v[2] = ecx;
-    vendor[12] = 0;
+    uint32_t eax = 0;
+    asm volatile("cpuid" : "+a"(eax), "=b"(vendor[0]), "=d"(vendor[1]), "=c"(vendor[2]));
+    vendor[3] = 0;
   }
-  return vendor;
+  return reinterpret_cast<const char*>(vendor);
 }
 
 uint32_t CPU::getMaxCPUID() {
@@ -188,19 +184,17 @@ char* CPU::getFeaturesStr() {
   return buf;
 }
 
-char* CPU::getBrandString() {
+const char* CPU::getBrandString() {
   if ((brandString[0] == 0) && (getMaxCPUID() >= 0x80000004)) {
-    uint32_t *v = reinterpret_cast<uint32_t*>(brandString);
-    uint32_t eax = 0x80000002, ebx, ecx, edx;
-    asm volatile("cpuid" : "+a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx));
-    v[0] = eax; v[1] = ebx; v[2] = ecx; v[3] = edx;
-    eax = 0x80000003;
-    asm volatile("cpuid" : "+a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx));
-    v[4] = eax; v[5] = ebx; v[6] = ecx; v[7] = edx;
-    eax = 0x80000004;
-    asm volatile("cpuid" : "+a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx));
-    v[8] = eax; v[9] = ebx; v[10] = ecx; v[11] = edx;
-    brandString[48] = 0;
+    uint32_t *v = brandString;
+    uint32_t eax = 0x80000002;
+    asm volatile("cpuid" : "+a"(eax), "=b"(v[1]), "=c"(v[2]), "=d"(v[3]));
+    v[0] = eax; eax = 0x80000003;
+    asm volatile("cpuid" : "+a"(eax), "=b"(v[5]), "=c"(v[6]), "=d"(v[7]));
+    v[4] = eax; eax = 0x80000004;
+    asm volatile("cpuid" : "+a"(eax), "=b"(v[9]), "=c"(v[10]), "=d"(v[11]));
+    v[8] = eax;
+    brandString[12] = 0;
   }
-  return brandString;
+  return reinterpret_cast<const char*>(brandString);
 }

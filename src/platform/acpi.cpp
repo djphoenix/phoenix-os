@@ -164,13 +164,13 @@ void ACPI::ParseRsdt(const Header *rsdt) {
 }
 void ACPI::ParseXsdt(const Header *xsdt) {
   Pagetable::map(xsdt, Pagetable::MemoryType::DATA_RO);
-  const uint64_t *p = reinterpret_cast<const uint64_t*>(xsdt + 1);
-  const uint64_t *end = p + (xsdt->length - sizeof(*xsdt)) / sizeof(uint64_t);
+  uintptr_t p = reinterpret_cast<uintptr_t>(xsdt + 1);
+  uintptr_t end = p + (xsdt->length - sizeof(*xsdt));
 
   while (p < end) {
-    Pagetable::map(p, p + 1, Pagetable::MemoryType::DATA_RO);
-    uint64_t address = *p++;
-    ParseDT(reinterpret_cast<Header*>(address));
+    const uintptr_t *pp = reinterpret_cast<const uintptr_t*>(p);
+    Pagetable::map(pp, pp + 1, Pagetable::MemoryType::DATA_RO);
+    ParseDT(reinterpret_cast<Header*>(*pp));
   }
 }
 void ACPI::ParseApic(const Madt *madt) {
@@ -179,8 +179,8 @@ void ACPI::ParseApic(const Madt *madt) {
   localApicAddr = reinterpret_cast<uint8_t*>(uintptr_t(madt->localApicAddr));
   Pagetable::map(localApicAddr, localApicAddr + 0x1000, Pagetable::MemoryType::DATA_RW);
 
-  const uint8_t *p = reinterpret_cast<const uint8_t*>(madt + 1);
-  const uint8_t *end = p + (madt->Header::length - sizeof(Madt));
+  uintptr_t p = reinterpret_cast<uintptr_t>(madt + 1);
+  uintptr_t end = p + (madt->Header::length - sizeof(Madt));
 
   while (p < end) {
     const ApicHeader *header = reinterpret_cast<const ApicHeader*>(p);
@@ -188,16 +188,16 @@ void ACPI::ParseApic(const Madt *madt) {
     uint16_t type = header->type;
     uint16_t length = header->length;
     if (type == 0) {
-      const ApicLocalApic *s = reinterpret_cast<const ApicLocalApic*>(header);
+      const ApicLocalApic *s = reinterpret_cast<const ApicLocalApic*>(p);
       acpiLapicCpuIds[s->apicId] = acpiCpuCount;
       acpiCpuLapicIds[acpiCpuCount] = s->apicId;
       acpiCpuCount++;
     } else if (type == 1) {
-      const ApicIoApic *s = reinterpret_cast<const ApicIoApic*>(header);
+      const ApicIoApic *s = reinterpret_cast<const ApicIoApic*>(p);
       ioApicAddr = reinterpret_cast<uint8_t*>(uintptr_t(s->ioApicAddress));
       Pagetable::map(ioApicAddr, ioApicAddr + 0x1000, Pagetable::MemoryType::DATA_RW);
     } else if (type == 2) {
-      const ApicInterruptOverride *s = reinterpret_cast<const ApicInterruptOverride*>(header);
+      const ApicInterruptOverride *s = reinterpret_cast<const ApicInterruptOverride*>(p);
       (void)s;
       // TODO: handle interrupt overrides
     }
@@ -244,7 +244,7 @@ bool ACPI::ParseRsdp(const void *ptr) {
 uint8_t ACPI::getLapicID() {
   if (!localApicAddr)
     return 0;
-  return LapicIn(LAPIC_APICID) >> 24;
+  return uint8_t(LapicIn(LAPIC_APICID) >> 24);
 }
 uint8_t ACPI::getCPUID() {
   if (!localApicAddr)

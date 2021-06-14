@@ -15,7 +15,7 @@ foreach(moddir ${MODDIRS})
   target_include_directories(mod_${mod} PRIVATE ${MODINC})
   target_link_options(mod_${mod} PRIVATE "-e" "module")
   add_custom_target(mod_${mod}_strip
-    ${CMAKE_LLVM_OBJCOPY} --strip-non-alloc --strip-debug --strip-unneeded libmod_${mod}.so libmod_${mod}.strip.so
+    ${CMAKE_OBJCOPY} --strip-debug --strip-unneeded libmod_${mod}.so libmod_${mod}.strip.so
     BYPRODUCTS libmod_${mod}.strip.so
     DEPENDS mod_${mod}
   )
