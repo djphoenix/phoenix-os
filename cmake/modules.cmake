@@ -13,7 +13,10 @@ foreach(moddir ${MODDIRS})
   file(GLOB SRCS_${mod} ${ROOT_${mod}}/*.s ${ROOT_${mod}}/*.c ${ROOT_${mod}}/*.cpp)
   add_library(mod_${mod} SHARED ${SRCS_${mod}})
   target_include_directories(mod_${mod} PRIVATE ${MODINC})
-  target_link_options(mod_${mod} PRIVATE "-e" "module")
+  set_target_properties(
+    mod_${mod} PROPERTIES
+    LINK_FLAGS "-e module --gc-sections --Map=${CMAKE_CURRENT_BINARY_DIR}/libmod_${mod}.map"
+  )
   add_custom_target(mod_${mod}_strip
     ${CMAKE_OBJCOPY} --strip-debug --strip-unneeded libmod_${mod}.so libmod_${mod}.strip.so
     BYPRODUCTS libmod_${mod}.strip.so
