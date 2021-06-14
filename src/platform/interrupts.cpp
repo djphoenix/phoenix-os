@@ -305,20 +305,20 @@ void Interrupts::init() {
 
   asm volatile(
       "mov %%rsp, %%rcx;"
+      "lea 1f(%%rip), %%rax;"
       "pushq $16;"
       "pushq %%rcx;"
       "pushfq;"
       "pushq $8;"
-      "lea 1f(%%rip), %%rcx;"
-      "pushq %%rcx;"
-      "lgdtq %0;"
+      "pushq %%rax;"
+      "lgdtq (%0);"
       "iretq;"
       "1:"
       "mov %%ss, %%ax;"
       "mov %%ax, %%ds;"
       "mov %%ax, %%es;"
       "mov %%ax, %%gs;"
-      ::"m"(gdtreg):"ax", "rcx", "rsp");
+      ::"r"(&gdtreg):"rax", "rcx");
 
   uintptr_t addr;
   uint8_t *lapic_eoi =
