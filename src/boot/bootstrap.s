@@ -414,7 +414,7 @@ __main: # Fix for Windows builds
 .type __main, function
 .size __main, .-__main
 
-  .rodata
+.section .rodata
 
 aNoMultiboot:
   .ascii "This kernel can boot only from multiboot-compatible bootloader\0"
