@@ -22,21 +22,6 @@ static inline size_t putn(T x, uint8_t base = 10, size_t len = 1) {
   return sz - off;
 }
 
-template<typename T>
-static inline size_t sputn(char *out, T x, uint8_t base = 10, size_t len = 1) {
-  char buf[sizeof(T) * 4];
-  size_t sz = sizeof(buf) - 1, off = sz;
-  buf[off] = 0;
-  while (off >= sz + 1 - len || x > 0) {
-    uint8_t c = uint8_t(x % base); x /= base;
-    buf[--off] = (c < 10) ? static_cast<char>('0' + c) : static_cast<char>('a' - 10 + c);
-  }
-  char *o = out, *p = buf + off;
-  while (*p != 0) *(o++) = *(p++);
-  *(o++) = 0;
-  return sz - off;
-}
-
 namespace PCI {
   static inline uint32_t readConfig32(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset) {
     uint32_t address, value;
@@ -136,30 +121,13 @@ namespace PCI {
         (uint32_t(function) << 8);
     const void *ptr = reinterpret_cast<const void*>(address);
 
-    {
-      char path[] = "pci/path.000.000.000.000";
-      char *p = path + 9;
-      p += sputn(p, bus); *(p++) = '.';
-      p += sputn(p, device); *(p++) = '.';
-      p += sputn(p, function); *(p++) = 0;
-      ioprovide(path, ptr);
-    }
-    {
-      char path[] = "pci/class.00.00.00.00";
-      char *p = path + 10;
-      p += sputn(p, baseClass, 16, 2); *(p++) = '.';
-      p += sputn(p, subClass, 16, 2); *(p++) = '.';
-      p += sputn(p, progIf, 16, 2); *(p++) = 0;
-      ioprovide(path, ptr);
-    }
-    {
-      char path[] = "pci/vendor.0000/device.0000/rev.00";
-      char *p = path + 11;
-      p += sputn(p, vendorId, 16, 4); *(p++) = '/'; p += 7;
-      p += sputn(p, deviceId, 16, 4); *(p++) = '/'; p += 4;
-      p += sputn(p, rev, 16, 2); *(p++) = 0;
-      ioprovide(path, ptr);
-    }
+    char pathbuf[64];
+    snprintf(pathbuf, sizeof(pathbuf), "pci/path.%03d.%03d.%03d", bus, device, function);
+    ioprovide(pathbuf, ptr);
+    snprintf(pathbuf, sizeof(pathbuf), "pci/class.%02x.%02x.%02x", baseClass, subClass, progIf);
+    ioprovide(pathbuf, ptr);
+    snprintf(pathbuf, sizeof(pathbuf), "pci/vendor.%04x/device.%04x/rev.%02x", vendorId, deviceId, rev);
+    ioprovide(pathbuf, ptr);
   }
   static void scanBus(uint8_t bus);
   static void scanFunction(uint8_t bus, uint8_t device, uint8_t function) {

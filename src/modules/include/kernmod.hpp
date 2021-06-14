@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#include "kernlib.hpp"
+
 #define MODDESC(k, v) \
   extern const char \
     __attribute__((section(".module"),aligned(1))) \
