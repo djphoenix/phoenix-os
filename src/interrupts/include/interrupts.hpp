@@ -3,13 +3,6 @@
 
 #pragma once
 #include "kernlib.hpp"
-#include "heap.hpp"
-#include "list.hpp"
-
-struct DTREG {
-  uint16_t limit;
-  void* addr;
-} PACKED;
 
 struct TSS64_ENT {
   uint32_t reserved1;
@@ -96,6 +89,7 @@ struct GDT {
 } PACKED;
 
 class Process;
+template<typename T> class List;
 class Interrupts {
  public:
   struct CallbackRegs {

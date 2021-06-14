@@ -6,6 +6,8 @@
 #include "processmanager.hpp"
 #include "syscall.hpp"
 #include "acpi.hpp"
+#include "thread.hpp"
+#include "printf.hpp"
 
 using PTE = Pagetable::Entry;
 
@@ -370,7 +372,7 @@ void Process::print_stacktrace(uintptr_t base, const Process *process) {
     uintptr_t rip;
   } __attribute__((packed));
 
-  printf("STACK TRACE:");
+  klib::puts("STACK TRACE:");
   struct stackframe tmpframe;
   const struct stackframe *frame;
   if (base) {
@@ -392,5 +394,5 @@ void Process::print_stacktrace(uintptr_t base, const Process *process) {
     printf(" [%p]:%p", reinterpret_cast<void*>(frame->rbp), reinterpret_cast<void*>(frame->rip));
     frame = frame->rbp;
   }
-  printf("\n");
+  klib::puts("\n");
 }

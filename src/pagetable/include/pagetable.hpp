@@ -5,6 +5,11 @@
 #include "kernlib.hpp"
 #include "efi.hpp"
 
+struct DTREG {
+  uint16_t limit;
+  void* addr;
+} PACKED;
+
 class Pagetable {
  public:
   enum class MemoryType : uint8_t {

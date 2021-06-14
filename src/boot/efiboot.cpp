@@ -1,7 +1,6 @@
 //    PhoeniX OS EFI Startup file
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
-#include "kernlib.hpp"
 #include "efi.hpp"
 
 const EFI::SystemTable_t *EFI::systemTable = nullptr;

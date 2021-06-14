@@ -3,10 +3,8 @@
 
 #pragma once
 #include "kernlib.hpp"
-#include "thread.hpp"
 #include "pagetable.hpp"
 #include "list.hpp"
-
 
 struct ProcessSymbol {
   uintptr_t ptr;
@@ -21,6 +19,7 @@ enum SectionType: uint8_t {
   SectionTypeStack
 };
 
+struct Thread;
 class Process {
  private:
   uint64_t id;

@@ -2,6 +2,7 @@
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
 #include "processmanager.hpp"
+#include "thread.hpp"
 
 #include "acpi.hpp"
 

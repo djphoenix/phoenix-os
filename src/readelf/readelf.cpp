@@ -2,7 +2,8 @@
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
 #include "readelf.hpp"
-#include "./readelf_internal.h"
+#include "readelf_internal.hpp"
+#include "printf.hpp"
 
 static uintptr_t readelf_find_load_addr(Process *process, uintptr_t start, uintptr_t faddr) {
   ELF::HDR elf;

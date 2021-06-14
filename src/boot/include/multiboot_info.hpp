@@ -2,7 +2,8 @@
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
 #pragma once
-#include "kernlib.hpp"
+#include <stdint.h>
+#include <stddef.h>
 
 class Multiboot {
  public:
@@ -37,16 +38,16 @@ class Multiboot {
     Flags flags;
     struct {
       size_t lower:32, upper:32;
-    } PACKED mem;
+    } __attribute__((packed)) mem;
     uint32_t boot_device;
     uintptr_t pcmdline:32;
-    struct { uint32_t count; uintptr_t paddr:32; } PACKED mods;
+    struct { uint32_t count; uintptr_t paddr:32; } __attribute__((packed)) mods;
     union {
-      struct { uint32_t tabsize, strsize, addr, rsvd; } PACKED aout;
-      struct { uint32_t num, size, addr, shndx; } PACKED elf;
-    } PACKED syms;
-    struct { size_t size:32; uintptr_t paddr:32; } PACKED mmap;
-    struct { size_t size:32; uintptr_t paddr:32; } PACKED drives;
+      struct { uint32_t tabsize, strsize, addr, rsvd; } __attribute__((packed)) aout;
+      struct { uint32_t num, size, addr, shndx; } __attribute__((packed)) elf;
+    } __attribute__((packed)) syms;
+    struct { size_t size:32; uintptr_t paddr:32; } __attribute__((packed)) mmap;
+    struct { size_t size:32; uintptr_t paddr:32; } __attribute__((packed)) drives;
     uintptr_t pconfig_table:32;
     uintptr_t pboot_loader_name:32;
     uintptr_t papm_table:32;
@@ -54,7 +55,7 @@ class Multiboot {
       uintptr_t pcontrol_info:32;
       uintptr_t pmode_info:32;
       uint16_t mode, interface_seg, interface_off, interface_len;
-    } PACKED vbe;
+    } __attribute__((packed)) vbe;
     struct {
       uintptr_t paddr;
       uint32_t pitch, width, height;
@@ -64,7 +65,7 @@ class Multiboot {
         struct {
           uint32_t paddr;
           uint16_t num_colors;
-        } PACKED palette;
+        } __attribute__((packed)) palette;
         struct {
           uint8_t red_field_position;
           uint8_t red_mask_size;
@@ -72,10 +73,10 @@ class Multiboot {
           uint8_t green_mask_size;
           uint8_t blue_field_position;
           uint8_t blue_mask_size;
-        } PACKED rgb;
-      } PACKED;
-    } PACKED fb;
-  } PACKED;
+        } __attribute__((packed)) rgb;
+      } __attribute__((packed));
+    } __attribute__((packed)) fb;
+  } __attribute__((packed));
   struct VBEInfo {
     uint32_t signature;
     uint16_t version;
@@ -128,13 +129,13 @@ class Multiboot {
       uint16_t offscreen_size;
 
       uint8_t reserved[206];
-  } PACKED;
+  } __attribute__((packed));
   struct MmapEnt {
     uint32_t size;
     void *base;
     size_t length;
     MemoryType type;
-  } PACKED;
+  } __attribute__((packed));
   struct Module {
     uint32_t start;
     uint32_t end;
@@ -144,5 +145,5 @@ class Multiboot {
   static Payload *payload;
 
  public:
-  static Payload *getPayload() PURE;
+  static Payload *getPayload() __attribute__((pure));
 };

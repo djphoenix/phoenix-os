@@ -5,6 +5,7 @@
 
 #include "readelf.hpp"
 #include "multiboot_info.hpp"
+#include "printf.hpp"
 
 volatile ModuleManager* ModuleManager::manager = nullptr;
 Mutex ModuleManager::managerMutex;

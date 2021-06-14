@@ -10,24 +10,20 @@ set(KERNLIBS "")
 add_compile_definitions("KERNEL_NOASLR")
 
 foreach(kerndir ${KERNDIRS})
-	list (APPEND INCDIRS "${SRCDIR}/${kerndir}/include")
-endforeach(kerndir)
-
-foreach(kerndir ${KERNDIRS})
 	file(GLOB SRCS "${SRCDIR}/${kerndir}/*.s" "${SRCDIR}/${kerndir}/*.c" "${SRCDIR}/${kerndir}/*.cpp")
-  file(GLOB_RECURSE INCS ${SRCDIR}/${kerndir}/include/*.h ${SRCDIR}/${kerndir}/include/*.hpp)
   add_library(${kerndir} STATIC ${SRCS})
-  target_include_directories(${kerndir} PRIVATE ${INCDIRS})
-  list(APPEND KERNDEPS ${kerndir})
-  list(APPEND KERNLIBS $<TARGET_FILE:${kerndir}>)
+  target_include_directories(${kerndir} PUBLIC ${SRCDIR}/${kerndir}/include)
+  target_include_directories(${kerndir} PRIVATE ${SRCDIR}/${kerndir})
+  include(${SRCDIR}/${kerndir}/kernel.cmake)
+
+  list(APPEND KERNLIBS $<TARGET_OBJECTS:${kerndir}>)
+
+  file(GLOB_RECURSE INCS ${SRCDIR}/${kerndir}/include/*.h ${SRCDIR}/${kerndir}/include/*.hpp ${SRCDIR}/${kerndir}/*.h ${SRCDIR}/${kerndir}/*.hpp)
   list(APPEND LINT_SOURCES ${INCS})
   list(APPEND LINT_SOURCES ${SRCS})
 endforeach(kerndir)
 
-file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/null.cpp "")
-
-add_executable(pxkrnl.elf ${CMAKE_CURRENT_BINARY_DIR}/null.cpp)
-target_link_libraries(pxkrnl.elf --start-group ${KERNLIBS} $<TARGET_OBJECTS:modules-linked> --end-group)
+add_executable(pxkrnl.elf ${KERNLIBS} $<TARGET_OBJECTS:modules-linked>)
 add_dependencies(pxkrnl.elf modules-linked)
 
 set_target_properties(pxkrnl.elf PROPERTIES LINK_DEPENDS ${LINKER_SCRIPT_SYSTEM})

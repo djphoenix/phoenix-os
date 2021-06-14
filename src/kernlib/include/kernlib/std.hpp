@@ -20,8 +20,6 @@ namespace klib {
   template<typename T> inline static T PURE abs(T a) { return a > 0 ? a : -a; }
 
   size_t strlen(const char*, size_t limit = static_cast<size_t>(-1)) PURE;
-  char* strdup(const char*);
-  char* strndup(const char*, size_t len);
   int strncmp(const char*, const char*, int) PURE;
   int strcmp(const char*, const char*) PURE;
   void puts(const char *str);

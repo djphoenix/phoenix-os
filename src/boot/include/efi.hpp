@@ -2,7 +2,8 @@
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
 #pragma once
-#include "kernlib.hpp"
+#include <stdint.h>
+#include <stddef.h>
 
 #define EFIAPI __attribute__((ms_abi))
 
@@ -340,16 +341,16 @@ public:
     const void *Blt;
     GraphicsOutputProtocolMode *Mode;
   };
-  static inline const struct SystemTable_t *getSystemTable() PURE { return systemTable; }
-  static inline const void *getImageHandle() PURE { return imageHandle; }
-  static inline const void *getACPI1Addr() PURE { return acpi[0]; }
-  static inline const void *getACPI2Addr() PURE { return acpi[1]; }
+  static inline const struct SystemTable_t *getSystemTable() __attribute__((pure)) { return systemTable; }
+  static inline const void *getImageHandle() __attribute__((pure)) { return imageHandle; }
+  static inline const void *getACPI1Addr() __attribute__((pure)) { return acpi[0]; }
+  static inline const void *getACPI2Addr() __attribute__((pure)) { return acpi[1]; }
   struct Framebuffer {
     void *base;
     size_t width, height;
     GraphicsPixelFormat pixelFormat;
   };
-  static const Framebuffer *getFramebuffer() PURE { return fb.base ? &fb : nullptr; }
+  static const Framebuffer *getFramebuffer() __attribute__((pure)) { return fb.base ? &fb : nullptr; }
 private:
   static const struct SystemTable_t *systemTable;
   static const void *imageHandle;

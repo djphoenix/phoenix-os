@@ -3,6 +3,8 @@
 
 #include "kernlib.hpp"
 #include "acpi.hpp"
+#include "interrupts.hpp"
+#include "pagetable.hpp"
 #include "processmanager.hpp"
 #include "syscall.hpp"
 

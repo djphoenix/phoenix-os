@@ -4,9 +4,10 @@
 #include "syscall.hpp"
 #include "processmanager.hpp"
 #include "pagetable.hpp"
+#include "printf.hpp"
 
-#include "./syscall_hash.hpp"
-#include "./syscall_setup.hpp"
+#include "syscall_hash.hpp"
+#include "syscall_setup.hpp"
 
 static void syscall_puts(uintptr_t strptr) {
   Process *process = ProcessManager::getManager()->currentProcess();

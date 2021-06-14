@@ -43,3 +43,8 @@ template<typename T> class ptr {
   inline const T* get() const { return value; }
   inline const T& operator[](ptrdiff_t idx) const { return value[idx]; }
 };
+
+namespace klib {
+  char* strdup(const char*);
+  char* strndup(const char*, size_t len);
+}

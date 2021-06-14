@@ -2,7 +2,6 @@
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
 #include "heap.hpp"
-#include "multiboot_info.hpp"
 #include "pagetable.hpp"
 
 struct Heap::Alloc {
@@ -185,3 +184,17 @@ void operator delete(void* a) noexcept __attribute__((alias("_ZN4Heap4freeEPv"))
 void operator delete[](void* a) noexcept __attribute__((alias("_ZN4Heap4freeEPv")));
 void operator delete(void* a, size_t s) noexcept { Heap::free(a); }
 void operator delete[](void* a, size_t s) noexcept { Heap::free(a); }
+
+char* klib::strdup(const char* c) {
+  size_t len = strlen(c);
+  char* r = new char[len + 1];
+  Memory::copy(r, c, len + 1);
+  return r;
+}
+
+char* klib::strndup(const char* c, size_t len) {
+  char* r = new char[len + 1];
+  Memory::copy(r, c, len);
+  r[len] = 0;
+  return r;
+}

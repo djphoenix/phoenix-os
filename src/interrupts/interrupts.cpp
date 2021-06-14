@@ -5,6 +5,9 @@
 #include "acpi.hpp"
 #include "pagetable.hpp"
 #include "process.hpp"
+#include "pagetable.hpp"
+#include "list.hpp"
+#include "printf.hpp"
 
 struct Interrupts::Handler {
   // 48 83 ec 00     sub    ${subrsp}, rsp

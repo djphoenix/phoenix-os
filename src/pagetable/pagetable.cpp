@@ -4,7 +4,6 @@
 #include "pagetable.hpp"
 #include "efi.hpp"
 #include "multiboot_info.hpp"
-#include "interrupts.hpp"
 
 using PTE = Pagetable::Entry;
 
@@ -365,7 +364,7 @@ void Pagetable::init() {
 
 void* Pagetable::_getRsvd() {
   if (rsvd_r == rsvd_w) [[unlikely]] {
-    printf("OUT OF RSVD\n"); for (;;);
+    klib::puts("OUT OF RSVD\n"); for (;;);
     return nullptr;
   }
   void *addr = rsvd_pages[rsvd_r];

@@ -3,7 +3,6 @@
 
 #pragma once
 #include "kernlib.hpp"
-#include "thread.hpp"
 #include "process.hpp"
 #include "interrupts.hpp"
 
