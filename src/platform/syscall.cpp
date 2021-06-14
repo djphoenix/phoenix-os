@@ -44,11 +44,11 @@ static void syscall_ioprovide(const char *path, const void *modptr) {
 }
 
 #define SYSCALL_ENT(name) { \
-  syscall_hash(#name), \
+  syscall_hash_ce(#name), \
   reinterpret_cast<void*>(syscall_ ## name) \
 }
 
-static const struct {
+static const volatile struct {
   uint64_t hash;
   void *entry;
 } PACKED syscall_map[] = {
