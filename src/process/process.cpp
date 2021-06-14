@@ -96,13 +96,13 @@ PTE* Process::addPage(uintptr_t vaddr, void* paddr, Pagetable::MemoryType type) 
   return &pml4e[pml4x];
 }
 
-uintptr_t Process::addSection(SectionType type, size_t size) {
+uintptr_t Process::addSection(uintptr_t offset, SectionType type, size_t size) {
   if (size == 0)
     return 0;
   size_t pages = (size >> 12) + 1;
   uintptr_t vaddr;
   if (type != SectionTypeStack) {
-    vaddr = _aslrCode;
+    vaddr = _aslrCode + offset;
   } else {
     vaddr = _aslrStack;
   }
@@ -167,7 +167,7 @@ uintptr_t Process::linkLibrary(const char* funcname) {
 
   if (klib::strcmp(funcname, "__stack_chk_guard") == 0) {
     uint64_t rnd = RAND::get<uint64_t>();
-    uintptr_t page = addSection(SectionTypeData, sizeof(rnd));
+    uintptr_t page = addSection(0, SectionTypeData, sizeof(rnd));
     writeData(page, &rnd, sizeof(rnd));
     addSymbol(funcname, page);
     return page;
@@ -175,7 +175,7 @@ uintptr_t Process::linkLibrary(const char* funcname) {
   if (klib::strcmp(funcname, "__stack_chk_fail") == 0) {
     static const constexpr size_t countInPage = 0x1000 / sizeof(SyscallEntry);
     if (_syscallPage == 0 || _syscallNum == countInPage) {
-      _syscallPage = addSection(SectionTypeCode, sizeof(SyscallEntry) * countInPage);
+      _syscallPage = addSection(0, SectionTypeCode, sizeof(SyscallEntry) * countInPage);
       _syscallNum = 0;
     }
     uint8_t call[sizeof(SyscallEntry)] = { 0x0B, 0x0F, };
@@ -188,7 +188,7 @@ uintptr_t Process::linkLibrary(const char* funcname) {
   if ((syscall_id = Syscall::callByName(funcname)) != 0) {
     static const constexpr size_t countInPage = 0x1000 / sizeof(SyscallEntry);
     if (_syscallPage == 0 || _syscallNum == countInPage) {
-      _syscallPage = addSection(SectionTypeCode, sizeof(SyscallEntry) * countInPage);
+      _syscallPage = addSection(0, SectionTypeCode, sizeof(SyscallEntry) * countInPage);
       _syscallNum = 0;
     }
     SyscallEntry call(syscall_id);
@@ -250,7 +250,7 @@ void *Process::getPhysicalAddress(uintptr_t ptr) const {
 }
 void Process::addThread(Thread *thread, bool suspended) {
   if (thread->stack_top == 0) {
-    thread->stack_top = addSection(SectionTypeStack, 0x7FFF) + 0x8000 - 8;
+    thread->stack_top = addSection(0, SectionTypeStack, 0x7FFF) + 0x8000 - 8;
     thread->rsp = thread->stack_top;
   }
   thread->suspend_ticks = suspended ? uint64_t(-1) : 0;

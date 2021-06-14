@@ -43,7 +43,7 @@ class Process {
   uint64_t getId() const { return id; }
 
   Pagetable::Entry *pagetable;
-  uintptr_t addSection(SectionType type, size_t size);
+  uintptr_t addSection(uintptr_t offset, SectionType type, size_t size);
   void addSymbol(const char *name, uintptr_t ptr);
   void setEntryAddress(uintptr_t ptr);
 
