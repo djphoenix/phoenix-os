@@ -7,7 +7,7 @@
 class Syscall {
  public:
   static void setup();
-  static uint64_t callByName(const char *name);
+  static uint64_t callByName(const char *name) PURE;
  private:
   static void wrapper();
   friend class Process;

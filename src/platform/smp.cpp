@@ -49,14 +49,14 @@ void SMP::init() {
   StartupInfo *info;
 
   startupCode = static_cast<uint8_t*>(Pagetable::lowalloc(1, Pagetable::MemoryType::CODE_RW));
-  info = reinterpret_cast<StartupInfo*>(startupCode + klib::__align(smp_init_size, 8));
+  info = reinterpret_cast<StartupInfo*>(startupCode + smp_init_size);
 
   Memory::copy(startupCode, smp_init, smp_init_size);
   uint8_t smp_init_vector = (uintptr_t(startupCode) >> 12) & 0xFF;
 
   info->lapicAddr = acpi->getLapicAddr();
-  info->cpuids = new uint64_t[cpuCount]();
-  info->stacks = new const uint8_t*[cpuCount]();
+  info->cpuids = new uint64_t[cpuCount];
+  info->stacks = new const uint8_t*[cpuCount];
   info->startup = setup;
 
   asm volatile("mov %%cr3, %q0":"=r"(info->pagetableptr));
@@ -91,7 +91,7 @@ void SMP::init() {
     }
   }
 
-  delete info->cpuids;
-  delete info->stacks;
+  delete[] info->cpuids;
+  delete[] info->stacks;
   Pagetable::free(startupCode);
 }

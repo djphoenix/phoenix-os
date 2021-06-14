@@ -343,7 +343,7 @@ size_t readelf(Process *process, const void *mem, size_t memsize) {
 
   // Init variables
   size = elf.shoff + elf.shentsize * elf.shnum;
-  progs = new ELF64::PROG[elf.phnum]();
+  progs = new ELF64::PROG[elf.phnum];
   progs_top = progs.get() + elf.phnum;
 
   // Read linker program

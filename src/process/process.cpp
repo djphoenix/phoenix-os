@@ -226,6 +226,7 @@ void Process::readData(void* dst, uintptr_t address, size_t size) const {
 char *Process::readString(uintptr_t address) const {
   size_t length = 0;
   const uint8_t *src = static_cast<const uint8_t*>(getPhysicalAddress(address));
+  if (!src) return nullptr;
   size_t limit = 0x1000 - (uintptr_t(src) & 0xFFF);
   while (limit-- && src[length] != 0) {
     length++;
@@ -273,8 +274,7 @@ void Process::allowIOPorts(uint16_t min, uint16_t max) {
   }
 }
 void Process::startup() {
-  DTREG gdt = { 0, nullptr };
-  DTREG idt = { 0, nullptr };
+  DTREG gdt, idt;
   asm volatile("sgdtq %0; sidtq %1":"=m"(gdt), "=m"(idt));
 
   static const uintptr_t KB4 = 0xFFFFFFFFFFFFF000;
