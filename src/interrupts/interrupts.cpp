@@ -4,10 +4,7 @@
 #include "interrupts.hpp"
 #include "acpi.hpp"
 #include "pagetable.hpp"
-#include "process.hpp"
-#include "pagetable.hpp"
 #include "list.hpp"
-#include "printf.hpp"
 
 struct Interrupts::Handler {
   // 48 83 ec 00     sub    ${subrsp}, rsp
@@ -73,7 +70,8 @@ extern "C" void __attribute__((naked)) __attribute__((used)) __interrupt_wrap() 
     "mov %rsp, %rcx;"
 
     // Call actual handler (Interrupts::handle)
-    "call _ZN10Interrupts6handleEhmPmPNS_12CallbackRegs3SSEE;"
+    "lea 0(%rsi), %rbp;"
+    "call _ZN10Interrupts6handleEhmPmPN6Thread3SSEE;"
 
     "fxrstor (%rsp);"
 
@@ -120,12 +118,7 @@ extern "C" void __attribute__((naked)) __attribute__((used)) __interrupt_wrap() 
   );
 }
 
-struct FAULT {
-  char code[5];
-  bool has_error_code;
-} PACKED;
-
-static const FAULT FAULTS[] = {
+const Interrupts::FAULT Interrupts::faults[] = {
   /* 00 */{ "#DE", false },
   /* 01 */{ "#DB", false },
   /* 02 */{ "#NMI", false },
@@ -168,66 +161,13 @@ struct int_info {
   uint64_t rip, cs, rflags, rsp, ss;
 } PACKED;
 
-void Interrupts::print(uint8_t num, CallbackRegs *regs, uint32_t code, const Process *process) {
-  uint64_t cr2;
-  uint64_t base;
-  asm volatile("mov %%cr2, %0":"=r"(cr2));
-  if (process) {
-    base = uintptr_t(process->getBase());
-  } else {
-    asm volatile("lea __text_start__(%%rip), %q0":"=r"(base));
-  }
-  uint32_t cpuid = ACPI::getController()->getCPUID();
-  char rflags_buf[10] = "---------";
-  if (regs->info->rflags & (1 << 0))
-    rflags_buf[8] = 'C';
-  if (regs->info->rflags & (1 << 2))
-    rflags_buf[7] = 'P';
-  if (regs->info->rflags & (1 << 4))
-    rflags_buf[6] = 'A';
-  if (regs->info->rflags & (1 << 6))
-    rflags_buf[5] = 'Z';
-  if (regs->info->rflags & (1 << 7))
-    rflags_buf[4] = 'S';
-  if (regs->info->rflags & (1 << 8))
-    rflags_buf[3] = 'T';
-  if (regs->info->rflags & (1 << 9))
-    rflags_buf[2] = 'I';
-  if (regs->info->rflags & (1 << 10))
-    rflags_buf[1] = 'D';
-  if (regs->info->rflags & (1 << 11))
-    rflags_buf[0] = 'O';
-  printf("\n%s%s%s%s fault %s (cpu=%u, error=0x%x)\n"
-         "BASE=%016lx CS=%04hx SS=%04hx DPL=%hhu\n"
-         "IP=%016lx FL=%016lx [%s]\n"
-         "SP=%016lx BP=%016lx CR2=%016lx\n"
-         "SI=%016lx DI=%016lx CR3=%016lx\n"
-         "A =%016lx C =%016lx D =%016lx B =%016lx\n"
-         "8 =%016lx 9 =%016lx 10=%016lx 11=%016lx\n"
-         "12=%016lx 13=%016lx 14=%016lx 15=%016lx\n",
-         regs->info->dpl ? "Userspace" : "Kernel",
-         process ? " (" : "",
-         process ? process->getName() : "",
-         process ? ")" : "",
-         FAULTS[num].code, cpuid, code,
-         base, regs->info->cs, regs->info->ss, regs->info->dpl,
-         regs->info->rip, regs->info->rflags, rflags_buf,
-         regs->info->rsp, regs->general->rbp, cr2,
-         regs->general->rsi, regs->general->rdi, regs->info->cr3,
-         regs->general->rax, regs->general->rcx, regs->general->rdx, regs->general->rbx,
-         regs->general->r8 , regs->general->r9 , regs->general->r10, regs->general->r11,
-         regs->general->r12, regs->general->r13, regs->general->r14, regs->general->r15);
-
-  Process::print_stacktrace(regs->general->rbp, process);
-}
-
 void __attribute__((sysv_abi)) __attribute__((used)) Interrupts::handle(
-    unsigned char intr, uint64_t stack, uint64_t *pagetable, CallbackRegs::SSE *sse) {
+    unsigned char intr, uint64_t stack, uint64_t *pagetable, Thread::SSE *sse) {
   {
     Mutex::Lock lock(fault);
   }
   uint64_t *const rsp = reinterpret_cast<uint64_t*>(stack);
-  CallbackRegs::General *const regs = reinterpret_cast<CallbackRegs::General*>(rsp - (12 + 3) - 1);
+  Thread::Regs *const regs = reinterpret_cast<Thread::Regs*>(rsp - (12 + 3) - 1);
   int_info *const info = reinterpret_cast<int_info*>(rsp);
   bool handled = false;
 
@@ -273,15 +213,16 @@ void __attribute__((sysv_abi)) __attribute__((used)) Interrupts::handle(
     return;
   }
 
+  char printbuf[32];
   if (intr < 0x20) {
     fault.lock();
-    print(intr, &cb_regs, uint32_t(info->error_code));
-    for (;;)
-      asm volatile("hlt");
+    for (;;) asm volatile("hlt");
   } else if (intr == 0x21) {
-    printf("KBD %02xh\n", Port<0x60>::in8());
+    snprintf(printbuf, sizeof(printbuf), "KBD %02xh\n", Port<0x60>::in8());
+    klib::puts(printbuf);
   } else if (intr != 0x20) {
-    printf("INT %02xh\n", intr);
+    snprintf(printbuf, sizeof(printbuf), "INT %02xh\n", intr);
+    klib::puts(printbuf);
   }
 }
 void Interrupts::init() {
@@ -354,7 +295,7 @@ void Interrupts::init() {
   for (uint32_t i = 0; i < 256; i++) {
     uintptr_t jmp_from = uintptr_t(&(handlers[i].reljmp));
     uintptr_t diff = addr - jmp_from - 5;
-    handlers[i] = Handler(uint8_t(i), uint8_t((i < 0x20) ? (FAULTS[i].has_error_code ? 0 : 8) : 8), uint32_t(diff));
+    handlers[i] = Handler(uint8_t(i), uint8_t((i < 0x20) ? (faults[i].has_error_code ? 0 : 8) : 8), uint32_t(diff));
 
     uintptr_t hptr = uintptr_t(&handlers[i]);
     idt[i] = REC64(hptr, 8, 1, 0xE, 0, true);

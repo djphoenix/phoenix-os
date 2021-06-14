@@ -51,7 +51,7 @@ class Process {
   void allowIOPorts(uint16_t min, uint16_t max);
 
   void writeData(uintptr_t address, const void* src, size_t size);
-  void readData(void* dst, uintptr_t address, size_t size) const;
+  bool readData(void* dst, uintptr_t address, size_t size) const;
   char* readString(uintptr_t address) const;
 
   const char *getName() const PURE;
@@ -60,5 +60,5 @@ class Process {
 
   void* getPhysicalAddress(uintptr_t ptr) const PURE;
 
-  static void print_stacktrace(uintptr_t base = 0, const Process *process = nullptr);
+  static size_t print_stacktrace(char *outbuf, size_t bufsz, uintptr_t base = 0, const Process *process = nullptr);
 };

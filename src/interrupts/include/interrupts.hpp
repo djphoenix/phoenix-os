@@ -3,6 +3,7 @@
 
 #pragma once
 #include "kernlib.hpp"
+#include "thread.hpp"
 
 struct TSS64_ENT {
   uint32_t reserved1;
@@ -88,10 +89,14 @@ struct GDT {
   }
 } PACKED;
 
-class Process;
 template<typename T> class List;
 class Interrupts {
  public:
+  struct FAULT {
+    char code[5];
+    bool has_error_code;
+  } PACKED;
+  static const FAULT faults[0x20];
   struct CallbackRegs {
     struct Info {
       uint64_t cr3;
@@ -102,20 +107,11 @@ class Interrupts {
       uint16_t ss;
       uint8_t dpl;
     } __attribute__((packed));
-    struct General {
-      uint64_t rax, rcx, rdx, rbx;
-      uint64_t rbp, rsi, rdi;
-      uint64_t r8, r9, r10, r11;
-      uint64_t r12, r13, r14, r15;
-    } __attribute__((packed));
-    struct SSE {
-      uint64_t sse[64];
-    } __attribute__((packed));
 
     uint32_t cpuid;
     Info *info;
-    General *general;
-    SSE *sse;
+    Thread::Regs *general;
+    Thread::SSE *sse;
   } __attribute__((packed));
   typedef bool Callback(uint8_t intr, uint32_t code, CallbackRegs *regs);
 
@@ -164,10 +160,9 @@ class Interrupts {
   static REC64 *idt;
   static GDT *gdt;
   static void init();
-  static void handle(uint8_t intr, uint64_t stack, uint64_t *cr3, CallbackRegs::SSE *sse);
+  static void handle(uint8_t intr, uint64_t stack, uint64_t *cr3, Thread::SSE *sse);
 
  public:
-  static void print(uint8_t num, CallbackRegs *regs, uint32_t code, const Process *process = nullptr);
   static void maskIRQ(uint16_t mask);
   static uint16_t getIRQmask();
   static void addCallback(uint8_t intr, Callback* cb);

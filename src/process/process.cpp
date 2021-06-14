@@ -7,7 +7,6 @@
 #include "syscall.hpp"
 #include "acpi.hpp"
 #include "thread.hpp"
-#include "printf.hpp"
 
 using PTE = Pagetable::Entry;
 
@@ -214,10 +213,11 @@ void Process::writeData(uintptr_t address, const void* src, size_t size) {
     address += count;
   }
 }
-void Process::readData(void* dst, uintptr_t address, size_t size) const {
+bool Process::readData(void* dst, uintptr_t address, size_t size) const {
   uint8_t *ptr = static_cast<uint8_t*>(dst);
   while (size > 0) {
     void *src = getPhysicalAddress(address);
+    if (!src) return false;
     size_t limit = 0x1000 - (uintptr_t(src) & 0xFFF);
     size_t count = klib::min(size, limit);
     Memory::copy(ptr, src, count);
@@ -225,6 +225,7 @@ void Process::readData(void* dst, uintptr_t address, size_t size) const {
     ptr += count;
     address += count;
   }
+  return true;
 }
 char *Process::readString(uintptr_t address) const {
   size_t length = 0;
@@ -241,7 +242,10 @@ char *Process::readString(uintptr_t address) const {
   if (length == 0)
     return nullptr;
   char *buf = new char[length + 1]();
-  readData(buf, address, length + 1);
+  if (!readData(buf, address, length + 1)) {
+    delete[] buf;
+    return nullptr;
+  }
   return buf;
 }
 void *Process::getPhysicalAddress(uintptr_t ptr) const {
@@ -366,13 +370,12 @@ void Process::setName(const char *newname) {
   name = newname ? klib::strdup(newname) : nullptr;
 }
 
-void Process::print_stacktrace(uintptr_t base, const Process *process) {
+size_t Process::print_stacktrace(char *outbuf, size_t bufsz, uintptr_t base, const Process *process) {
   struct stackframe {
     struct stackframe* rbp;
     uintptr_t rip;
   } __attribute__((packed));
 
-  klib::puts("STACK TRACE:");
   struct stackframe tmpframe;
   const struct stackframe *frame;
   if (base) {
@@ -380,19 +383,19 @@ void Process::print_stacktrace(uintptr_t base, const Process *process) {
   } else {
     asm volatile("mov %%rbp, %q0":"=r"(frame)::);
   }
-  size_t lim = 10;
-  while (lim-- && frame != nullptr) {
+  size_t out = 0;
+  while (frame != nullptr && bufsz > out) {
     if (process) {
-      process->readData(&tmpframe.rbp, uintptr_t(frame), sizeof(uintptr_t));
+      if (!process->readData(&tmpframe.rbp, uintptr_t(frame), sizeof(uintptr_t))) break;
       if (tmpframe.rbp) {
-        process->readData(&tmpframe.rip, uintptr_t(frame)+sizeof(uintptr_t), sizeof(uintptr_t));
+        if (!process->readData(&tmpframe.rip, uintptr_t(frame)+sizeof(uintptr_t), sizeof(uintptr_t))) break;
       } else {
         break;
       }
       frame = &tmpframe;
     }
-    printf(" [%p]:%p", reinterpret_cast<void*>(frame->rbp), reinterpret_cast<void*>(frame->rip));
+    out += snprintf(outbuf + out, bufsz - out, " [%p]:%p", reinterpret_cast<void*>(frame->rbp), reinterpret_cast<void*>(frame->rip));
     frame = frame->rbp;
   }
-  klib::puts("\n");
+  return out;
 }

@@ -4,7 +4,6 @@
 #include "syscall.hpp"
 #include "processmanager.hpp"
 #include "pagetable.hpp"
-#include "printf.hpp"
 
 #include "syscall_hash.hpp"
 #include "syscall_setup.hpp"
@@ -41,7 +40,13 @@ static void syscall_kread(void *out, const void *kaddr, size_t size) {
 static void syscall_ioprovide(const char *path, const void *modptr) {
   Process *process = ProcessManager::getManager()->currentProcess();
   ptr<char> str(process->readString(uintptr_t(path)));
-  printf("ioprovide [%s(%#lx) / %p] [%s]\n", process->getName(), process->getId(), modptr, str.get());
+  char printbuf[128];
+  snprintf(
+    printbuf, sizeof(printbuf),
+    "ioprovide [%s(%#lx) / %p] [%s]\n",
+    process->getName(), process->getId(), modptr, str.get()
+  );
+  klib::puts(printbuf);
 }
 
 #define SYSCALL_ENT(name) { \

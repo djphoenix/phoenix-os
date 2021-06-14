@@ -1,2 +1,2 @@
-target_link_libraries(interrupts PUBLIC kernlib)
-target_link_libraries(interrupts PRIVATE acpi pagetable process printf)
+target_link_libraries(interrupts PUBLIC kernlib thread)
+target_link_libraries(interrupts PRIVATE acpi pagetable heap)

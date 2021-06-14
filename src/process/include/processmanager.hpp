@@ -24,6 +24,7 @@ class ProcessManager {
   Mutex processSwitchMutex;
   bool SwitchProcess(Interrupts::CallbackRegs *regs);
   bool HandleFault(uint8_t intr, uint32_t code, Interrupts::CallbackRegs *regs);
+  static void PrintFault(uint8_t num, Interrupts::CallbackRegs *regs, uint32_t code, const Process *process);
   static bool TimerHandler(uint8_t intr, uint32_t code, Interrupts::CallbackRegs *regs);
   static bool FaultHandler(uint8_t intr, uint32_t code, Interrupts::CallbackRegs *regs);
 
