@@ -2,11 +2,17 @@
 
 using namespace kcrypto::hash;
 
-inline uint64_t ror(uint64_t a, uint32_t cnt) { asm volatile("ror %1, %0":"+r"(a):"i"(cnt)); return a; }
-inline uint64_t revb(uint64_t a) { asm volatile("bswap %q0":"+r"(a)); return a; }
+template<typename T>
+inline T revb(T a) {
+  asm volatile("bswap %0":"+r"(a));
+  return a;
+}
 
-inline uint32_t ror(uint32_t a, uint32_t cnt) { asm volatile("ror %1, %0":"+r"(a):"i"(cnt)); return a; }
-inline uint32_t revb(uint32_t a) { asm volatile("bswap %0":"+r"(a)); return a; }
+template<typename T>
+inline T ror(T a, uint32_t cnt) {
+  a = (a >> cnt) | (a << ((sizeof(T) * 8) - cnt));
+  return a;
+}
 
 const uint64_t _SHA2Config<512>::K[80] {
   0x428a2f98d728ae22, 0x7137449123ef65cd, 0xb5c0fbcfec4d3b2f, 0xe9b5dba58189dbbc, 0x3956c25bf348b538, 
