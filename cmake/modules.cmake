@@ -5,7 +5,7 @@ list(TRANSFORM MODDIRS REPLACE "/${MODDIR_TAG}$" "")
 
 file(WRITE ${CMAKE_BINARY_DIR}/modules.s ".section .modules, \"a\"\n")
 file(APPEND ${CMAKE_BINARY_DIR}/modules.s ".global __modules_start__\n__modules_start__:\n")
-add_library(modules-linked STATIC ${CMAKE_BINARY_DIR}/modules.s)
+add_library(modules-linked OBJECT ${CMAKE_BINARY_DIR}/modules.s)
 file(GLOB MODINC ${SRCDIR}/modules/include)
 foreach(moddir ${MODDIRS})
   string(REPLACE "/" "." mod ${moddir})
@@ -13,6 +13,7 @@ foreach(moddir ${MODDIRS})
   file(GLOB SRCS_${mod} ${ROOT_${mod}}/*.s ${ROOT_${mod}}/*.c ${ROOT_${mod}}/*.cpp)
   add_library(mod_${mod} SHARED ${SRCS_${mod}})
   target_include_directories(mod_${mod} PRIVATE ${MODINC})
+  target_link_options(mod_${mod} PRIVATE "-e" "module")
   add_custom_target(mod_${mod}_strip
     ${CMAKE_LLVM_OBJCOPY} --strip-non-alloc --strip-debug --strip-unneeded libmod_${mod}.so libmod_${mod}.strip.so
     BYPRODUCTS libmod_${mod}.strip.so

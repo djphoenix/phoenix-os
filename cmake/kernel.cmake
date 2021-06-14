@@ -27,7 +27,8 @@ endforeach(kerndir)
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/null.cpp "")
 
 add_executable(pxkrnl.elf ${CMAKE_CURRENT_BINARY_DIR}/null.cpp)
-target_link_libraries(pxkrnl.elf --whole-archive --start-group ${KERNLIBS} $<TARGET_FILE:modules-linked> --end-group)
+target_link_libraries(pxkrnl.elf --start-group ${KERNLIBS} $<TARGET_OBJECTS:modules-linked> --end-group)
+add_dependencies(pxkrnl.elf modules-linked)
 
 set_target_properties(pxkrnl.elf PROPERTIES LINK_DEPENDS ${LINKER_SCRIPT_SYSTEM})
 set_target_properties(
