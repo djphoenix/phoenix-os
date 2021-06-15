@@ -99,18 +99,18 @@ void ProcessManager::PrintFault(uint8_t num, Interrupts::CallbackRegs *regs, uin
   if (process) {
     base = uintptr_t(process->getBase());
     printbuf_ptr += snprintf(
-      printbuf_ptr, printbuf_top - printbuf_ptr,
+      printbuf_ptr, size_t(printbuf_top - printbuf_ptr),
       "\n%s (%s) ", src, process->getName()
     );
   } else {
     asm volatile("lea __text_start__(%%rip), %q0":"=r"(base));
     printbuf_ptr += snprintf(
-      printbuf_ptr, printbuf_top - printbuf_ptr,
+      printbuf_ptr, size_t(printbuf_top - printbuf_ptr),
       "\n%s ", src
     );
   }
   printbuf_ptr += snprintf(
-    printbuf_ptr, printbuf_top - printbuf_ptr,
+    printbuf_ptr, size_t(printbuf_top - printbuf_ptr),
     "fault %s (cpu=%u, error=0x%x)\n"
     "BASE=%016lx CS=%04hx SS=%04hx DPL=%hhu\n"
     "IP=%016lx FL=%016lx [%s]\n"
@@ -121,7 +121,7 @@ void ProcessManager::PrintFault(uint8_t num, Interrupts::CallbackRegs *regs, uin
     regs->info->rsp, regs->general->rbp, cr2
   );
   printbuf_ptr += snprintf(
-    printbuf_ptr, printbuf_top - printbuf_ptr,
+    printbuf_ptr, size_t(printbuf_top - printbuf_ptr),
     "SI=%016lx DI=%016lx CR3=%016lx\n"
     "A =%016lx C =%016lx D =%016lx B =%016lx\n"
     "8 =%016lx 9 =%016lx 10=%016lx 11=%016lx\n"
@@ -132,7 +132,7 @@ void ProcessManager::PrintFault(uint8_t num, Interrupts::CallbackRegs *regs, uin
     regs->general->r8 , regs->general->r9 , regs->general->r10, regs->general->r11,
     regs->general->r12, regs->general->r13, regs->general->r14, regs->general->r15
   );
-  printbuf_ptr += Process::print_stacktrace(printbuf_ptr, printbuf_top - printbuf_ptr - 3, regs->general->rbp, process);
+  printbuf_ptr += Process::print_stacktrace(printbuf_ptr, size_t(printbuf_top - printbuf_ptr) - 3, regs->general->rbp, process);
   *(printbuf_ptr++) = '\n';
   *(printbuf_ptr++) = '\n';
   *(printbuf_ptr++) = 0;

@@ -258,7 +258,7 @@ size_t Process::print_stacktrace(char *outbuf, size_t bufsz, uintptr_t base, con
       }
       frame = &tmpframe;
     }
-    out += snprintf(outbuf + out, bufsz - out, " [%p]:%p", reinterpret_cast<void*>(frame->rbp), reinterpret_cast<void*>(frame->rip));
+    out += uintptr_t(snprintf(outbuf + out, bufsz - out, " [%p]:%p", reinterpret_cast<void*>(frame->rbp), reinterpret_cast<void*>(frame->rip)));
     frame = frame->rbp;
   }
   return out;
