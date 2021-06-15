@@ -24,13 +24,12 @@ class Process {
  private:
   uint64_t id;
   List<Thread*> threads;
-  List<ProcessSymbol> symbols;
   uintptr_t entry;
   Pagetable::Entry* addPage(uintptr_t vaddr, void* paddr, Pagetable::MemoryType type);
-  uintptr_t _aslrCode, _aslrStack, _syscallPage;
-  size_t _syscallNum;
+  uintptr_t _aslrCode, _aslrStack;
   void *iomap[2];
-  char *name;
+  ptr<char> name;
+  friend class KernelLinker;
 
  public:
   Process();
@@ -43,11 +42,8 @@ class Process {
 
   Pagetable::Entry *pagetable;
   uintptr_t addSection(uintptr_t offset, SectionType type, size_t size);
-  void addSymbol(const char *name, uintptr_t ptr);
   void setEntryAddress(uintptr_t ptr);
 
-  uintptr_t getSymbolByName(const char* name) const PURE;
-  uintptr_t linkLibrary(const char* funcname);
   void allowIOPorts(uint16_t min, uint16_t max);
 
   void writeData(uintptr_t address, const void* src, size_t size);

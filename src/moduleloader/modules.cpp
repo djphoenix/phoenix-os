@@ -10,7 +10,7 @@
 volatile ModuleManager* ModuleManager::manager = nullptr;
 Mutex ModuleManager::managerMutex;
 
-bool ModuleManager::parseModuleInfo(ModuleInfo *info, const Process *process) {
+bool ModuleManager::parseModuleInfo(ModuleInfo *info, const Process *process, const KernelLinker *linker) {
   info->name = nullptr;
   info->version = nullptr;
   info->description = nullptr;
@@ -20,11 +20,11 @@ bool ModuleManager::parseModuleInfo(ModuleInfo *info, const Process *process) {
   struct {
     uintptr_t name, version, desc, reqs, dev;
   } symbols = {
-    process->getSymbolByName("module_name"),
-    process->getSymbolByName("module_version"),
-    process->getSymbolByName("module_description"),
-    process->getSymbolByName("module_requirements"),
-    process->getSymbolByName("module_developer")
+    linker->getSymbolByName("module_name"),
+    linker->getSymbolByName("module_version"),
+    linker->getSymbolByName("module_description"),
+    linker->getSymbolByName("module_requirements"),
+    linker->getSymbolByName("module_developer")
   };
 
   if ((symbols.name == 0) || (symbols.version == 0)
@@ -128,12 +128,14 @@ void ModuleManager::loadMemory(const void *mem, size_t memsize) {
   ModuleInfo mod;
   while (memsize > 0) {
     ptr<Process> process { new Process() };
-    size = readelf(process.get(), mem, memsize);
-    if (size == 0 || !parseModuleInfo(&mod, process.get())) {
+    KernelLinker linker { process.get() };
+    size = readelf(process.get(), &linker, mem, memsize);
+    if (size == 0 || !parseModuleInfo(&mod, process.get(), &linker)) {
       break;
     }
     process->setName(mod.name.get());
     if (bindRequirements(mod.requirements.get(), process.get())) {
+      linker.prepareToStart();
       process.release()->startup();
     }
 

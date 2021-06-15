@@ -10,5 +10,5 @@ class Syscall {
   static uint64_t callByName(const char *name) PURE;
  private:
   static void wrapper();
-  friend class Process;
+  friend class KernelLinker;
 };

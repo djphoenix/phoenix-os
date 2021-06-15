@@ -4,5 +4,6 @@
 #pragma once
 #include "kernlib.hpp"
 #include "process.hpp"
+#include "kernlink.hpp"
 
-size_t readelf(Process *process, const void *mem, size_t size);
+size_t readelf(Process *process, KernelLinker *linker, const void *mem, size_t size);
