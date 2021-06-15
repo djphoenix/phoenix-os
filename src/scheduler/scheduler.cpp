@@ -1,44 +1,44 @@
 //    PhoeniX OS Process Manager subsystem
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
-#include "processmanager.hpp"
+#include "scheduler.hpp"
 #include "thread.hpp"
 
 #include "acpi.hpp"
 
-void __attribute((naked)) ProcessManager::process_loop() {
+void __attribute((naked)) Scheduler::process_loop() {
   asm volatile(
       "1: hlt; jmp 1b;"
       "process_loop_top:"
       );
 }
 
-Mutex ProcessManager::managerMutex;
-volatile ProcessManager* ProcessManager::manager = nullptr;
+Mutex Scheduler::managerMutex;
+volatile Scheduler* Scheduler::manager = nullptr;
 
-ProcessManager* ProcessManager::getManager() {
-  if (manager) return const_cast<ProcessManager*>(manager);
+Scheduler* Scheduler::getScheduler() {
+  if (manager) return const_cast<Scheduler*>(manager);
   Mutex::CriticalLock lock(managerMutex);
-  if (!manager) manager = new ProcessManager();
-  return const_cast<ProcessManager*>(manager);
+  if (!manager) manager = new Scheduler();
+  return const_cast<Scheduler*>(manager);
 }
 
-ProcessManager::ProcessManager() {
+Scheduler::Scheduler() {
   nextThread = lastThread = nullptr;
   uint64_t cpus = ACPI::getController()->getCPUCount();
   cpuThreads = new QueuedThread*[cpus]();
-  Interrupts::addCallback(0x20, &ProcessManager::TimerHandler);
+  Interrupts::addCallback(0x20, &Scheduler::TimerHandler);
   for (uint8_t i = 0; i < 0x20; i++) {
-    Interrupts::addCallback(i, &ProcessManager::FaultHandler);
+    Interrupts::addCallback(i, &Scheduler::FaultHandler);
   }
 }
-bool ProcessManager::TimerHandler(uint8_t, uint32_t, Interrupts::CallbackRegs *regs) {
-  return getManager()->SwitchProcess(regs);
+bool Scheduler::TimerHandler(uint8_t, uint32_t, Interrupts::CallbackRegs *regs) {
+  return getScheduler()->SwitchProcess(regs);
 }
-bool ProcessManager::FaultHandler(uint8_t intr, uint32_t code, Interrupts::CallbackRegs *regs) {
-  return getManager()->HandleFault(intr, code, regs);
+bool Scheduler::FaultHandler(uint8_t intr, uint32_t code, Interrupts::CallbackRegs *regs) {
+  return getScheduler()->HandleFault(intr, code, regs);
 }
-bool ProcessManager::SwitchProcess(Interrupts::CallbackRegs *regs) {
+bool Scheduler::SwitchProcess(Interrupts::CallbackRegs *regs) {
   uintptr_t loopbase = uintptr_t(&process_loop), looptop;
   asm volatile("lea process_loop_top(%%rip), %q0":"=r"(looptop));
   Mutex::Lock lock(processSwitchMutex);
@@ -75,7 +75,7 @@ bool ProcessManager::SwitchProcess(Interrupts::CallbackRegs *regs) {
   return true;
 }
 
-void ProcessManager::PrintFault(uint8_t num, Interrupts::CallbackRegs *regs, uint32_t code, const Process *process) {
+void Scheduler::PrintFault(uint8_t num, Interrupts::CallbackRegs *regs, uint32_t code, const Process *process) {
   uint64_t cr2;
   uint64_t base;
   asm volatile("mov %%cr2, %0":"=r"(cr2));
@@ -139,7 +139,7 @@ void ProcessManager::PrintFault(uint8_t num, Interrupts::CallbackRegs *regs, uin
   klib::puts(printbuf);
 }
 
-bool ProcessManager::HandleFault(uint8_t intr, uint32_t code, Interrupts::CallbackRegs *regs) {
+bool Scheduler::HandleFault(uint8_t intr, uint32_t code, Interrupts::CallbackRegs *regs) {
   QueuedThread *thread;
   {
     Mutex::CriticalLock lock(processSwitchMutex);
@@ -167,25 +167,78 @@ bool ProcessManager::HandleFault(uint8_t intr, uint32_t code, Interrupts::Callba
   return true;
 }
 
-uint64_t ProcessManager::registerProcess(Process *process) {
+uint64_t Scheduler::registerProcess(Process *process) {
+  Thread *thread = new Thread();
+  thread->rip = process->entry;
+  thread->sse.sse[3] = 0x0000ffff00001F80llu;
+  thread->rflags = 0;
+  thread->stack_top = process->addSection(0, SectionTypeStack, 0x7FFF) + 0x8000 - 8;
+  thread->rsp = thread->stack_top;
+  thread->suspend_ticks = 0;
+
+  QueuedThread *q = new QueuedThread();
+  q->process = process;
+  q->thread = thread;
+  q->next = nullptr;
+
   Mutex::CriticalLock lock(processSwitchMutex);
   uint64_t pid = 1;
   for (size_t i = 0; i < processes.getCount(); i++) {
     pid = klib::max(pid, processes[i]->getId() + 1);
   }
+  process->id = pid;
   processes.add(process);
+  process->threads.add(thread);
+
+  lastThread = lastThread ? (lastThread->next = q) : (nextThread = q);
+
   return pid;
 }
 
-void ProcessManager::exitProcess(Process *process, int code) {
+void __attribute__((noreturn)) Scheduler::exitProcess(Process *process, int code) {
   (void)code;  // TODO: handle
-  Mutex::CriticalLock lock(processSwitchMutex);
-  for (size_t i = processes.getCount(); i > 0; i--) {
-    if (processes[i-1] == process) processes.remove(i-1);
+
+  void *rsp;
+  Pagetable::Entry *pt;
+  asm("mov %%rsp, %0; and $(~0xFFF), %0; mov %%cr3, %1":"=r"(rsp),"=r"(pt));
+  uintptr_t rspt = Pagetable::Entry::find(rsp, pt)->getUintPtr();
+
+  {
+    Mutex::CriticalLock lock(processSwitchMutex);
+
+    QueuedThread *next = nextThread, *prev = nullptr;
+    while (next != nullptr) {
+      if (next->process != process) {
+        prev = next;
+        next = next->next;
+        continue;
+      }
+      if (prev == nullptr)
+        nextThread = next->next;
+      else
+        prev->next = next->next;
+      if (lastThread == next)
+        lastThread = prev;
+      delete next;
+      next = prev ? prev->next : nextThread;
+    }
+    for (size_t cpu = 0; cpu < ACPI::getController()->getCPUCount(); cpu++) {
+      if (!cpuThreads[cpu]) continue;
+      if (cpuThreads[cpu]->process != process) continue;
+      delete cpuThreads[cpu];
+      cpuThreads[cpu] = nullptr;
+    }
+
+    for (size_t i = processes.getCount(); i > 0; i--) {
+      if (processes[i-1] == process) processes.remove(i-1);
+    }
+    delete process;
   }
+  asm("sti; movq $0, (%0); xor %%rbp, %%rbp"::"r"(rspt));
+  process_loop();
 }
 
-void ProcessManager::queueThread(Process *process, Thread *thread) {
+void Scheduler::queueThread(Process *process, Thread *thread) {
   QueuedThread *q = new QueuedThread();
   q->process = process;
   q->thread = thread;
@@ -198,7 +251,7 @@ void ProcessManager::queueThread(Process *process, Thread *thread) {
   }
 }
 
-void ProcessManager::dequeueThread(Thread *thread) {
+void Scheduler::dequeueThread(Thread *thread) {
   Mutex::CriticalLock lock(processSwitchMutex);
   QueuedThread *next = nextThread, *prev = nullptr;
   while (next != nullptr) {
@@ -224,7 +277,7 @@ void ProcessManager::dequeueThread(Thread *thread) {
   }
 }
 
-Process *ProcessManager::currentProcess() {
+Process *Scheduler::currentProcess() {
   uint64_t cpuid = ACPI::getController()->getCPUID();
   Mutex::CriticalLock lock(processSwitchMutex);
   QueuedThread *curr = cpuThreads[cpuid];

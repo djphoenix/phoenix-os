@@ -29,7 +29,7 @@ Interrupts::Handler* Interrupts::handlers = nullptr;
 __attribute__((used))
 uintptr_t Interrupts::eoi_vector = 0;
 
-extern "C" void __attribute__((naked)) __attribute__((used)) __interrupt_wrap() {
+extern "C" void __attribute__((naked)) Interrupts::wrapper() {
   asm(
     // Save registers
     "push %r15;"
@@ -276,12 +276,11 @@ void Interrupts::init() {
       "mov %%ax, %%gs;"
       ::"r"(&gdtreg):"rax", "rcx");
 
-  uintptr_t addr;
+  uintptr_t addr = uintptr_t(wrapper);
   uint8_t *lapic_eoi =
       reinterpret_cast<uint8_t*>(ACPI::getController()->getLapicAddr());
   if (lapic_eoi) lapic_eoi += ACPI::LAPIC_EOI;
   eoi_vector = uintptr_t(lapic_eoi);
-  asm volatile("lea __interrupt_wrap(%%rip), %q0":"=r"(addr));
   Pagetable::map(reinterpret_cast<void*>(addr), Pagetable::MemoryType::CODE_RW);
   asm volatile(
     "mov %%cr3, %%rax;"

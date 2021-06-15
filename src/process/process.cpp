@@ -2,23 +2,22 @@
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
 #include "process.hpp"
-
-#include "processmanager.hpp"
 #include "thread.hpp"
 
 using PTE = Pagetable::Entry;
 
 Process::Process() :
-    id(uint64_t(-1)), entry(0),
+    id(uint64_t(-1)), name(nullptr), entry(0),
+    pagetable(nullptr), iomap { nullptr, nullptr },
     _aslrCode(RAND::get<uintptr_t>(0x80000000llu, 0x100000000llu) << 12),
-    _aslrStack(RAND::get<uintptr_t>(0x40000000llu, 0x80000000llu) << 12),
-    name(nullptr),
-    pagetable(nullptr) {
-  iomap[0] = iomap[1] = nullptr;
-}
+    _aslrStack(RAND::get<uintptr_t>(0x40000000llu, 0x80000000llu) << 12)
+{}
 
 Process::~Process() {
   void *rsp; asm volatile("mov %%rsp, %q0; and $~0xFFF, %q0":"=r"(rsp));
+  for (size_t i = 0; i < threads.getCount(); i++) delete threads[i];
+  if (iomap[0]) Pagetable::free(iomap[0]);
+  if (iomap[1]) Pagetable::free(iomap[1]);
   if (pagetable != nullptr) {
     PTE addr;
     for (uintptr_t ptx = 0; ptx < 512; ptx++) {
@@ -56,12 +55,6 @@ Process::~Process() {
     }
     Pagetable::free(pagetable);
   }
-  for (size_t i = 0; i < threads.getCount(); i++) {
-    ProcessManager::getManager()->dequeueThread(threads[i]);
-    delete threads[i];
-  }
-  if (iomap[0]) Pagetable::free(iomap[0]);
-  if (iomap[1]) Pagetable::free(iomap[1]);
 }
 
 PTE* Process::addPage(uintptr_t vaddr, void* paddr, Pagetable::MemoryType type) {
@@ -186,16 +179,6 @@ void *Process::getPhysicalAddress(uintptr_t ptr) const {
   if (!addr || !addr->present) return nullptr;
   return reinterpret_cast<void*>(addr->getUintPtr() + off);
 }
-void Process::addThread(Thread *thread, bool suspended) {
-  if (thread->stack_top == 0) {
-    thread->stack_top = addSection(0, SectionTypeStack, 0x7FFF) + 0x8000 - 8;
-    thread->rsp = thread->stack_top;
-  }
-  thread->suspend_ticks = suspended ? uint64_t(-1) : 0;
-
-  threads.add(thread);
-  ProcessManager::getManager()->queueThread(this, thread);
-}
 void Process::allowIOPorts(uint16_t min, uint16_t max) {
   for (uint16_t i = 0; i <= (max - min); i++) {
     uint16_t port = min + i;
@@ -210,25 +193,6 @@ void Process::allowIOPorts(uint16_t min, uint16_t max) {
     map[byte] &= uint8_t(~(1 << bit));
   }
 }
-void Process::startup() {
-  Thread *thread = new Thread();
-  thread->rip = entry;
-  thread->sse.sse[3] = 0x0000ffff00001F80llu;
-  thread->rflags = 0;
-  id = (ProcessManager::getManager())->registerProcess(this);
-  addThread(thread, false);
-}
-
-__attribute__((used))
-void Process::exit(int code) {
-  (void)code;  // TODO: handle
-  for (size_t i = 0; i < threads.getCount(); i++) {
-    ProcessManager::getManager()->dequeueThread(threads[i]);
-  }
-  ProcessManager::getManager()->exitProcess(this, code);
-  delete this;
-}
-
 const char *Process::getName() const { return name.get(); }
 void Process::setName(const char *newname) {
   name.reset(newname ? klib::strdup(newname) : nullptr);

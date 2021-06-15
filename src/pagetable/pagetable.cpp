@@ -481,4 +481,5 @@ void Pagetable::free(void* page) {
     if ((uintptr_t(addr) >> 12) < last_page && (uintptr_t(addr) >> 12) >= 0x1000)
       last_page = uintptr_t(addr) >> 12;
   }
+  asm volatile("mov %%cr3, %%rax; mov %%rax, %%cr3":::"rax");
 }

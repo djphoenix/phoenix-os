@@ -6,6 +6,7 @@
 #include "readelf.hpp"
 #include "multiboot_info.hpp"
 #include "printf.hpp"
+#include "scheduler.hpp"
 
 volatile ModuleManager* ModuleManager::manager = nullptr;
 Mutex ModuleManager::managerMutex;
@@ -136,7 +137,7 @@ void ModuleManager::loadMemory(const void *mem, size_t memsize) {
     process->setName(mod.name.get());
     if (bindRequirements(mod.requirements.get(), process.get())) {
       linker.prepareToStart();
-      process.release()->startup();
+      Scheduler::getScheduler()->registerProcess(process.release());
     }
 
     mem = reinterpret_cast<const uint8_t*>(mem) + size;

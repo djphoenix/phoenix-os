@@ -6,7 +6,7 @@
 #include "process.hpp"
 #include "interrupts.hpp"
 
-class ProcessManager {
+class Scheduler {
  private:
   struct QueuedThread {
     Process *process;
@@ -15,9 +15,9 @@ class ProcessManager {
   };
 
   static Mutex managerMutex;
-  static volatile ProcessManager* manager;
+  static volatile Scheduler* manager;
 
-  ProcessManager();
+  Scheduler();
   QueuedThread *nextThread, *lastThread;
   QueuedThread **cpuThreads;
   List<Process*> processes;
@@ -30,10 +30,10 @@ class ProcessManager {
 
  public:
   uint64_t registerProcess(Process *process);
-  void exitProcess(Process *process, int code);
+  void __attribute__((noreturn)) exitProcess(Process *process, int code);
   void queueThread(Process *process, Thread *thread);
   void dequeueThread(Thread *thread);
   Process *currentProcess();
-  static ProcessManager* getManager();
+  static Scheduler* getScheduler();
   static void NORETURN process_loop();
 };

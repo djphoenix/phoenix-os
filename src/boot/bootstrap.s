@@ -378,7 +378,7 @@ x64_entry:
   call _ZN3SMP4initEv
   call _ZN7Syscall5setupEv
   call _ZN13ModuleManager4initEv
-  jmp _ZN14ProcessManager12process_loopEv
+  jmp _ZN9Scheduler12process_loopEv
 .type x64_entry, function
 .size x64_entry, .-x64_entry
 

@@ -23,24 +23,24 @@ struct Thread;
 class Process {
  private:
   uint64_t id;
-  List<Thread*> threads;
-  uintptr_t entry;
-  Pagetable::Entry* addPage(uintptr_t vaddr, void* paddr, Pagetable::MemoryType type);
-  uintptr_t _aslrCode, _aslrStack;
-  void *iomap[2];
   ptr<char> name;
+  uintptr_t entry;
+  List<Thread*> threads;
+  Pagetable::Entry *pagetable;
+  void *iomap[2];
+
+  uintptr_t _aslrCode, _aslrStack;
+  Pagetable::Entry* addPage(uintptr_t vaddr, void* paddr, Pagetable::MemoryType type);
+
   friend class KernelLinker;
+  friend class Scheduler;
 
  public:
   Process();
   ~Process();
-  void startup();
-  void exit(int code);
-  void addThread(Thread *thread, bool suspended);
 
   uint64_t getId() const { return id; }
 
-  Pagetable::Entry *pagetable;
   uintptr_t addSection(uintptr_t offset, SectionType type, size_t size);
   void setEntryAddress(uintptr_t ptr);
 

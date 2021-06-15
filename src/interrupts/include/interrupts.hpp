@@ -160,7 +160,10 @@ class Interrupts {
   static REC64 *idt;
   static GDT *gdt;
   static void init();
+  static void wrapper();
   static void handle(uint8_t intr, uint64_t stack, uint64_t *cr3, Thread::SSE *sse);
+
+  friend class KernelLinker;
 
  public:
   static void maskIRQ(uint16_t mask);

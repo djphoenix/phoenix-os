@@ -99,9 +99,7 @@ void KernelLinker::prepareToStart() {
       process->addPage(page, reinterpret_cast<void*>(page), Pagetable::MemoryType::CODE_RX);
     }
   }
-  uintptr_t handler;
-  asm volatile("lea __interrupt_wrap(%%rip), %q0":"=r"(handler));
-  handler &= KB4;
+  uintptr_t handler = uintptr_t(Interrupts::wrapper) & KB4;
   process->addPage(handler, reinterpret_cast<void*>(handler), Pagetable::MemoryType::CODE_RX);
   process->addPage(handler + 0x1000, reinterpret_cast<void*>(handler + 0x1000), Pagetable::MemoryType::CODE_RX);
   GDT::Entry *gdt_ent = reinterpret_cast<GDT::Entry*>(uintptr_t(gdt.addr) + 8 * 3);

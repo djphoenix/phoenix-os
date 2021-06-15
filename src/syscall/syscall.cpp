@@ -2,35 +2,27 @@
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
 #include "syscall.hpp"
-#include "processmanager.hpp"
+#include "scheduler.hpp"
 #include "pagetable.hpp"
 
 #include "syscall_hash.hpp"
 #include "syscall_setup.hpp"
 
 static void syscall_puts(uintptr_t strptr) {
-  Process *process = ProcessManager::getManager()->currentProcess();
+  Process *process = Scheduler::getScheduler()->currentProcess();
   ptr<char> str(process->readString(strptr));
   klib::puts(str.get());
 }
 
-static void syscall_exit(int code) {
-  ProcessManager *manager = ProcessManager::getManager();
+static void __attribute__((noreturn)) syscall_exit(int code) {
+  Scheduler *manager = Scheduler::getScheduler();
   Process *process = manager->currentProcess();
-  void *rsp; asm volatile("mov %%rsp, %q0; and $~0xFFF, %q0":"=r"(rsp));
-  Pagetable::Entry *pt; asm volatile("mov %%cr3, %q0":"=r"(pt));
-  Pagetable::Entry *pte = Pagetable::Entry::find(rsp, pt);
-  asm volatile(
-      "callq _ZN7Process4exitEi;"
-      "sti; movq $0, %q2; xor %%rbp, %%rbp;"
-      "jmp _ZN14ProcessManager12process_loopEv"
-      ::"D"(process), "S"(code), "a"(pte) : "cc"
-      );
+  manager->exitProcess(process, code);
 }
 
 static void syscall_kread(void *out, const void *kaddr, size_t size) {
   if (kaddr == nullptr) return;
-  Process *process = ProcessManager::getManager()->currentProcess();
+  Process *process = Scheduler::getScheduler()->currentProcess();
   for (size_t p = 0; p < size; p += 0x1000) {
     Pagetable::map(reinterpret_cast<const void*>(uintptr_t(kaddr) + p), Pagetable::MemoryType::DATA_RO);
   }
@@ -38,7 +30,7 @@ static void syscall_kread(void *out, const void *kaddr, size_t size) {
 }
 
 static void syscall_ioprovide(const char *path, const void *modptr) {
-  Process *process = ProcessManager::getManager()->currentProcess();
+  Process *process = Scheduler::getScheduler()->currentProcess();
   ptr<char> str(process->readString(uintptr_t(path)));
   char printbuf[128];
   snprintf(

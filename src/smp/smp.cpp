@@ -5,7 +5,7 @@
 #include "acpi.hpp"
 #include "interrupts.hpp"
 #include "pagetable.hpp"
-#include "processmanager.hpp"
+#include "scheduler.hpp"
 #include "syscall.hpp"
 
 class SMP {
@@ -24,7 +24,7 @@ void SMP::setup() {
     Syscall::setup();
     Mutex::Lock lock(startupMutex);
   }
-  asm volatile("jmp *%0"::"r"(ProcessManager::process_loop));
+  asm volatile("jmp *%0"::"r"(Scheduler::process_loop));
 }
 
 void SMP::init() {
