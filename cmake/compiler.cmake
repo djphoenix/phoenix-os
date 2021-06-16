@@ -31,6 +31,8 @@ check_add_cxx_compiler_flag("-faddrsig" HAVE_FADDRSIG)
 check_add_cxx_compiler_flag("-ffat-lto-objects" HAVE_FFAT_LTO_OBJECTS)
 check_add_cxx_compiler_flag("-funroll-loops" HAVE_FUNROLL_LOOPS)
 check_add_cxx_compiler_flag("-funswitch-loops" HAVE_FUNSWITCH_LOOPS)
+check_add_cxx_compiler_flag("-fno-use-cxa-atexit" HAVE_FNO_USE_CXA_ATEXIT)
+check_add_cxx_compiler_flag("-fno-c++-static-destructors" HAVE_FNO_CPP_STATIC_DESTRUCTORS)
 
 check_add_cxx_compiler_flag("-fanalyzer" HAVE_FANALYZER)
 check_add_cxx_compiler_flag("-Wanalyzer-too-complex" HAVE_WANALYZER_TOO_COMPLEX)

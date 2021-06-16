@@ -3,10 +3,16 @@
 #include "acpi.hpp"
 #include "syscall.hpp"
 #include "interrupts.hpp"
+#include "process.hpp"
 
 #include "kernlib/std.hpp"
 #include "kernlib/mem.hpp"
 #include "kernlib/rand.hpp"
+
+struct ProcessSymbol {
+  uintptr_t ptr;
+  char* name;
+};
 
 void KernelLinker::addSymbol(const char *name, uintptr_t ptr) {
   symbols.insert() = { ptr, klib::strdup(name) };

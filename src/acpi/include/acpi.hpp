@@ -53,8 +53,7 @@ class ACPI {
   struct ApicIoApic;
   struct ApicInterruptOverride;
 
-  static Mutex controllerMutex;
-  static volatile ACPI *controller;
+  static ACPI controller;
 
   uint8_t *localApicAddr, *ioApicAddr;
   const void *rsdpAddr;
@@ -71,10 +70,11 @@ class ACPI {
   void ParseApic(const Madt *madt);
   void initIOAPIC();
   void initCPU();
+  void init();
 
  public:
-  ACPI();
-  static ACPI* getController();
+  inline static ACPI* getController() { return &controller; }
+  static void setup();
   uint8_t getLapicID();
   uint8_t getCPUID();
   const void* getRSDPAddr() __attribute__((pure));

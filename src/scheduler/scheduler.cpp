@@ -3,6 +3,7 @@
 
 #include "scheduler.hpp"
 #include "thread.hpp"
+#include "process.hpp"
 
 #include "acpi.hpp"
 
@@ -16,18 +17,16 @@ void __attribute((naked)) Scheduler::process_loop() {
       );
 }
 
-Mutex Scheduler::managerMutex;
-volatile Scheduler* Scheduler::manager = nullptr;
+struct Scheduler::QueuedThread {
+  Process *process;
+  Thread *thread;
+  QueuedThread* next;
+};
 
-Scheduler* Scheduler::getScheduler() {
-  if (manager) return const_cast<Scheduler*>(manager);
-  Mutex::CriticalLock lock(managerMutex);
-  if (!manager) manager = new Scheduler();
-  return const_cast<Scheduler*>(manager);
-}
+Scheduler Scheduler::scheduler {};
 
-Scheduler::Scheduler() {
-  nextThread = lastThread = nullptr;
+void Scheduler::setup() { scheduler.init(); }
+void Scheduler::init() {
   uint64_t cpus = ACPI::getController()->getCPUCount();
   cpuThreads = new QueuedThread*[cpus]();
   Interrupts::addCallback(0x20, &Scheduler::TimerHandler);

@@ -2,16 +2,17 @@
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
 #pragma once
-#include "process.hpp"
-#include "kernlink.hpp"
 
+#include "heap.hpp"
+
+class Process;
+class KernelLinker;
 class ModuleManager {
  private:
   struct ModuleInfo {
     ptr<char> name, version, description, requirements, developer;
   };
-  static Mutex managerMutex;
-  static volatile ModuleManager* manager;
+  static ModuleManager manager;
   void parseInternal();
   void parseInitRD();
   void loadMemory(const void *mem, size_t size);
@@ -21,5 +22,5 @@ class ModuleManager {
   static void init();
 
  public:
-  static ModuleManager* getManager();
+  static inline ModuleManager* getManager() { return &manager; }
 };

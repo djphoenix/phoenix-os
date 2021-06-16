@@ -374,7 +374,9 @@ x64_entry:
   call _ZN4RAND5setupEv
   call _ZN13SerialConsole5setupEv
   call _ZN9Pagetable4initEv
+  call _ZN4ACPI5setupEv
   call _ZN10Interrupts4initEv
+  call _ZN9Scheduler5setupEv
   call _ZN3SMP4initEv
   call _ZN7Syscall5setupEv
   call _ZN13ModuleManager4initEv

@@ -5,6 +5,7 @@
 #include "pagetable.hpp"
 
 #include "kernlib/mem.hpp"
+#include "kernlib/std.hpp"
 
 struct Heap::Alloc {
   void* addr;

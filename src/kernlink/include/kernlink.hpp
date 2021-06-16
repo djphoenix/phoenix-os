@@ -1,7 +1,11 @@
 #pragma once
 
-#include "process.hpp"
+#include <stdint.h>
+#include <stddef.h>
+#include "list.hpp"
 
+class Process;
+struct ProcessSymbol;
 class KernelLinker {
 private:
   Process *const process;

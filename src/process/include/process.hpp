@@ -5,11 +5,6 @@
 #include "pagetable.hpp"
 #include "list.hpp"
 
-struct ProcessSymbol {
-  uintptr_t ptr;
-  char* name;
-};
-
 enum SectionType: uint8_t {
   SectionTypeCode,
   SectionTypeData,

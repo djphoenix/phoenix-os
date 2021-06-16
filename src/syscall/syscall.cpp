@@ -4,6 +4,7 @@
 #include "syscall.hpp"
 #include "scheduler.hpp"
 #include "pagetable.hpp"
+#include "process.hpp"
 
 #include "syscall_hash.hpp"
 #include "syscall_setup.hpp"
@@ -17,9 +18,9 @@ static void syscall_puts(uintptr_t strptr) {
 }
 
 static void __attribute__((noreturn)) syscall_exit(int code) {
-  Scheduler *manager = Scheduler::getScheduler();
-  Process *process = manager->currentProcess();
-  manager->exitProcess(process, code);
+  Scheduler *scheduler = Scheduler::getScheduler();
+  Process *process = scheduler->currentProcess();
+  scheduler->exitProcess(process, code);
 }
 
 static void syscall_kread(void *out, const void *kaddr, size_t size) {

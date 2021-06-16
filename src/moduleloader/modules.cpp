@@ -9,8 +9,7 @@
 
 #include "kernlib/sprintf.hpp"
 
-volatile ModuleManager* ModuleManager::manager = nullptr;
-Mutex ModuleManager::managerMutex;
+ModuleManager ModuleManager::manager;
 
 bool ModuleManager::parseModuleInfo(ModuleInfo *info, const Process *process, const KernelLinker *linker) {
   info->name = nullptr;
@@ -172,11 +171,4 @@ void ModuleManager::init() {
   ModuleManager *mm = getManager();
   mm->parseInternal();
   mm->parseInitRD();
-}
-
-ModuleManager* ModuleManager::getManager() {
-  if (manager) return const_cast<ModuleManager*>(manager);
-  Mutex::Lock lock(managerMutex);
-  if (!manager) manager = new ModuleManager();
-  return const_cast<ModuleManager*>(manager);
 }

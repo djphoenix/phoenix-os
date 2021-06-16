@@ -1,1 +1,1 @@
-target_link_libraries(readelf PRIVATE kernlib process kernlink)
+target_link_libraries(readelf PRIVATE kernlib heap process kernlink)

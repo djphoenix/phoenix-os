@@ -26,7 +26,7 @@ struct Interrupts::Handler {
 
 Interrupts::REC64 *Interrupts::idt = nullptr;
 GDT *Interrupts::gdt = nullptr;
-List<Interrupts::Callback*> *Interrupts::callbacks = nullptr;
+List<Interrupts::Callback*> Interrupts::callbacks[256] {};
 Mutex Interrupts::callback_locks[256];
 Mutex Interrupts::fault;
 Interrupts::Handler* Interrupts::handlers = nullptr;
@@ -304,7 +304,6 @@ void Interrupts::init() {
     idt[i] = REC64(hptr, 8, 1, 0xE, 0, true);
   }
   Pagetable::map(handlers, handlers + 256, Pagetable::MemoryType::CODE_RX);
-  callbacks = new List<Callback*>[256]();
 
   Port<0x20>::out8(0x11);
   Port<0xA0>::out8(0x11);

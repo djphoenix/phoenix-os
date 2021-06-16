@@ -10,8 +10,7 @@
 #include "kernlib/mem.hpp"
 #include "kernlib/ports.hpp"
 
-Mutex ACPI::controllerMutex;
-volatile ACPI* ACPI::controller = nullptr;
+ACPI ACPI::controller {};
 
 enum LAPIC_VALUES {
   LAPIC_DISABLE = 0x10000,
@@ -67,13 +66,6 @@ struct ACPI::ApicInterruptOverride : ApicHeader {
   uint16_t flags;
 };
 
-ACPI* ACPI::getController() {
-  if (controller) return const_cast<ACPI*>(controller);
-  Mutex::CriticalLock lock(controllerMutex);
-  if (!controller) controller = new ACPI();
-  return const_cast<ACPI*>(controller);
-}
-
 inline static void MmioWrite32(void *p, uint32_t data) {
   *reinterpret_cast<volatile uint32_t *>(p) = data;
 }
@@ -81,7 +73,8 @@ inline static uint32_t MmioRead32(const void *p) {
   return *reinterpret_cast<const volatile uint32_t *>(p);
 }
 
-ACPI::ACPI() {
+void ACPI::setup() { controller.init(); }
+void ACPI::init() {
   static const void *const ACPI_FIND_START = reinterpret_cast<const void*>(0x000e0000);
   static const void *const ACPI_FIND_TOP = reinterpret_cast<const void*>(0x000fffff);
   static const uint64_t ACPI_SIG_RTP_DSR = 0x2052545020445352;  // 'RTP DSR '

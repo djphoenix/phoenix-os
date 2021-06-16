@@ -2,22 +2,19 @@
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
 #pragma once
-#include "process.hpp"
 #include "interrupts.hpp"
+#include "list.hpp"
 
+class Process;
 class Scheduler {
  private:
-  struct QueuedThread {
-    Process *process;
-    Thread *thread;
-    QueuedThread* next;
-  };
+  struct QueuedThread;
+  static Scheduler scheduler;
 
-  static Mutex managerMutex;
-  static volatile Scheduler* manager;
-
-  Scheduler();
-  QueuedThread *nextThread, *lastThread;
+  constexpr Scheduler() {}
+  void init();
+  static void setup();
+  QueuedThread *nextThread = nullptr, *lastThread = nullptr;
   QueuedThread **cpuThreads;
   List<Process*> processes;
   Mutex processSwitchMutex;
@@ -33,6 +30,6 @@ class Scheduler {
   void queueThread(Process *process, Thread *thread);
   void dequeueThread(Thread *thread);
   Process *currentProcess();
-  static Scheduler* getScheduler();
+  inline static Scheduler* getScheduler() { return &scheduler; }
   static void __attribute__((noreturn)) process_loop();
 };

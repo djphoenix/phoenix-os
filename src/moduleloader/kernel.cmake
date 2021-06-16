@@ -1,2 +1,1 @@
-target_link_libraries(moduleloader PUBLIC process)
-target_link_libraries(moduleloader PRIVATE kernlib kernlink readelf scheduler modules-linked)
+target_link_libraries(moduleloader PRIVATE heap kernlib kernlink process readelf scheduler modules-linked)

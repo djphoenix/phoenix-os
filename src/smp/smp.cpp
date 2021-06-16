@@ -46,6 +46,8 @@ void SMP::init() {
   asm volatile("lea _smp_init(%%rip), %q0; lea _smp_end(%%rip), %q1":"=r"(smp_init),"=r"(smp_end));
 
   const size_t smp_init_size = size_t(smp_end - smp_init);
+  const size_t cpuids_size = sizeof(uint64_t) * cpuCount;
+  const size_t stacks_size = sizeof(uint8_t*) * cpuCount;
 
   uint8_t *startupCode;
   StartupInfo *info;
@@ -57,8 +59,8 @@ void SMP::init() {
   uint8_t smp_init_vector = (uintptr_t(startupCode) >> 12) & 0xFF;
 
   info->lapicAddr = acpi->getLapicAddr();
-  info->cpuids = new uint64_t[cpuCount];
-  info->stacks = new const uint8_t*[cpuCount];
+  info->cpuids = reinterpret_cast<uint64_t*>(Pagetable::alloc((cpuids_size + 0xFFF) >> 12, Pagetable::MemoryType::DATA_RW));
+  info->stacks = reinterpret_cast<const uint8_t**>(Pagetable::alloc((stacks_size + 0xFFF) >> 12, Pagetable::MemoryType::DATA_RW));
   info->startup = setup;
 
   asm volatile("mov %%cr3, %q0":"=r"(info->pagetableptr));
@@ -93,7 +95,11 @@ void SMP::init() {
     }
   }
 
-  delete[] info->cpuids;
-  delete[] info->stacks;
+  for (size_t i = 0; i < sizeof((cpuids_size + 0xFFF) >> 12); i += 0x1000) {
+    Pagetable::free(info->cpuids + (i / sizeof(*info->cpuids)));
+  }
+  for (size_t i = 0; i < sizeof((stacks_size + 0xFFF) >> 12); i += 0x1000) {
+    Pagetable::free(info->stacks + (i / sizeof(*info->stacks)));
+  }
   Pagetable::free(startupCode);
 }
