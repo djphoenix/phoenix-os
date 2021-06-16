@@ -7,7 +7,7 @@
 
 #include "kernlib/std.hpp"
 #include "kernlib/mem.hpp"
-#include "kernlib/rand.hpp"
+#include "rand.hpp"
 
 struct ProcessSymbol {
   uintptr_t ptr;

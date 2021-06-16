@@ -7,7 +7,7 @@
 
 #include "kernlib/std.hpp"
 #include "kernlib/mem.hpp"
-#include "kernlib/rand.hpp"
+#include "rand.hpp"
 
 using PTE = Pagetable::Entry;
 

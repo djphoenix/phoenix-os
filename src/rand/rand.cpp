@@ -1,8 +1,7 @@
 //    PhoeniX OS Kernel library printf functions
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
-#include "kernlib/std.hpp"
-#include "kernlib/rand.hpp"
+#include "rand.hpp"
 
 static inline bool check_rdrand() {
   uint32_t cpuid;
@@ -28,7 +27,9 @@ void RAND::setup() {
       :"=r"(seed)
     );
   } else {
-    seed = klib::rdtsc();
+    uint32_t eax, edx;
+    asm volatile("rdtsc":"=a"(eax), "=d"(edx));
+    seed = ((uint64_t(edx) << 32) | eax);
   }
 }
 
