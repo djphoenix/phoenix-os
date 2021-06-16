@@ -3,7 +3,6 @@
 
 #include "cpu.hpp"
 #include "kernlib/sprintf.hpp"
-#include "heap.hpp"
 
 uint32_t CPU::vendor[4] {};
 uint32_t CPU::brandString[13] {};
@@ -148,40 +147,34 @@ static inline uint32_t bitcnt(uint64_t val) {
   return res;
 }
 
-char* CPU::getFeaturesStr() {
+uint64_t CPU::getFeaturesStrSize() {
   uint64_t f = getFeatures(), ef = getExtFeatures(), fe = getFeaturesExt();
-
   uint32_t count = bitcnt(f) + bitcnt(ef) + bitcnt(fe);
+  return 17 * count;
+}
 
-  size_t bufsize = 17 * count;
-  char *buf = static_cast<char*>(Heap::alloc(bufsize));
-  char *end = buf;
+void CPU::getFeaturesStr(char *buf, size_t bufsize) {
+  uint64_t f = getFeatures(), ef = getExtFeatures(), fe = getFeaturesExt();
+  char *end = buf + bufsize;
 
   for (int i = 0; i < 64; i++) {
     if (((f & (1ll << i)) != 0) && CPUID_FEAT_STR[i][0]) {
-      end += snprintf(end, bufsize - size_t(end - buf), "%s ", CPUID_FEAT_STR[i]);
+      buf += snprintf(buf, size_t(end - buf), "%s ", CPUID_FEAT_STR[i]);
     }
   }
 
   for (int i = 0; i < 64; i++) {
     if (((ef & (1ll << i)) != 0) && CPUID_EXT_FEAT_STR[i][0]) {
-      end += snprintf(end, bufsize - size_t(end - buf), "%s ", CPUID_EXT_FEAT_STR[i]);
+      buf += snprintf(buf, size_t(end - buf), "%s ", CPUID_EXT_FEAT_STR[i]);
     }
   }
 
   for (int i = 0; i < 64; i++) {
     if (((fe & (1ll << i)) != 0) && CPUID_FEAT_EXT_STR[i][0]) {
-      end += snprintf(end, bufsize - size_t(end - buf), "%s ", CPUID_FEAT_EXT_STR[i]);
+      buf += snprintf(buf, size_t(end - buf), "%s ", CPUID_FEAT_EXT_STR[i]);
     }
   }
-
-  if (end > buf)
-    end--;
-  end[0] = 0;
-
-  buf = static_cast<char*>(Heap::realloc(buf, klib::strlen(buf) + 1));
-
-  return buf;
+  *buf = 0;
 }
 
 const char* CPU::getBrandString() {

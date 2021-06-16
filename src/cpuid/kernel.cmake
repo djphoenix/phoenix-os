@@ -1,1 +1,1 @@
-target_link_libraries(cpuid PRIVATE heap kernlib)
+target_link_libraries(cpuid PRIVATE kernlib)

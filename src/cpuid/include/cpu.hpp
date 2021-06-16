@@ -4,6 +4,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stddef.h>
 
 class CPU {
  public:
@@ -200,7 +201,8 @@ class CPU {
   static uint64_t getFeatures();
   static uint64_t getFeaturesExt();
   static uint64_t getExtFeatures();
-  static char* getFeaturesStr();
+  static uint64_t getFeaturesStrSize();
+  static void getFeaturesStr(char *buf, size_t bufsize);
   static struct Info getInfo();
   static uint32_t getMaxCPUID();
   static const char* getBrandString();
