@@ -1,1 +1,1 @@
-target_link_libraries(pagetable PUBLIC boot kernlib)
+target_link_libraries(pagetable PUBLIC bootinfo kernlib)

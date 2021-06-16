@@ -1,1 +1,1 @@
-target_link_libraries(smp PRIVATE kernlib pagetable platform process scheduler syscall acpi)
+target_link_libraries(smp PRIVATE kernlib pagetable scheduler syscall acpi)

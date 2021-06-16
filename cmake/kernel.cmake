@@ -27,9 +27,11 @@ foreach(kerndir ${KERNDIRS})
   list(APPEND LINT_SOURCES ${SRCS})
 endforeach(kerndir)
 
-add_executable(pxkrnl.elf ${KERNLIBS} $<TARGET_OBJECTS:modules-linked>)
-add_dependencies(pxkrnl.elf modules-linked)
+add_executable(pxkrnl.elf $<TARGET_OBJECTS:boot>)
+target_link_libraries(pxkrnl.elf PRIVATE boot)
+add_dependencies(pxkrnl.elf boot)
 
+set_target_properties(pxkrnl.elf PROPERTIES LINKER_LANGUAGE CXX)
 set_target_properties(pxkrnl.elf PROPERTIES LINK_DEPENDS ${LINKER_SCRIPT_SYSTEM})
 set_target_properties(
   pxkrnl.elf PROPERTIES
