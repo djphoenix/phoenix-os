@@ -1,7 +1,7 @@
 //    PhoeniX OS Kernel library printf functions
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
-#include "kernlib.hpp"
+#include "kernlib/std.hpp"
 #include "kernlib/rand.hpp"
 
 static inline bool check_rdrand() {

@@ -7,6 +7,8 @@
 #include "multiboot_info.hpp"
 #include "scheduler.hpp"
 
+#include "kernlib/sprintf.hpp"
+
 volatile ModuleManager* ModuleManager::manager = nullptr;
 Mutex ModuleManager::managerMutex;
 

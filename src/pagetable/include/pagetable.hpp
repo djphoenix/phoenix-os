@@ -2,13 +2,13 @@
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
 #pragma once
-#include "kernlib.hpp"
+#include "kernlib/mutex.hpp"
 #include "efi.hpp"
 
 struct DTREG {
   uint16_t limit;
   void* addr;
-} PACKED;
+} __attribute__((packed));
 
 class Pagetable {
  public:
@@ -43,9 +43,9 @@ class Pagetable {
         bool accessed :1;
         bool dirty :1;
         bool size :1;
-      } PACKED;
+      } __attribute__((packed));
       uint8_t flags;
-    } PACKED;
+    } __attribute__((packed));
     bool rsvd:1;
     uint8_t avl :3;
     uintptr_t _ptr :51;
@@ -91,7 +91,7 @@ class Pagetable {
     static inline Entry* find(const void *addr, Entry *pagetable) {
       return find(uintptr_t(addr), pagetable);
     }
-  } PACKED;
+  } __attribute__((packed));
 
  private:
   static const size_t rsvd_num = 16;

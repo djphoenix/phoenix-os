@@ -5,6 +5,9 @@
 #include "efi.hpp"
 #include "multiboot_info.hpp"
 
+#include "kernlib/mem.hpp"
+#include "kernlib/rand.hpp"
+
 using PTE = Pagetable::Entry;
 
 Mutex Pagetable::page_mutex;

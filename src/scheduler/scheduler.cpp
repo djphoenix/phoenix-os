@@ -6,6 +6,9 @@
 
 #include "acpi.hpp"
 
+#include "kernlib/std.hpp"
+#include "kernlib/sprintf.hpp"
+
 void __attribute((naked)) Scheduler::process_loop() {
   asm volatile(
       "1: hlt; jmp 1b;"

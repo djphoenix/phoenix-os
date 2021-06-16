@@ -1,2 +1,2 @@
-target_link_libraries(process PUBLIC kernlib pagetable heap)
-target_link_libraries(process PRIVATE thread)
+target_link_libraries(process PUBLIC pagetable heap)
+target_link_libraries(process PRIVATE kernlib thread)

@@ -41,7 +41,7 @@ namespace ELF {
     OSABI osabi;
     ABIVERSION abiversion;
     uint8_t pad[7];
-  } PACKED;
+  } __attribute__((packed));
   struct HDR {
     IDENT ident;
     TYPE type;
@@ -50,7 +50,7 @@ namespace ELF {
     uint64_t entry, phoff, shoff;
     uint32_t flags;
     uint16_t ehsize, phentsize, phnum, shentsize, shnum, shstrndx;
-  } PACKED;
+  } __attribute__((packed));
 
   namespace _64 {
     struct PROG {
@@ -81,7 +81,7 @@ namespace ELF {
       uint64_t filesz;
       uint64_t memsz;
       uint64_t align;
-    } PACKED;
+    } __attribute__((packed));
 
     struct SECT {
       enum TYPE: uint32_t {
@@ -109,7 +109,7 @@ namespace ELF {
       uint64_t addr, offset, size;
       uint32_t link, info;
       uint64_t addralign, entsize;
-    } PACKED;
+    } __attribute__((packed));
 
     struct DYN {
       enum TAG: uint64_t {
@@ -156,7 +156,7 @@ namespace ELF {
       };
       TAG tag;
       uint64_t val;
-    } PACKED;
+    } __attribute__((packed));
 
     struct SYM {
       enum BIND: uint8_t {
@@ -188,7 +188,7 @@ namespace ELF {
       uint16_t shndx;
       uint64_t value;
       uint64_t size;
-    } PACKED;
+    } __attribute__((packed));
 
     enum RELOC_TYPE: uint32_t {
       R_X86_64_NONE,       // No reloc
@@ -212,10 +212,10 @@ namespace ELF {
       uint64_t addr;
       RELOC_TYPE type;
       uint32_t sym;
-    } PACKED;
+    } __attribute__((packed));
     struct RELA : public REL {
       uint64_t add;
-    } PACKED;
+    } __attribute__((packed));
   }
 }
 namespace ELF64 = ELF::_64;

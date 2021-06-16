@@ -4,6 +4,9 @@
 #pragma once
 #include "heap.hpp"
 
+#include "kernlib/std.hpp"
+#include "kernlib/mem.hpp"
+
 template<typename Item>
 class List {
  private:

@@ -1,7 +1,7 @@
 //    PhoeniX OS Kernel library standard functions
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
-#include "kernlib.hpp"
+#include "kernlib/std.hpp"
 
 extern "C" {
   void puts(const char *str);

@@ -8,6 +8,8 @@
 #include "syscall_hash.hpp"
 #include "syscall_setup.hpp"
 
+#include "kernlib/sprintf.hpp"
+
 static void syscall_puts(uintptr_t strptr) {
   Process *process = Scheduler::getScheduler()->currentProcess();
   ptr<char> str(process->readString(strptr));
@@ -49,7 +51,7 @@ static void syscall_ioprovide(const char *path, const void *modptr) {
 static const volatile struct {
   uint64_t hash;
   void *entry;
-} PACKED syscall_map[] = {
+} __attribute__((packed)) syscall_map[] = {
   SYSCALL_ENT(puts),
   SYSCALL_ENT(exit),
   SYSCALL_ENT(kread),

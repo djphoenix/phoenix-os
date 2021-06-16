@@ -1,7 +1,7 @@
 //    PhoeniX OS Kernel library printf functions
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
-#include "kernlib.hpp"
+#include "kernlib/sprintf.hpp"
 
 static inline char *longlong_to_string(
     char *buf, size_t len, uint64_t n, uint8_t base,
@@ -50,7 +50,7 @@ int vsnprintf(char *str, size_t size, const char *format, va_list ap) {
         uint8_t fl_leadspace :1;  // % [space]
         uint8_t fl_altfmt :1;     // %#
         uint8_t fl_leadzero :1;   // %0
-      } PACKED;
+      } __attribute__((packed));
       struct {
         uint8_t sz_halfhalf :1;   // %hh
         uint8_t sz_half :1;       // %h
@@ -61,13 +61,13 @@ int vsnprintf(char *str, size_t size, const char *format, va_list ap) {
         uint8_t sz_ptrdiff :1;    // %t
         uint8_t sz_longdbl :1;    // %L
       };
-    } PACKED;
+    } __attribute__((packed));
     struct {
       uint32_t raw_flags :5;
       uint32_t raw_size :8;
-    } PACKED;
+    } __attribute__((packed));
     uint32_t raw;
-  } PACKED;
+  } __attribute__((packed));
 
   char c;
   const char *fmt_start = nullptr;

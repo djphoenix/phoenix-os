@@ -2,7 +2,8 @@
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
 #pragma once
-#include "std.hpp"
+
+#include <stdint.h>
 
 class CriticalSection {
  private:

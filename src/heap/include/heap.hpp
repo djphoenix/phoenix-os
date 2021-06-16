@@ -2,7 +2,10 @@
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
 #pragma once
-#include "kernlib.hpp"
+
+#include <stdint.h>
+#include <stddef.h>
+#include "kernlib/mutex.hpp"
 
 class Heap {
  private:

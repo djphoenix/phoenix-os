@@ -4,6 +4,8 @@
 #include "heap.hpp"
 #include "pagetable.hpp"
 
+#include "kernlib/mem.hpp"
+
 struct Heap::Alloc {
   void* addr;
   size_t size;

@@ -2,7 +2,6 @@
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
 #pragma once
-#include "kernlib.hpp"
 #include "process.hpp"
 #include "interrupts.hpp"
 
@@ -35,5 +34,5 @@ class Scheduler {
   void dequeueThread(Thread *thread);
   Process *currentProcess();
   static Scheduler* getScheduler();
-  static void NORETURN process_loop();
+  static void __attribute__((noreturn)) process_loop();
 };

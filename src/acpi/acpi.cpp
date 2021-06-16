@@ -7,6 +7,9 @@
 #include "cpu.hpp"
 #include "pagetable.hpp"
 
+#include "kernlib/mem.hpp"
+#include "kernlib/ports.hpp"
+
 Mutex ACPI::controllerMutex;
 volatile ACPI* ACPI::controller = nullptr;
 

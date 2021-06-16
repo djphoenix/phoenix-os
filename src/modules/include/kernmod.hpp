@@ -4,7 +4,11 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#include "kernlib.hpp"
+#include "kernlib/mem.hpp"
+#include "kernlib/mutex.hpp"
+#include "kernlib/ports.hpp"
+#include "kernlib/sprintf.hpp"
+#include "kernlib/std.hpp"
 
 #define MODDESC(k, v) \
   extern const char \

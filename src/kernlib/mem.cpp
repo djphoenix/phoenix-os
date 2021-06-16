@@ -1,7 +1,7 @@
 //    PhoeniX OS Kernel library memory functions
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
-#include "kernlib.hpp"
+#include "kernlib/mem.hpp"
 
 void Memory::copy_aligned(void *dest, const void *src, size_t count) {
   asm volatile(

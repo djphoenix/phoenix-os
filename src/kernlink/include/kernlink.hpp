@@ -11,7 +11,7 @@ private:
 public:
   inline KernelLinker(Process *process) : process(process) {}
   ~KernelLinker();
-  uintptr_t getSymbolByName(const char* name) const PURE;
+  uintptr_t getSymbolByName(const char* name) const __attribute__((pure));
   void addSymbol(const char *name, uintptr_t ptr);
   uintptr_t linkLibrary(const char* funcname);
   void prepareToStart();

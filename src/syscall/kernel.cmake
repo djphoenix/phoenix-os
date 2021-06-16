@@ -1,2 +1,1 @@
-target_link_libraries(syscall PUBLIC kernlib)
-target_link_libraries(syscall PRIVATE process scheduler)
+target_link_libraries(syscall PRIVATE kernlib process scheduler)

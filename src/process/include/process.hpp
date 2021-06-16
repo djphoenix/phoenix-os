@@ -2,7 +2,6 @@
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
 #pragma once
-#include "kernlib.hpp"
 #include "pagetable.hpp"
 #include "list.hpp"
 
@@ -50,11 +49,11 @@ class Process {
   bool readData(void* dst, uintptr_t address, size_t size) const;
   char* readString(uintptr_t address) const;
 
-  const char *getName() const PURE;
+  const char *getName() const __attribute__((pure));
   void setName(const char *name);
-  uintptr_t getBase() const PURE { return _aslrCode; }
+  uintptr_t getBase() const __attribute__((pure)) { return _aslrCode; }
 
-  void* getPhysicalAddress(uintptr_t ptr) const PURE;
+  void* getPhysicalAddress(uintptr_t ptr) const __attribute__((pure));
 
   static size_t print_stacktrace(char *outbuf, size_t bufsz, uintptr_t base = 0, const Process *process = nullptr);
 };

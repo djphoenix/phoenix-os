@@ -2,7 +2,9 @@
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
 #pragma once
-#include "kernlib.hpp"
+
+#include <stdint.h>
+#include "kernlib/mutex.hpp"
 
 class ACPI {
  public:
@@ -75,10 +77,10 @@ class ACPI {
   static ACPI* getController();
   uint8_t getLapicID();
   uint8_t getCPUID();
-  const void* getRSDPAddr() PURE;
-  void* getLapicAddr() PURE;
-  uint32_t getCPUCount() PURE;
-  uint32_t getActiveCPUCount() PURE;
+  const void* getRSDPAddr() __attribute__((pure));
+  void* getLapicAddr() __attribute__((pure));
+  uint32_t getCPUCount() __attribute__((pure));
+  uint32_t getActiveCPUCount() __attribute__((pure));
   uint32_t LapicIn(uint32_t reg);
   void LapicOut(uint32_t reg, uint32_t data);
   uint32_t IOapicIn(uint32_t reg);
@@ -86,8 +88,8 @@ class ACPI {
   void IOapicMap(uint32_t idx, const IOApicRedir &r);
   IOApicRedir IOapicReadMap(uint32_t idx);
   void activateCPU();
-  uint8_t getLapicIDOfCPU(uint8_t cpuId) PURE;
-  uint8_t getCPUIDOfLapic(uint8_t lapicId) PURE;
+  uint8_t getLapicIDOfCPU(uint8_t cpuId) __attribute__((pure));
+  uint8_t getCPUIDOfLapic(uint8_t lapicId) __attribute__((pure));
   void sendCPUInit(uint32_t id);
   void sendCPUStartup(uint32_t id, uint8_t vector);
   bool initAPIC();

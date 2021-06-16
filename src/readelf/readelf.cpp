@@ -4,6 +4,9 @@
 #include "readelf.hpp"
 #include "readelf_internal.hpp"
 
+#include "kernlib/mem.hpp"
+#include "kernlib/sprintf.hpp"
+
 static uintptr_t readelf_find_load_addr(Process *process, uintptr_t start, uintptr_t faddr) {
   ELF::HDR elf;
   if (!process->readData(&elf, start, sizeof(elf))) return 0;
@@ -137,7 +140,6 @@ static bool readelf_dylink_process_reloc(Process *process, KernelLinker *linker,
     addr = readelf_find_load_addr(process, start, offset);
   }
 
-
   if (!allownull && addr == 0) {
     snprintf(printbuf, sizeof(printbuf), "Cannot link symbol: %s\n", name.get());
     klib::puts(printbuf);
@@ -231,7 +233,7 @@ static bool readelf_dylink_handle_dynamic_symtab(Process *process, KernelLinker 
   ELF64::SYM sym;
   struct {
     uint32_t nbucket, nchain;
-  } PACKED hashhdr;
+  } __attribute__((packed)) hashhdr;
   if (!process->readData(&hashhdr, hashtab, sizeof(hashhdr))) return false;
   hashtab += sizeof(hashhdr);
   ptr<char> name;

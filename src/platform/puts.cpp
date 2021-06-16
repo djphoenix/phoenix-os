@@ -1,4 +1,6 @@
-#include "kernlib.hpp"
+#include "kernlib/std.hpp"
+#include "kernlib/mutex.hpp"
+#include "kernlib/ports.hpp"
 
 class SerialConsole {
  private:

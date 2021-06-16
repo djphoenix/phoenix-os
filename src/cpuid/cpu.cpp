@@ -2,7 +2,7 @@
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
 #include "cpu.hpp"
-#include "kernlib.hpp"
+#include "kernlib/sprintf.hpp"
 #include "heap.hpp"
 
 uint32_t CPU::vendor[4] {};

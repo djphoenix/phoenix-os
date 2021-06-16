@@ -2,7 +2,10 @@
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
 #pragma once
-#include "kernlib.hpp"
+
+#include <stddef.h>
+#include "kernlib/mutex.hpp"
+
 #include "thread.hpp"
 
 struct TSS64_ENT {
@@ -13,7 +16,7 @@ struct TSS64_ENT {
   uint64_t reserved3;
   uint16_t reserved4;
   uint16_t iomap_base;
-} PACKED;
+} __attribute__((packed));
 
 struct GDT {
   struct Entry {
@@ -58,7 +61,7 @@ struct GDT {
             seg_lim_high((limit >> 16) & 0xF), avl(avl), islong(islong), db(db),
             granularity(granularity), base_high((base >> 24) & 0xFF) {}
     #pragma GCC diagnostic pop
-  } PACKED;
+  } __attribute__((packed));
 
   struct SystemEntry {
     Entry ent;
@@ -79,7 +82,7 @@ struct GDT {
                 bool granularity) :
         ent(base, limit, type, dpl, system, present, avl, islong, db,
             granularity), base_high(uint32_t(base >> 32)), rsvd(0) { }
-  } PACKED;
+  } __attribute__((packed));
 
   Entry ents[5];
   SystemEntry sys_ents[];
@@ -87,7 +90,7 @@ struct GDT {
   static size_t size(size_t sys_count) {
     return sizeof(Entry) * 5 + sizeof(SystemEntry) * sys_count;
   }
-} PACKED;
+} __attribute__((packed));
 
 template<typename T> class List;
 class Interrupts {
@@ -95,7 +98,7 @@ class Interrupts {
   struct FAULT {
     char code[5];
     bool has_error_code;
-  } PACKED;
+  } __attribute__((packed));
   static const FAULT faults[0x20];
   struct CallbackRegs {
     struct Info {
@@ -121,7 +124,7 @@ class Interrupts {
     uint8_t zero;
     uint8_t type;
     uint16_t offset_middle;
-  } PACKED;
+  } __attribute__((packed));
 
   struct REC64 {
     uint16_t offset_low;
@@ -147,7 +150,7 @@ class Interrupts {
         type(type), rsvd2(0), dpl(dpl), present(present),
         offset_middle(uint16_t(offset >> 16)), offset_high(offset >> 32), rsvd3(0) {}
     #pragma GCC diagnostic pop
-  } PACKED;
+  } __attribute__((packed));
 
  private:
   struct Handler;

@@ -1,12 +1,12 @@
 //    PhoeniX OS SMP Subsystem
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
-#include "kernlib.hpp"
 #include "acpi.hpp"
 #include "interrupts.hpp"
 #include "pagetable.hpp"
 #include "scheduler.hpp"
 #include "syscall.hpp"
+#include "kernlib/mem.hpp"
 
 class SMP {
  private:
@@ -40,7 +40,7 @@ void SMP::init() {
     const uint8_t **stacks;
     void(*startup)();
     DTREG gdtptr;
-  } PACKED;
+  } __attribute__((packed));
 
   const uint8_t *smp_init, *smp_end;
   asm volatile("lea _smp_init(%%rip), %q0; lea _smp_end(%%rip), %q1":"=r"(smp_init),"=r"(smp_end));

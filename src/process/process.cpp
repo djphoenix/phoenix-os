@@ -4,6 +4,10 @@
 #include "process.hpp"
 #include "thread.hpp"
 
+#include "kernlib/mem.hpp"
+#include "kernlib/sprintf.hpp"
+#include "kernlib/rand.hpp"
+
 using PTE = Pagetable::Entry;
 
 Process::Process() :

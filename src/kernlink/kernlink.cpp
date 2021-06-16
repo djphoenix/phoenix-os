@@ -4,6 +4,10 @@
 #include "syscall.hpp"
 #include "interrupts.hpp"
 
+#include "kernlib/std.hpp"
+#include "kernlib/mem.hpp"
+#include "kernlib/rand.hpp"
+
 void KernelLinker::addSymbol(const char *name, uintptr_t ptr) {
   symbols.insert() = { ptr, klib::strdup(name) };
 }
@@ -26,7 +30,7 @@ struct SyscallEntry {
   };
 
   explicit constexpr SyscallEntry(uint64_t idx) : syscall_id(idx) {}
-} PACKED;
+} __attribute__((packed));
 uintptr_t KernelLinker::linkLibrary(const char* funcname) {
   if (klib::strcmp(funcname, "kptr_acpi_rsdp") == 0) {
     return uintptr_t(ACPI::getController()->getRSDPAddr());

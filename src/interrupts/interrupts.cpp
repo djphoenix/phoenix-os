@@ -6,6 +6,10 @@
 #include "pagetable.hpp"
 #include "list.hpp"
 
+#include "kernlib/mem.hpp"
+#include "kernlib/ports.hpp"
+#include "kernlib/sprintf.hpp"
+
 struct Interrupts::Handler {
   // 48 83 ec 00     sub    ${subrsp}, rsp
   // 6A 01           pushq  ${int_num}
@@ -18,7 +22,7 @@ struct Interrupts::Handler {
   uint32_t diff;
 
   constexpr Handler(uint8_t int_num, uint8_t subrsp, uint32_t diff): subrsp(subrsp), int_num(int_num), diff(diff) {}
-} PACKED;
+} __attribute__((packed));
 
 Interrupts::REC64 *Interrupts::idt = nullptr;
 GDT *Interrupts::gdt = nullptr;
@@ -159,7 +163,7 @@ const Interrupts::FAULT Interrupts::faults[] = {
 struct int_info {
   uint64_t error_code;
   uint64_t rip, cs, rflags, rsp, ss;
-} PACKED;
+} __attribute__((packed));
 
 void __attribute__((sysv_abi)) __attribute__((used)) Interrupts::handle(
     unsigned char intr, uint64_t stack, uint64_t *pagetable, Thread::SSE *sse) {
