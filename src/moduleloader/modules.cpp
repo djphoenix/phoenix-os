@@ -5,7 +5,6 @@
 
 #include "readelf.hpp"
 #include "multiboot_info.hpp"
-#include "printf.hpp"
 #include "scheduler.hpp"
 
 volatile ModuleManager* ModuleManager::manager = nullptr;
@@ -117,7 +116,9 @@ bool ModuleManager::bindRequirements(const char *reqs, Process *process) {
     reqs = re;
 
     if (!bindRequirement(r.get(), process)) {
-      printf("Unsatisfied requirement: %s\n", r.get());
+      char printbuf[80];
+      snprintf(printbuf, sizeof(printbuf), "Unsatisfied requirement: %s\n", r.get());
+      klib::puts(printbuf);
       return 0;
     }
   }

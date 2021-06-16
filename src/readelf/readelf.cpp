@@ -3,7 +3,6 @@
 
 #include "readelf.hpp"
 #include "readelf_internal.hpp"
-#include "printf.hpp"
 
 static uintptr_t readelf_find_load_addr(Process *process, uintptr_t start, uintptr_t faddr) {
   ELF::HDR elf;
@@ -129,6 +128,7 @@ static bool readelf_dylink_process_reloc(Process *process, KernelLinker *linker,
   ptr<char> name(process->readString(strtab + sym.name));
   uintptr_t offset = readelf_find_load_offset(process, start, ent.addr);
   uintptr_t ptr = readelf_find_load_addr(process, start, offset);
+  char printbuf[80];
 
   bool allownull = sym.bind == ELF64::SYM::STB_WEAK;
   addr = linker->getSymbolByName(name.get());
@@ -137,8 +137,10 @@ static bool readelf_dylink_process_reloc(Process *process, KernelLinker *linker,
     addr = readelf_find_load_addr(process, start, offset);
   }
 
+
   if (!allownull && addr == 0) {
-    printf("Cannot link symbol: %s\n", name.get());
+    snprintf(printbuf, sizeof(printbuf), "Cannot link symbol: %s\n", name.get());
+    klib::puts(printbuf);
     return 0;
   }
 
@@ -149,7 +151,8 @@ static bool readelf_dylink_process_reloc(Process *process, KernelLinker *linker,
       process->writeData(ptr, &addr, sizeof(addr));
       break;
     default:
-      printf("UNHANDLED REL@%#lx: %x => %x+%#lx\n", ent.addr, ent.type, ent.sym, ent.add);
+      snprintf(printbuf, sizeof(printbuf), "UNHANDLED REL@%#lx: %x => %x+%#lx\n", ent.addr, ent.type, ent.sym, ent.add);
+      klib::puts(printbuf);
       return 0;
   }
   return 1;
@@ -281,7 +284,9 @@ static bool readelf_dylink_handle_dynamic_table(Process *process, KernelLinker *
       case ELF64::DYN::DT_NULL:
         break;
       default:
-        printf("DYN%03lu: %016lx\n", dyn.tag, dyn.val);
+        char printbuf[80];
+        snprintf(printbuf, sizeof(printbuf), "Unhandled DYN%03lu: %016lx\n", dyn.tag, dyn.val);
+        klib::puts(printbuf);
         break;
     }
   }
