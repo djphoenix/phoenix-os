@@ -1,1 +1,1 @@
-target_link_libraries(readelf PRIVATE kernlib heap process kernlink)
+target_link_libraries(readelf PRIVATE sprintf memop heap process kernlink platform)

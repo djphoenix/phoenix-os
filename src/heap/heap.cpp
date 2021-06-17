@@ -4,8 +4,7 @@
 #include "heap.hpp"
 #include "pagetable.hpp"
 
-#include "kernlib/mem.hpp"
-#include "kernlib/std.hpp"
+#include "memop.hpp"
 
 struct Heap::Alloc {
   void* addr;
@@ -73,7 +72,7 @@ new_page:
   }
 check_ptr:
   if (ptr < page) ptr = page;
-  ptr = klib::__align(ptr, align);
+  if ((ptr % align) != 0) ptr += align - (ptr % align);
   ptr_top = ptr + size;
   for (uintptr_t pg = ptr & 0xFFFFFFFFFFFF000; pg < ptr_top; pg += 0x1000) {
     pages = heap_pages;
@@ -189,7 +188,8 @@ void operator delete(void* a, size_t s) noexcept { Heap::free(a); }
 void operator delete[](void* a, size_t s) noexcept { Heap::free(a); }
 
 char* klib::strdup(const char* c) {
-  size_t len = strlen(c);
+  size_t len = 0;
+  while (c != nullptr && c[len] != 0) len++;
   char* r = new char[len + 1];
   Memory::copy(r, c, len + 1);
   return r;

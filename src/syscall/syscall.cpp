@@ -9,12 +9,13 @@
 #include "syscall_hash.hpp"
 #include "syscall_setup.hpp"
 
-#include "kernlib/sprintf.hpp"
+#include "sprintf.hpp"
+#include "kprint.hpp"
 
 static void syscall_puts(uintptr_t strptr) {
   Process *process = Scheduler::getScheduler()->currentProcess();
   ptr<char> str(process->readString(strptr));
-  klib::puts(str.get());
+  kprint(str.get());
 }
 
 static void __attribute__((noreturn)) syscall_exit(int code) {
@@ -41,7 +42,7 @@ static void syscall_ioprovide(const char *path, const void *modptr) {
     "ioprovide [%s(%#lx) / %p] [%s]\n",
     process->getName(), process->getId(), modptr, str.get()
   );
-  klib::puts(printbuf);
+  kprint(printbuf);
 }
 
 #define SYSCALL_ENT(name) { \

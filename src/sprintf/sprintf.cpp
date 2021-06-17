@@ -1,7 +1,9 @@
 //    PhoeniX OS Kernel library printf functions
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
-#include "kernlib/sprintf.hpp"
+#include "sprintf.hpp"
+
+#include <stdint.h>
 
 static inline char *longlong_to_string(
     char *buf, size_t len, uint64_t n, uint8_t base,
@@ -326,7 +328,9 @@ out_num:
 
 out_str:
 
-    int pad = width - static_cast<int>(klib::strlen(strval));
+    int pad = width;
+    const char *p = strval;
+    while (pad > 0 && *(p++) != 0) pad--;
     if (!flags.fl_leftfmt && (flags.fl_leadzero || flags.fl_leadspace)) {
       c = flags.fl_leadzero ? '0' : ' ';
       while (pad-- > 0) printf_putc(str, &size, &out_len, c);

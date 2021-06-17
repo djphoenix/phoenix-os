@@ -2,7 +2,8 @@
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
 #pragma once
-#include "std.hpp"
+
+#include <stdint.h>
 
 template<uint16_t port> struct Port {
   inline static uint8_t in8() {

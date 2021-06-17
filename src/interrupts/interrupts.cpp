@@ -6,9 +6,10 @@
 #include "pagetable.hpp"
 #include "list.hpp"
 
-#include "kernlib/mem.hpp"
-#include "kernlib/ports.hpp"
-#include "kernlib/sprintf.hpp"
+#include "memop.hpp"
+#include "portio.hpp"
+#include "sprintf.hpp"
+#include "kprint.hpp"
 
 struct Interrupts::Handler {
   // 48 83 ec 00     sub    ${subrsp}, rsp
@@ -223,10 +224,10 @@ void __attribute__((sysv_abi)) __attribute__((used)) Interrupts::handle(
     for (;;) asm volatile("hlt");
   } else if (intr == 0x21) {
     snprintf(printbuf, sizeof(printbuf), "KBD %02xh\n", Port<0x60>::in8());
-    klib::puts(printbuf);
+    kprint(printbuf);
   } else if (intr != 0x20) {
     snprintf(printbuf, sizeof(printbuf), "INT %02xh\n", intr);
-    klib::puts(printbuf);
+    kprint(printbuf);
   }
 }
 void Interrupts::init() {
@@ -244,7 +245,7 @@ void Interrupts::init() {
   gdt->ents[4] = GDT::Entry(0, 0xFFFFFFFFFFFFFFFF, 0xA, 3, 1, 1, 0, 1, 0, 1);
 
   size_t tss_size = sizeof(TSS64_ENT) * ncpu;
-  size_t tss_size_pad = klib::__align(tss_size, 0x1000);
+  size_t tss_size_pad = (tss_size + 0xFFF) & (~0xFFFllu);
   uint8_t *tssbuf = reinterpret_cast<uint8_t*>(Pagetable::alloc(2 + tss_size_pad / 0x1000, Pagetable::MemoryType::DATA_RW));
   uint8_t *tsstop = tssbuf + tss_size_pad;
   Memory::fill(tsstop, 0xFF, 0x2000);

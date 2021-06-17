@@ -7,8 +7,8 @@
 #include "cpu.hpp"
 #include "pagetable.hpp"
 
-#include "kernlib/mem.hpp"
-#include "kernlib/ports.hpp"
+#include "memop.hpp"
+#include "portio.hpp"
 
 ACPI ACPI::controller {};
 

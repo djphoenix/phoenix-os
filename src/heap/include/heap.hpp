@@ -5,7 +5,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include "kernlib/mutex.hpp"
+#include "mutex.hpp"
 
 class Heap {
  private:

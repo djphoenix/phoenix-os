@@ -1,1 +1,1 @@
-target_link_libraries(cpuid PRIVATE kernlib)
+target_link_libraries(cpuid PRIVATE sprintf)

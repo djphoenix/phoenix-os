@@ -7,7 +7,8 @@
 #include "multiboot_info.hpp"
 #include "scheduler.hpp"
 
-#include "kernlib/sprintf.hpp"
+#include "sprintf.hpp"
+#include "kprint.hpp"
 
 ModuleManager ModuleManager::manager;
 
@@ -80,15 +81,22 @@ static inline bool parseCPUID(const char *str, uint32_t *func, enum cpuid_reg *r
   return 1;
 }
 
+static inline const char* strprefix(const char *str, const char *prefix) {
+  for (;; str++, prefix++) {
+    if (*prefix == 0) return str;
+    if (*str != *prefix) return nullptr;
+  }
+}
+
 bool ModuleManager::bindRequirement(const char *req, Process *process) {
-  if (klib::strncmp(req, "port/", 5) == 0) {
+  if (const char *nr = strprefix(req, "port/")) {
     uint16_t minport = 0, maxport = 0;
-    if (!parsePort(req + 5, &minport, &maxport)) return 0;
+    if (!parsePort(nr, &minport, &maxport)) return 0;
     process->allowIOPorts(minport, maxport);
     return 1;
-  } else if (klib::strncmp(req, "cpuid/", 6) == 0) {
+  } else if (const char *nr = strprefix(req, "cpuid/")) {
     uint32_t func = 0; uint8_t bit = 0; enum cpuid_reg reg;
-    if (!parseCPUID(req + 6, &func, &reg, &bit)) return 0;
+    if (!parseCPUID(nr, &func, &reg, &bit)) return 0;
     if (func & 0x0000FFFF) {
       uint32_t maxfunc = 0;
       asm volatile("cpuid":"=a"(maxfunc):"a"(uint32_t(func & 0xFFFF0000)):"ecx", "ebx", "edx");
@@ -119,7 +127,7 @@ bool ModuleManager::bindRequirements(const char *reqs, Process *process) {
     if (!bindRequirement(r.get(), process)) {
       char printbuf[80];
       snprintf(printbuf, sizeof(printbuf), "Unsatisfied requirement: %s\n", r.get());
-      klib::puts(printbuf);
+      kprint(printbuf);
       return 0;
     }
   }

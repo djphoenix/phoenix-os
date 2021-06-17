@@ -2,7 +2,7 @@
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
 #include "cpu.hpp"
-#include "kernlib/sprintf.hpp"
+#include "sprintf.hpp"
 
 uint32_t CPU::vendor[4] {};
 uint32_t CPU::brandString[13] {};

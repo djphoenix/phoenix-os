@@ -2,7 +2,7 @@
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
 #pragma once
-#include "kernlib/mutex.hpp"
+#include "mutex.hpp"
 #include "efi.hpp"
 
 struct DTREG {
@@ -51,9 +51,9 @@ class Pagetable {
     uintptr_t _ptr :51;
     uint8_t nx :1;
 
-    uintptr_t getUintPtr() const { return _ptr << 12; }
-    void *getPtr() const { return reinterpret_cast<void*>(getUintPtr()); }
-    Entry *getPTE() const { return static_cast<Entry*>(getPtr()); }
+    inline uintptr_t getUintPtr() const { return _ptr << 12; }
+    inline void *getPtr() const { return reinterpret_cast<void*>(getUintPtr()); }
+    inline Entry *getPTE() const { return static_cast<Entry*>(getPtr()); }
 
     constexpr Entry(): flags(0), rsvd(0), avl(0), _ptr(0), nx(0) {}
     #pragma GCC diagnostic push

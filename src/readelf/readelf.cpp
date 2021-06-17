@@ -4,8 +4,9 @@
 #include "readelf.hpp"
 #include "readelf_internal.hpp"
 
-#include "kernlib/mem.hpp"
-#include "kernlib/sprintf.hpp"
+#include "memop.hpp"
+#include "sprintf.hpp"
+#include "kprint.hpp"
 
 static uintptr_t readelf_find_load_addr(Process *process, uintptr_t start, uintptr_t faddr) {
   ELF::HDR elf;
@@ -142,7 +143,7 @@ static bool readelf_dylink_process_reloc(Process *process, KernelLinker *linker,
 
   if (!allownull && addr == 0) {
     snprintf(printbuf, sizeof(printbuf), "Cannot link symbol: %s\n", name.get());
-    klib::puts(printbuf);
+    kprint(printbuf);
     return 0;
   }
 
@@ -154,7 +155,7 @@ static bool readelf_dylink_process_reloc(Process *process, KernelLinker *linker,
       break;
     default:
       snprintf(printbuf, sizeof(printbuf), "UNHANDLED REL@%#lx: %x => %x+%#lx\n", ent.addr, ent.type, ent.sym, ent.add);
-      klib::puts(printbuf);
+      kprint(printbuf);
       return 0;
   }
   return 1;
@@ -288,7 +289,7 @@ static bool readelf_dylink_handle_dynamic_table(Process *process, KernelLinker *
       default:
         char printbuf[80];
         snprintf(printbuf, sizeof(printbuf), "Unhandled DYN%03lu: %016lx\n", dyn.tag, dyn.val);
-        klib::puts(printbuf);
+        kprint(printbuf);
         break;
     }
   }

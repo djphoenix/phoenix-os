@@ -9,6 +9,7 @@ SET_PROPERTY(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS TRUE)
 set(SRCDIR "${CMAKE_SOURCE_DIR}/src")
 
 include(cmake/compiler.cmake)
+include(cmake/kerndirs.cmake)
 include(cmake/modules.cmake)
 include(cmake/kernel.cmake)
 include(cmake/deps.cmake)

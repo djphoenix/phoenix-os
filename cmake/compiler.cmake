@@ -39,7 +39,8 @@ check_add_cxx_compiler_flag("-Wanalyzer-too-complex" HAVE_WANALYZER_TOO_COMPLEX)
 check_add_cxx_compiler_flag("-Wno-error=analyzer-too-complex" HAVE_WNOERR_ANALYZER_TOO_COMPLEX)
 check_add_cxx_compiler_flag("-Wno-error=analyzer-possible-null-argument" HAVE_WNOERR_ANALYZER_POSSIBLE_NULL_ARGUMENT)
 check_add_cxx_compiler_flag("-Wno-error=analyzer-possible-null-dereference" HAVE_WNOERR_ANALYZER_POSSIBLE_NULL_DEREFERENCE)
-check_add_cxx_compiler_flag("-Wno-error=analyzer-malloc-leak" HAVE_WNOERR_ANALYZER_POSSIBLE_NULL_DEREFERENCE)
+check_add_cxx_compiler_flag("-Wno-error=analyzer-null-dereference" HAVE_WNOERR_ANALYZER_NULL_DEREFERENCE)
+check_add_cxx_compiler_flag("-Wno-error=analyzer-malloc-leak" HAVE_WNOERR_ANALYZER_MALLOC_LEAK)
 
 check_add_cxx_compiler_flag("-Wall" HAVE_WALL)
 check_add_cxx_compiler_flag("-Wextra" HAVE_WEXTRA)
@@ -64,6 +65,7 @@ check_add_cxx_compiler_flag("-Wformat-signedness" HAVE_WFORMAT_SIGNEDNESS)
 check_add_cxx_compiler_flag("-Wformat-truncation=2" HAVE_WFORMAT_TRUNCATION2)
 
 check_add_cxx_compiler_flag("-Wnull-dereference" HAVE_WNULL_DEREFERENCE)
+check_add_cxx_compiler_flag("-Wno-error=null-dereference" HAVE_WNOERR_NULL_DEREFERENCE)
 check_add_cxx_compiler_flag("-Wuninitialized" HAVE_WUNITIALIZED)
 check_add_cxx_compiler_flag("-Wimplicit-fallthrough=2" HAVE_WIMPLICIT_FALLTHROUGH)
 

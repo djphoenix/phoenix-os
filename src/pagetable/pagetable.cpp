@@ -5,8 +5,9 @@
 #include "efi.hpp"
 #include "multiboot_info.hpp"
 
-#include "kernlib/std.hpp"
-#include "kernlib/mem.hpp"
+#include "sprintf.hpp"
+#include "kprint.hpp"
+#include "memop.hpp"
 #include "rand.hpp"
 
 using PTE = Pagetable::Entry;
@@ -35,8 +36,10 @@ static void *efiAllocatePages(uintptr_t min, size_t count, const struct EFI::Sys
     if (ent->Type != EFI::MEMORY_TYPE_CONVENTIONAL) continue;
     uintptr_t end = ent->PhysicalStart + ent->NumberOfPages * 0x1000;
     if (end <= min) continue;
-    if (end - klib::max(min, uintptr_t(ent->PhysicalStart)) <= count * 0x1000) continue;
-    ptr = reinterpret_cast<void*>(klib::max(min, uintptr_t(ent->PhysicalStart)));
+    uintptr_t beg = ent->PhysicalStart;
+    if (beg < min) beg = min;
+    if ((end - beg) <= count * 0x1000) continue;
+    ptr = reinterpret_cast<void*>(beg);
     break;
   }
   ST->BootServices->FreePool(map);
@@ -76,8 +79,8 @@ static void efiMapPage(PTE *pagetable, const void *page,
 
 static void fillPagesEfi(uintptr_t low, uintptr_t top, PTE *pagetable,
                          const struct EFI::SystemTable_t *ST, Pagetable::MemoryType type) {
-  low &= 0xFFFFFFFFFFFFF000;
-  top = klib::__align(top, 0x1000);
+  low &= ~0xFFFllu;
+  top = (top + 0xFFF) & (~0xFFFllu);
   for (; low < top; low += 0x1000) {
     efiMapPage(pagetable, reinterpret_cast<void*>(low), ST, type);
   }
@@ -140,7 +143,8 @@ void __attribute__((always_inline)) Pagetable::initEFI(const EFI::SystemTable_t 
   for (EFI::MemoryDescriptor *ent = map;
       ent < reinterpret_cast<EFI::MemoryDescriptor*>(uintptr_t(map) + mapSize);
       ent = reinterpret_cast<EFI::MemoryDescriptor*>(uintptr_t(ent) + entSize)) {
-    max_page = klib::max(max_page, uintptr_t((ent->PhysicalStart >> 12) + ent->NumberOfPages));
+    uintptr_t enttop = uintptr_t((ent->PhysicalStart >> 12) + ent->NumberOfPages);
+    if (max_page < enttop) max_page = enttop;
   }
   ST->BootServices->FreePool(map); map = nullptr;
 
@@ -248,7 +252,7 @@ void __attribute__((always_inline)) Pagetable::initMB(Entry **newpt, uint8_t **n
 
   static const size_t stack_size = 0x1000;
   const uint8_t *rsp; asm volatile("mov %%rsp, %q0":"=r"(rsp));
-  rsp = reinterpret_cast<uint8_t*>(klib::__align(uintptr_t(rsp), 0x1000));
+  rsp = reinterpret_cast<uint8_t*>((uintptr_t(rsp) + 0xFFF) & (~0xFFFllu));
   _map(rsp - stack_size, rsp, MemoryType::DATA_RW, *newpt);
 
 #if KERNEL_NOASLR
@@ -314,17 +318,14 @@ void Pagetable::init() {
         multiboot->mods.paddr = uint32_t(uintptr_t(__bss_end__) + multiboot->mods.paddr);
 
       uintptr_t low = uintptr_t(multiboot->mods.paddr) & 0xFFFFFFFFFFFFF000;
-      uintptr_t top = klib::__align(
-          uintptr_t(multiboot->mods.paddr) +
-          multiboot->mods.count * sizeof(Multiboot::Module),
-          0x1000);
+      uintptr_t top = (uintptr_t(multiboot->mods.paddr) + multiboot->mods.count * sizeof(Multiboot::Module) + 0xFFF) & (~0xFFFllu);
       _map(reinterpret_cast<void*>(low), reinterpret_cast<void*>(top), MemoryType::DATA_RW, newpt);
 
       const Multiboot::Module *mods =
           reinterpret_cast<Multiboot::Module*>(uintptr_t(multiboot->mods.paddr));
       for (uint32_t i = 0; i < multiboot->mods.count; i++) {
         uintptr_t low = mods[i].start;
-        uintptr_t top = klib::__align(mods[i].end, 0x1000);
+        uintptr_t top = (mods[i].end + 0xFFF) & (~0xFFFllu);
         _map(reinterpret_cast<void*>(low), reinterpret_cast<void*>(top), MemoryType::DATA_RW, newpt);
       }
     }
@@ -340,11 +341,11 @@ void Pagetable::init() {
         Multiboot::MmapEnt *ent = reinterpret_cast<Multiboot::MmapEnt*>(mmap);
         _map(ent, ent + 1, MemoryType::DATA_RO, newpt);
         uintptr_t low = uintptr_t(ent->base) & 0xFFFFFFFFFFFFF000;
-        uintptr_t top = klib::__align(uintptr_t(ent->base) + ent->length, 0x1000);
+        uintptr_t top = (uintptr_t(ent->base) + ent->length + 0xFFF) & (~0xFFFllu);
         if (ent->type != Multiboot::MemoryType::MEMORY_AVAILABLE) {
           _map(reinterpret_cast<void*>(low), reinterpret_cast<void*>(top), MemoryType::DATA_RO, newpt);
-        } else {
-          max_page = klib::max(max_page, top >> 12);
+        } else if (max_page < (top >> 12)) {
+          max_page = (top >> 12);
         }
         mmap += ent->size + sizeof(ent->size);
       }
@@ -368,7 +369,7 @@ void Pagetable::init() {
 
 void* Pagetable::_getRsvd() {
   if (rsvd_r == rsvd_w) [[unlikely]] {
-    klib::puts("OUT OF RSVD\n"); for (;;);
+    kprint("OUT OF RSVD\n"); for (;;);
     return nullptr;
   }
   void *addr = rsvd_pages[rsvd_r];

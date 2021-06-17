@@ -4,8 +4,7 @@
 #pragma once
 #include "heap.hpp"
 
-#include "kernlib/mem.hpp"
-#include "kernlib/std.hpp"
+#include "memop.hpp"
 
 template<typename Item>
 class List {
@@ -13,13 +12,14 @@ class List {
   Item *items = nullptr;
   size_t count = 0;
   size_t capacity = 0;
+  static constexpr size_t cap_inc = sizeof(Item) < 256 ? 1 : (256 / sizeof(Item));
 
  public:
   ~List() { Heap::free(items); }
 
   inline Item& insert() {
     if (count == capacity) {
-      capacity += klib::max(256 / sizeof(Item), size_t(1));
+      capacity += cap_inc;
       items = static_cast<Item*>(Heap::realloc(items, sizeof(Item) * capacity));
     }
     return items[count++];

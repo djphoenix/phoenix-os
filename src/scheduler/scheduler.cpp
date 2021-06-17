@@ -7,8 +7,8 @@
 
 #include "acpi.hpp"
 
-#include "kernlib/std.hpp"
-#include "kernlib/sprintf.hpp"
+#include "sprintf.hpp"
+#include "kprint.hpp"
 
 void __attribute((naked)) Scheduler::process_loop() {
   asm volatile(
@@ -138,7 +138,7 @@ void Scheduler::PrintFault(uint8_t num, Interrupts::CallbackRegs *regs, uint32_t
   *(printbuf_ptr++) = '\n';
   *(printbuf_ptr++) = '\n';
   *(printbuf_ptr++) = 0;
-  klib::puts(printbuf);
+  kprint(printbuf);
 }
 
 bool Scheduler::HandleFault(uint8_t intr, uint32_t code, Interrupts::CallbackRegs *regs) {
@@ -186,7 +186,8 @@ uint64_t Scheduler::registerProcess(Process *process) {
   Mutex::CriticalLock lock(processSwitchMutex);
   uint64_t pid = 1;
   for (size_t i = 0; i < processes.getCount(); i++) {
-    pid = klib::max(pid, processes[i]->getId() + 1);
+    size_t ipid = processes[i]->getId();
+    if (ipid >= pid) pid = ipid + 1;
   }
   process->id = pid;
   processes.add(process);

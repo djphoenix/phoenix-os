@@ -4,7 +4,7 @@
 #pragma once
 
 #include <stddef.h>
-#include "kernlib/mutex.hpp"
+#include "mutex.hpp"
 
 #include "thread.hpp"
 

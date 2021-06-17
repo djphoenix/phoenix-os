@@ -4,7 +4,7 @@
 #pragma once
 
 #include <stdint.h>
-#include "kernlib/mutex.hpp"
+#include "mutex.hpp"
 
 class ACPI {
  public:

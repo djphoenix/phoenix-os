@@ -2,7 +2,9 @@
 //    Copyright © 2017 Yury Popov a.k.a. PhoeniX
 
 #pragma once
-#include "std.hpp"
+
+#include <stddef.h>
+#include <stdarg.h>
 
 int snprintf(char *str, size_t size, const char *format, ...)
   __attribute__((format(printf, 3, 4)));

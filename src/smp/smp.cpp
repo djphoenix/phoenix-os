@@ -6,7 +6,7 @@
 #include "pagetable.hpp"
 #include "scheduler.hpp"
 #include "syscall.hpp"
-#include "kernlib/mem.hpp"
+#include "memop.hpp"
 
 class SMP {
  private:

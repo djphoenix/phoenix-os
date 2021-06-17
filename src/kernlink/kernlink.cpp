@@ -5,8 +5,7 @@
 #include "interrupts.hpp"
 #include "process.hpp"
 
-#include "kernlib/std.hpp"
-#include "kernlib/mem.hpp"
+#include "memop.hpp"
 #include "rand.hpp"
 
 struct ProcessSymbol {
@@ -14,12 +13,19 @@ struct ProcessSymbol {
   char* name;
 };
 
+static inline bool streq(const char* a, const char* b) {
+  for (;; a++, b++) {
+    if (*a != *b) return false;
+    if (*a == 0) return true;
+  }
+}
+
 void KernelLinker::addSymbol(const char *name, uintptr_t ptr) {
   symbols.insert() = { ptr, klib::strdup(name) };
 }
 uintptr_t KernelLinker::getSymbolByName(const char* name) const {
   for (size_t i = 0; i < symbols.getCount(); i++) {
-    if (klib::strcmp(symbols[i].name, name) == 0)
+    if (streq(symbols[i].name, name))
       return symbols[i].ptr;
   }
   return 0;
@@ -38,21 +44,21 @@ struct SyscallEntry {
   explicit constexpr SyscallEntry(uint64_t idx) : syscall_id(idx) {}
 } __attribute__((packed));
 uintptr_t KernelLinker::linkLibrary(const char* funcname) {
-  if (klib::strcmp(funcname, "kptr_acpi_rsdp") == 0) {
+  if (streq(funcname, "kptr_acpi_rsdp")) {
     return uintptr_t(ACPI::getController()->getRSDPAddr());
   }
 
   uintptr_t ptr = getSymbolByName(funcname);
   if (ptr != 0) return ptr;
 
-  if (klib::strcmp(funcname, "__stack_chk_guard") == 0) {
+  if (streq(funcname, "__stack_chk_guard")) {
     uint64_t rnd = RAND::get<uint64_t>();
     uintptr_t page = process->addSection(0, SectionTypeData, sizeof(rnd));
     process->writeData(page, &rnd, sizeof(rnd));
     addSymbol(funcname, page);
     return page;
   }
-  if (klib::strcmp(funcname, "__stack_chk_fail") == 0) {
+  if (streq(funcname, "__stack_chk_fail")) {
     static const constexpr size_t countInPage = 0x1000 / sizeof(SyscallEntry);
     if (_syscallPage == 0 || _syscallNum == countInPage) {
       _syscallPage = process->addSection(0, SectionTypeCode, sizeof(SyscallEntry) * countInPage);
@@ -67,11 +73,6 @@ uintptr_t KernelLinker::linkLibrary(const char* funcname) {
   uint64_t syscall_id;
   if ((syscall_id = Syscall::callByName(funcname)) != 0) {
     static const constexpr size_t countInPage = 0x1000 / sizeof(SyscallEntry);
-    if (!_syscallPage) {
-      uintptr_t sc_wrapper = uintptr_t(Syscall::wrapper) & (~0xFFFllu);
-      process->addPage(sc_wrapper, reinterpret_cast<void*>(sc_wrapper), Pagetable::MemoryType::CODE_RX);
-      process->addPage(sc_wrapper + 0x1000, reinterpret_cast<void*>(sc_wrapper + 0x1000), Pagetable::MemoryType::CODE_RX);
-    }
     if (_syscallPage == 0 || _syscallNum == countInPage) {
       _syscallPage = process->addSection(0, SectionTypeCode, sizeof(SyscallEntry) * countInPage);
       _syscallNum = 0;
@@ -112,6 +113,11 @@ void KernelLinker::prepareToStart() {
   uintptr_t handler = uintptr_t(Interrupts::wrapper) & KB4;
   process->addPage(handler, reinterpret_cast<void*>(handler), Pagetable::MemoryType::CODE_RX);
   process->addPage(handler + 0x1000, reinterpret_cast<void*>(handler + 0x1000), Pagetable::MemoryType::CODE_RX);
+
+  uintptr_t sc_wrapper = uintptr_t(Syscall::wrapper) & KB4;
+  process->addPage(sc_wrapper, reinterpret_cast<void*>(sc_wrapper), Pagetable::MemoryType::CODE_RX);
+  process->addPage(sc_wrapper + 0x1000, reinterpret_cast<void*>(sc_wrapper + 0x1000), Pagetable::MemoryType::CODE_RX);
+
   GDT::Entry *gdt_ent = reinterpret_cast<GDT::Entry*>(uintptr_t(gdt.addr) + 8 * 3);
   GDT::Entry *gdt_top = reinterpret_cast<GDT::Entry*>(uintptr_t(gdt.addr) + gdt.limit);
 

@@ -1,1 +1,1 @@
-target_link_libraries(boot PRIVATE bootinfo kernlib platform pagetable interrupts smp syscall moduleloader scheduler)
+target_link_libraries(boot PRIVATE bootinfo rand platform pagetable acpi interrupts scheduler smp syscall moduleloader)

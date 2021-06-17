@@ -1,6 +1,6 @@
-#include "kernlib/std.hpp"
-#include "kernlib/mutex.hpp"
-#include "kernlib/ports.hpp"
+#include "kprint.hpp"
+#include "portio.hpp"
+#include "mutex.hpp"
 
 class SerialConsole {
  private:
@@ -38,8 +38,6 @@ void SerialConsole::setup() {
 
 SerialConsole SerialConsole::instance;
 
-extern "C" {
-  void puts(const char *str) {
-    SerialConsole::instance.write(str);
-  }
+void kprint(const char *str) {
+  SerialConsole::instance.write(str);
 }

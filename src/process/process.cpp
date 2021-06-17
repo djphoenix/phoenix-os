@@ -4,8 +4,8 @@
 #include "process.hpp"
 #include "thread.hpp"
 
-#include "kernlib/mem.hpp"
-#include "kernlib/sprintf.hpp"
+#include "memop.hpp"
+#include "sprintf.hpp"
 #include "rand.hpp"
 
 using PTE = Pagetable::Entry;
@@ -133,11 +133,11 @@ void Process::writeData(uintptr_t address, const void* src, size_t size) {
   while (size > 0) {
     void *dest = getPhysicalAddress(address);
     size_t limit = 0x1000 - (uintptr_t(dest) & 0xFFF);
-    size_t count = klib::min(size, limit);
-    Memory::copy(dest, ptr, count);
-    size -= count;
-    ptr += count;
-    address += count;
+    if (limit > size) limit = size;
+    Memory::copy(dest, ptr, limit);
+    size -= limit;
+    ptr += limit;
+    address += limit;
   }
 }
 bool Process::readData(void* dst, uintptr_t address, size_t size) const {
@@ -146,11 +146,11 @@ bool Process::readData(void* dst, uintptr_t address, size_t size) const {
     void *src = getPhysicalAddress(address);
     if (!src) return false;
     size_t limit = 0x1000 - (uintptr_t(src) & 0xFFF);
-    size_t count = klib::min(size, limit);
-    Memory::copy(ptr, src, count);
-    size -= count;
-    ptr += count;
-    address += count;
+    if (limit > size) limit = size;
+    Memory::copy(ptr, src, limit);
+    size -= limit;
+    ptr += limit;
+    address += limit;
   }
   return true;
 }
