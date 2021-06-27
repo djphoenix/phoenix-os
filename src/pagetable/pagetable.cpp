@@ -406,10 +406,20 @@ void* Pagetable::_map(const void* low, const void* top, MemoryType type, PTE *pa
     if (!pde->present) *pde = PTE(_getRsvd(), MemoryType::TABLE);
 
     if (pdpe == nullptr) [[unlikely]] pdpe = pde->getPTE() + pdpx;
-    if (!pdpe->present) *pdpe = PTE(_getRsvd(), MemoryType::TABLE);
 
-    if (pml4e == nullptr) [[unlikely]] pml4e = pdpe->getPTE() + pml4x;
-    *pml4e = newent;
+    if (pml4x == 0 && (itop - newent._ptr) >= 0x200) {
+      pdpe->flags = newent.flags;
+      pdpe->size = 1;
+      pdpe->_ptr = newent._ptr;
+      newent._ptr += 0x1FF;
+      pml4x = 0x1FF;
+      pml4e = nullptr;
+    } else {
+      if (!pdpe->present) *pdpe = PTE(_getRsvd(), MemoryType::TABLE);
+
+      if (pml4e == nullptr) [[unlikely]] pml4e = pdpe->getPTE() + pml4x;
+      *pml4e = newent;
+    }
 
     if (rsvd_r == rsvd_w) _renewRsvd(pagetable);
 
@@ -460,10 +470,42 @@ void* Pagetable::_alloc(bool low, size_t count, MemoryType type, PTE *pagetable)
   return addr;
 }
 
+void* Pagetable::_halloc(size_t count, MemoryType type, PTE *pagetable) {
+  uint8_t *addr = nullptr;
+  uintptr_t i, ii;
+  i = (last_page + 0x1FF) >> 9;
+  for (;;) {
+    if (i + count >= max_page) return nullptr;
+    addr = reinterpret_cast<uint8_t*>(i << 21);
+    bool found = 1;
+    for (ii = 0; ii < (count << 9); ii++) {
+      PTE *page = PTE::find(addr + (ii << 12), pagetable);
+      if (page && page->present) {
+        found = 0; i += ii; break;
+      }
+    }
+    if (found) break;
+    i++;
+  }
+
+  _map(addr, addr + (count << 21), type, pagetable);
+  Memory::zero_aligned(addr, count * 0x1000);
+  return addr;
+}
+
 void* Pagetable::alloc(size_t count, MemoryType type) {
+  if (count >= 0x200 && (count & 0x1FF) == 0) return halloc(count >> 9, type);
   Mutex::CriticalLock lock(page_mutex);
   PTE *pagetable; asm volatile("mov %%cr3, %q0":"=r"(pagetable));
   void *addr = _alloc(false, count, type, pagetable);
+  _renewRsvd(pagetable);
+  return addr;
+}
+
+void* Pagetable::halloc(size_t count, MemoryType type) {
+  Mutex::CriticalLock lock(page_mutex);
+  PTE *pagetable; asm volatile("mov %%cr3, %q0":"=r"(pagetable));
+  void *addr = _halloc(count, type, pagetable);
   _renewRsvd(pagetable);
   return addr;
 }

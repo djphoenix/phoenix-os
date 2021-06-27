@@ -27,6 +27,7 @@ Scheduler Scheduler::scheduler {};
 
 void Scheduler::setup() { scheduler.init(); }
 void Scheduler::init() {
+  m_pid = 0;
   uint64_t cpus = ACPI::getController()->getCPUCount();
   cpuThreads = new QueuedThread*[cpus]();
   Interrupts::addCallback(0x20, &Scheduler::TimerHandler);
@@ -174,7 +175,7 @@ uint64_t Scheduler::registerProcess(Process *process) {
   thread->rip = process->entry;
   thread->sse.sse[3] = 0x0000ffff00001F80llu;
   thread->rflags = 0;
-  thread->stack_top = process->addSection(0, SectionTypeStack, 0x7FFF) + 0x8000 - 8;
+  thread->stack_top = process->addSection(0, SectionTypeStack, 0x1FFFFF) + 0x200000 - 0x10;
   thread->rsp = thread->stack_top;
   thread->suspend_ticks = 0;
 
@@ -184,7 +185,7 @@ uint64_t Scheduler::registerProcess(Process *process) {
   q->next = nullptr;
 
   Mutex::CriticalLock lock(processSwitchMutex);
-  uint64_t pid = 1;
+  uint64_t pid = ++m_pid;
   for (size_t i = 0; i < processes.getCount(); i++) {
     size_t ipid = processes[i]->getId();
     if (ipid >= pid) pid = ipid + 1;
@@ -200,11 +201,6 @@ uint64_t Scheduler::registerProcess(Process *process) {
 
 void __attribute__((noreturn)) Scheduler::exitProcess(Process *process, int code) {
   (void)code;  // TODO: handle
-
-  void *rsp;
-  Pagetable::Entry *pt;
-  asm("mov %%rsp, %0; and $(~0xFFF), %0; mov %%cr3, %1":"=r"(rsp),"=r"(pt));
-  uintptr_t rspt = Pagetable::Entry::find(rsp, pt)->getUintPtr();
 
   {
     Mutex::CriticalLock lock(processSwitchMutex);
@@ -235,9 +231,9 @@ void __attribute__((noreturn)) Scheduler::exitProcess(Process *process, int code
     for (size_t i = processes.getCount(); i > 0; i--) {
       if (processes[i-1] == process) processes.remove(i-1);
     }
-    delete process;
   }
-  asm("sti; movq $0, (%0); xor %%rbp, %%rbp"::"r"(rspt));
+  delete process;
+  asm("sti; xor %rbp, %rbp");
   process_loop();
 }
 

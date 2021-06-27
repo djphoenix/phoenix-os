@@ -25,6 +25,7 @@ class Process {
 
   uintptr_t _aslrCode, _aslrStack;
   Pagetable::Entry* addPage(uintptr_t vaddr, void* paddr, Pagetable::MemoryType type);
+  Pagetable::Entry* addHPage(uintptr_t vaddr, void* paddr, Pagetable::MemoryType type);
 
   friend class KernelLinker;
   friend class Scheduler;

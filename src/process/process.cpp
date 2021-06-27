@@ -13,12 +13,11 @@ using PTE = Pagetable::Entry;
 Process::Process() :
     id(uint64_t(-1)), name(nullptr), entry(0),
     pagetable(nullptr), iomap { nullptr, nullptr },
-    _aslrCode(RAND::get<uintptr_t>(0x80000000llu, 0x100000000llu) << 12),
-    _aslrStack(RAND::get<uintptr_t>(0x40000000llu, 0x80000000llu) << 12)
+    _aslrCode (RAND::get<uintptr_t>(0x400000llu, 0x800000llu) << 21),
+    _aslrStack(RAND::get<uintptr_t>(0x200000llu, 0x400000llu) << 21)
 {}
 
 Process::~Process() {
-  void *rsp; asm volatile("mov %%rsp, %q0; and $~0xFFF, %q0":"=r"(rsp));
   for (size_t i = 0; i < threads.getCount(); i++) delete threads[i];
   if (iomap[0]) Pagetable::free(iomap[0]);
   if (iomap[1]) Pagetable::free(iomap[1]);
@@ -28,30 +27,44 @@ Process::~Process() {
       addr = pagetable[ptx];
       if (!addr.present)
         continue;
+      pagetable[ptx].present = 0;
       PTE *ppde = addr.getPTE();
       for (uintptr_t pdx = 0; pdx < 512; pdx++) {
         addr = ppde[pdx];
         if (!addr.present)
           continue;
+        ppde[pdx].present = 0;
         PTE *pppde = addr.getPTE();
         for (uintptr_t pdpx = 0; pdpx < 512; pdpx++) {
           addr = pppde[pdpx];
           if (!addr.present)
             continue;
-          PTE *ppml4e = addr.getPTE();
-          for (uintptr_t pml4x = 0; pml4x < 512; pml4x++) {
-            addr = ppml4e[pml4x];
-            if (!addr.present)
-              continue;
+          pppde[pdpx].present = 0;
+          if (addr.size == 0) {
+            PTE *ppml4e = addr.getPTE();
+            for (uintptr_t pml4x = 0; pml4x < 512; pml4x++) {
+              addr = ppml4e[pml4x];
+              if (!addr.present)
+                continue;
+              ppml4e[pml4x].present = 0;
+              void *page = addr.getPtr();
+              uintptr_t ptaddr = ((ptx << (12 + 9 + 9 + 9))
+                  | (pdx << (12 + 9 + 9))
+                  | (pdpx << (12 + 9)) | (pml4x << (12)));
+              if (page == iomap[0]) continue;
+              if (page == iomap[1]) continue;
+              if (uintptr_t(page) == ptaddr) continue;
+              Pagetable::free(page);
+            }
+            Pagetable::free(ppml4e);
+          } else {
             void *page = addr.getPtr();
             uintptr_t ptaddr = ((ptx << (12 + 9 + 9 + 9))
                 | (pdx << (12 + 9 + 9))
-                | (pdpx << (12 + 9)) | (pml4x << (12)));
-            if (page == rsp) continue;
+                | (pdpx << (12 + 9)));
             if (uintptr_t(page) == ptaddr) continue;
             Pagetable::free(page);
           }
-          Pagetable::free(ppml4e);
         }
         Pagetable::free(pppde);
       }
@@ -89,6 +102,29 @@ PTE* Process::addPage(uintptr_t vaddr, void* paddr, Pagetable::MemoryType type) 
   return &pml4e[pml4x];
 }
 
+PTE* Process::addHPage(uintptr_t vaddr, void* paddr, Pagetable::MemoryType type) {
+  uint16_t ptx = (vaddr >> (12 + 9 + 9 + 9)) & 0x1FF;
+  uint16_t pdx = (vaddr >> (12 + 9 + 9)) & 0x1FF;
+  uint16_t pdpx = (vaddr >> (12 + 9)) & 0x1FF;
+  if (pagetable == nullptr) {
+    pagetable = static_cast<PTE*>(Pagetable::alloc(1, Pagetable::MemoryType::DATA_RW));
+    addPage(uintptr_t(pagetable), pagetable, Pagetable::MemoryType::USER_TABLE);
+  }
+  if (!pagetable[ptx].present) {
+    pagetable[ptx] = PTE(Pagetable::alloc(1, Pagetable::MemoryType::DATA_RW), Pagetable::MemoryType::USER_TABLE);
+    addPage(pagetable[ptx].getUintPtr(), pagetable[ptx].getPtr(), Pagetable::MemoryType::USER_TABLE);
+  }
+  PTE *pde = pagetable[ptx].getPTE();
+  if (!pde[pdx].present) {
+    pde[pdx] = PTE(Pagetable::alloc(1, Pagetable::MemoryType::DATA_RW), Pagetable::MemoryType::USER_TABLE);
+    addPage(pde[pdx].getUintPtr(), pde[pdx].getPtr(), Pagetable::MemoryType::USER_TABLE);
+  }
+  PTE *pdpe = pde[pdx].getPTE();
+  pdpe[pdpx] = PTE(paddr, type);
+  pdpe[pdpx].size = 1;
+  return &pdpe[pdpx];
+}
+
 uintptr_t Process::addSection(uintptr_t offset, SectionType type, size_t size) {
   if (size == 0)
     return 0;
@@ -107,7 +143,7 @@ uintptr_t Process::addSection(uintptr_t offset, SectionType type, size_t size) {
     }
   }
   uintptr_t addr = vaddr;
-  while (pages-- > 0) {
+  while (pages > 0) {
     Pagetable::MemoryType ptype;
     switch (type) {
       case SectionTypeCode: ptype = Pagetable::MemoryType::USER_CODE_RX; break;
@@ -120,8 +156,15 @@ uintptr_t Process::addSection(uintptr_t offset, SectionType type, size_t size) {
         ptype = Pagetable::MemoryType::USER_DATA_RW;
         break;
     }
-    addPage(vaddr, Pagetable::alloc(1, Pagetable::MemoryType::DATA_RW), ptype);
-    vaddr += 0x1000;
+    if ((vaddr & 0x1FFFFF) == 0 && pages >= 0x200) {
+      addHPage(vaddr, Pagetable::halloc(1, Pagetable::MemoryType::DATA_RW), ptype);
+      vaddr += 0x200000;
+      pages -= 0x200;
+    } else {
+      addPage(vaddr, Pagetable::alloc(1, Pagetable::MemoryType::DATA_RW), ptype);
+      vaddr += 0x1000;
+      pages--;
+    }
   }
   return addr;
 }
@@ -178,9 +221,9 @@ char *Process::readString(uintptr_t address) const {
 void *Process::getPhysicalAddress(uintptr_t ptr) const {
   if (pagetable == nullptr)
     return nullptr;
-  uintptr_t off = ptr & 0xFFF;
   PTE *addr = PTE::find(ptr, pagetable);
   if (!addr || !addr->present) return nullptr;
+  uintptr_t off = ptr & (addr->size ? 0x1FFFFF : 0xFFF);
   return reinterpret_cast<void*>(addr->getUintPtr() + off);
 }
 void Process::allowIOPorts(uint16_t min, uint16_t max) {
@@ -208,6 +251,8 @@ size_t Process::print_stacktrace(char *outbuf, size_t bufsz, uintptr_t base, con
     uintptr_t rip;
   } __attribute__((packed));
 
+  Pagetable::Entry *pt;
+  asm volatile("mov %%cr3, %q0":"=r"(pt)::);
   struct stackframe tmpframe;
   const struct stackframe *frame;
   if (base) {
@@ -217,14 +262,21 @@ size_t Process::print_stacktrace(char *outbuf, size_t bufsz, uintptr_t base, con
   }
   size_t out = 0;
   while (frame != nullptr && bufsz > out) {
+    bool pread = false;
     if (process) {
-      if (!process->readData(&tmpframe.rbp, uintptr_t(frame), sizeof(uintptr_t))) break;
-      if (tmpframe.rbp) {
-        if (!process->readData(&tmpframe.rip, uintptr_t(frame)+sizeof(uintptr_t), sizeof(uintptr_t))) break;
-      } else {
-        break;
+      if (
+        process->readData(&tmpframe.rbp, uintptr_t(frame), sizeof(uintptr_t)) &&
+        tmpframe.rbp &&
+        process->readData(&tmpframe.rip, uintptr_t(frame)+sizeof(uintptr_t), sizeof(uintptr_t))
+      ) {
+        pread = true;
+        frame = &tmpframe;
       }
-      frame = &tmpframe;
+    }
+    if (!pread) {
+      Pagetable::Entry *fpt1 = Pagetable::Entry::find(&frame->rbp, pt);
+      Pagetable::Entry *fpt2 = Pagetable::Entry::find(&frame->rip, pt);
+      if (!fpt1 || !fpt2 || !fpt1->present || !fpt2->present) break;
     }
     out += uintptr_t(snprintf(outbuf + out, bufsz - out, " [%p]:%p", reinterpret_cast<void*>(frame->rbp), reinterpret_cast<void*>(frame->rip)));
     frame = frame->rbp;

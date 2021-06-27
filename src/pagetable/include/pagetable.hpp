@@ -84,6 +84,7 @@ class Pagetable {
       if (!pt->present) return nullptr;
       pt = pt->getPTE() + pdpx;
       if (!pt->present) return nullptr;
+      if (pt->size) return pt;
       pt = pt->getPTE() + pml4x;
 
       return pt;
@@ -101,6 +102,7 @@ class Pagetable {
   static Mutex page_mutex;
   static uintptr_t last_page;
   static void* _alloc(bool low, size_t count, MemoryType type, Entry *pagetable);
+  static void* _halloc(size_t count, MemoryType type, Entry *pagetable);
   static void* _map(const void* low, const void* top, MemoryType type, Entry *pagetable);
   static void* _getRsvd();
   static void _renewRsvd(Entry *pagetable);
@@ -112,6 +114,7 @@ class Pagetable {
   static void* map(const void* low, const void* top, MemoryType type);
   static void* map(const void* mem, MemoryType type);
   static void* alloc(size_t count, MemoryType type);
+  static void* halloc(size_t count, MemoryType type);
   static void* lowalloc(size_t count, MemoryType type);
   static void free(void* page);
 };

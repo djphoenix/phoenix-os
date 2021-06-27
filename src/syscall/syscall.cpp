@@ -90,22 +90,19 @@ void __attribute((naked)) Syscall::wrapper() {
       // Save pagetable
       "mov %cr3, %rbx;"
 
-      // Set stack to absolute address
-      "mov %rsp, %r12; shr $39, %r12; and $0x1FF, %r12;" // r12 = ptx
-      "mov (%rbx,%r12,8), %r13; and $~0xFFF, %r13; btr $63, %r13;" // rbx = pt, r12 = pte
+      "subq $16, %rsp;"
+      "str (%rsp); mov (%rsp), %r12; and $0xFFFF, %r12;" // TR=r12
+      "sgdt (%rsp);"
 
-      "mov %rsp, %r12; shr $30, %r12; and $0x1FF, %r12;" // r12 = pdx
-      "mov (%r13,%r12,8), %r13; and $~0xFFF, %r13; btr $63, %r13;" // r13 = pde
+      "mov 2(%rsp), %r13; add %r12, %r13; mov %r13, (%rsp);" // GDT:SE(TSS64)=r13
 
-      "mov %rsp, %r12; shr $21, %r12; and $0x1FF, %r12;" // r12 = pdpx
-      "mov (%r13,%r12,8), %r13; and $~0xFFF, %r13; btr $63, %r13;" // r13 = pdpe
+      "mov  (%r13), %r12; shr $16, %r12; and $0x00FFFFFF, %r12; mov %r12, 8(%rsp);"
+      "mov  (%r13), %r12; shr $56, %r12; and $0xFF, %r12; shl $24, %r12; orq %r12, 8(%rsp);"
+      "mov 8(%r13), %r12; shl $32, %r12; orq 8(%rsp), %r12;" // TSS64=r12
+      "mov 36(%r12), %r12;" // IST=r12
 
-      "mov %rsp, %r12; shr $12, %r12; and $0x1FF, %r12;" // r12 = pml4x
-      "mov (%r13,%r12,8), %r13; and $~0xFFF, %r13; btr $63, %r13;" // r13 = pml4e
-
-      // Save stack
-      "mov %rsp, %r12;"
-      "mov %rsp, %r14; and $0xFFF, %r14; add %r14, %r13; mov %r13, %rsp;"
+      "add $16, %rsp;"
+      "xchg %r12, %rsp;"
 
       // Set kernel pagetable
       "_wrapper_mov_cr3: movabsq $0, %r13; mov %r13, %cr3;"

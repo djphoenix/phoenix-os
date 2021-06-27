@@ -17,6 +17,7 @@ class Scheduler {
   QueuedThread *nextThread = nullptr, *lastThread = nullptr;
   QueuedThread **cpuThreads;
   List<Process*> processes;
+  uint64_t m_pid;
   Mutex processSwitchMutex;
   bool SwitchProcess(Interrupts::CallbackRegs *regs);
   bool HandleFault(uint8_t intr, uint32_t code, Interrupts::CallbackRegs *regs);

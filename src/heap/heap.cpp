@@ -61,7 +61,7 @@ new_page:
     while (pages) {
       for (size_t i = 0; i < 511; i++) {
         if (pages->pages[i] != nullptr) continue;
-        pages->pages[i] = Pagetable::alloc(1, Pagetable::MemoryType::DATA_RW);
+        pages->pages[i] = Pagetable::halloc(1, Pagetable::MemoryType::DATA_RW);
         ptr = 0;
         goto find_page;
       }
@@ -74,7 +74,7 @@ check_ptr:
   if (ptr < page) ptr = page;
   if ((ptr % align) != 0) ptr += align - (ptr % align);
   ptr_top = ptr + size;
-  for (uintptr_t pg = ptr & 0xFFFFFFFFFFFF000; pg < ptr_top; pg += 0x1000) {
+  for (uintptr_t pg = ptr & 0xFFFFFFFFFFFF000; pg < ptr_top; pg += 0x200000) {
     pages = heap_pages;
     while (pages) {
       for (size_t i = 0; i < 511; i++) {
