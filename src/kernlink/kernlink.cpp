@@ -31,14 +31,28 @@ uintptr_t KernelLinker::getSymbolByName(const char* name) const {
   return 0;
 }
 struct SyscallEntry {
-  const uint8_t _pre[2] = {
+  const uint8_t _pre[13] = {
+    // push r15..r11, rbx
+    0x41, 0x57,
+    0x41, 0x56,
+    0x41, 0x55,
+    0x41, 0x54,
+    0x41, 0x53,
+    0x53,
     // movabsq ..., %rax
     0x48, 0xb8,
   };
   const uint64_t syscall_id;
-  const uint8_t _post[3] = {
-    // syscallq; ret
-    0x0f, 0x05, 0xc3,
+  const uint8_t _post[14] = {
+    // syscallq; pop rbx, r11..r15; ret
+    0x0f, 0x05,
+    0x5b,
+    0x41, 0x5b,
+    0x41, 0x5c,
+    0x41, 0x5d,
+    0x41, 0x5e,
+    0x41, 0x5f,
+    0xc3,
   };
 
   explicit constexpr SyscallEntry(uint64_t idx) : syscall_id(idx) {}
@@ -110,6 +124,10 @@ void KernelLinker::prepareToStart() {
       process->addPage(page, reinterpret_cast<void*>(page), Pagetable::MemoryType::CODE_RX);
     }
   }
+
+  uintptr_t gdata = uintptr_t(Interrupts::glob);
+  process->addPage(gdata, reinterpret_cast<void*>(gdata), Pagetable::MemoryType::DATA_RO);
+
   uintptr_t handler = uintptr_t(Interrupts::wrapper) & KB4;
   process->addPage(handler, reinterpret_cast<void*>(handler), Pagetable::MemoryType::CODE_RX);
   process->addPage(handler + 0x1000, reinterpret_cast<void*>(handler + 0x1000), Pagetable::MemoryType::CODE_RX);

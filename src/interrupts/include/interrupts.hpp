@@ -154,6 +154,7 @@ class Interrupts {
 
  private:
   struct Handler;
+  struct GlobalData;
 
   static uintptr_t eoi_vector;
   static List<Callback*> callbacks[256];
@@ -162,6 +163,7 @@ class Interrupts {
   static Handler* handlers;
   static REC64 *idt;
   static GDT *gdt;
+  static GlobalData *glob;
   static void init();
   static void wrapper();
   static void handle(uint8_t intr, uint64_t stack, uint64_t *cr3, Thread::SSE *sse);

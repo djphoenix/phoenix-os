@@ -25,6 +25,14 @@ struct Interrupts::Handler {
   constexpr Handler(uint8_t int_num, uint8_t subrsp, uint32_t diff): subrsp(subrsp), int_num(int_num), diff(diff) {}
 } __attribute__((packed));
 
+struct Interrupts::GlobalData {
+  uintptr_t kernel_pt;
+
+  struct CPUData {
+    uintptr_t syscall_stk;
+  } cpu[];
+};
+
 Interrupts::REC64 *Interrupts::idt = nullptr;
 GDT *Interrupts::gdt = nullptr;
 List<Interrupts::Callback*> Interrupts::callbacks[256] {};
@@ -33,10 +41,12 @@ Mutex Interrupts::fault;
 Interrupts::Handler* Interrupts::handlers = nullptr;
 __attribute__((used))
 uintptr_t Interrupts::eoi_vector = 0;
+Interrupts::GlobalData *Interrupts::glob = nullptr;
 
 extern "C" void __attribute__((naked)) Interrupts::wrapper() {
   asm(
     // Save registers
+    "swapgs;"
     "push %r15;"
     "push %r14;"
     "push %r13;"
@@ -65,8 +75,7 @@ extern "C" void __attribute__((naked)) Interrupts::wrapper() {
     "lea 0x78(%rsp), %rdx;"
 
     // Load kernel pagetable
-    "__interrupt_pagetable_mov:"
-    "movabsq $0, %rax;"
+    "movq %gs:0, %rax;"
     "mov %rax, %cr3;"
 
     "sub $0x200, %rsp;"
@@ -119,6 +128,7 @@ extern "C" void __attribute__((naked)) Interrupts::wrapper() {
     "add $0x10, %rsp;"
 
     // Return from interrupt
+    "swapgs;"
     "iretq;"
   );
 }
@@ -244,18 +254,23 @@ void Interrupts::init() {
   gdt->ents[3] = GDT::Entry(0, 0xFFFFFFFFFFFFFFFF, 0x2, 3, 1, 1, 0, 0, 1, 1);
   gdt->ents[4] = GDT::Entry(0, 0xFFFFFFFFFFFFFFFF, 0xA, 3, 1, 1, 0, 1, 0, 1);
 
+  glob = reinterpret_cast<GlobalData*>(Pagetable::alloc(
+    (sizeof(GlobalData) + sizeof(GlobalData::CPUData) * ncpu + 0xFFF) / 0x1000,
+    Pagetable::MemoryType::DATA_RW
+  ));
+  asm volatile("mov %%cr3, %0;":"=r"(glob->kernel_pt));
+
   size_t tss_size = sizeof(TSS64_ENT) * ncpu;
   size_t tss_size_pad = (tss_size + 0xFFF) & (~0xFFFllu);
   uint8_t *tssbuf = reinterpret_cast<uint8_t*>(Pagetable::alloc(2 + tss_size_pad / 0x1000, Pagetable::MemoryType::DATA_RW));
   uint8_t *tsstop = tssbuf + tss_size_pad;
   Memory::fill(tsstop, 0xFF, 0x2000);
   for (uint32_t idx = 0; idx < ncpu; idx++) {
-    void *stack = Pagetable::alloc(1, Pagetable::MemoryType::DATA_RW);
-    uintptr_t stack_ptr = uintptr_t(stack) + 0x1000;
     uint8_t *entbuf = tssbuf + sizeof(TSS64_ENT) * idx;
     TSS64_ENT *ent = reinterpret_cast<TSS64_ENT*>(entbuf);
-    ent->ist[0] = stack_ptr;
+    ent->ist[0] = uintptr_t(Pagetable::alloc(1, Pagetable::MemoryType::DATA_RW)) + 0x1000;
     ent->iomap_base = uint16_t(tsstop - entbuf);
+    glob->cpu[idx].syscall_stk = uintptr_t(Pagetable::alloc(1, Pagetable::MemoryType::DATA_RW)) + 0x1000;
 
     gdt->sys_ents[idx] = GDT::SystemEntry(
         uintptr_t(ent), uintptr_t(tsstop - entbuf) + 0x2000 - 1,
@@ -286,13 +301,6 @@ void Interrupts::init() {
       reinterpret_cast<uint8_t*>(ACPI::getController()->getLapicAddr());
   if (lapic_eoi) lapic_eoi += ACPI::LAPIC_EOI;
   eoi_vector = uintptr_t(lapic_eoi);
-  Pagetable::map(reinterpret_cast<void*>(addr), Pagetable::MemoryType::CODE_RW);
-  asm volatile(
-    "mov %%cr3, %%rax;"
-    "mov %%eax, 2+__interrupt_pagetable_mov(%%rip)"
-    :::"rax"
-  );
-  Pagetable::map(reinterpret_cast<void*>(addr), Pagetable::MemoryType::CODE_RX);
 
   handlers = reinterpret_cast<Interrupts::Handler*>(
       Pagetable::alloc((sizeof(Handler) * 256 + 0xFFF) / 0x1000, Pagetable::MemoryType::CODE_RW));
@@ -331,14 +339,19 @@ void Interrupts::maskIRQ(uint16_t mask) {
   Port<0xA1>::out8(uint8_t(mask >> 8));
 }
 
+static inline void wrmsr(uint32_t msr_id, uint64_t msr_value) {
+  asm volatile("wrmsr"::"c"(msr_id), "A"(msr_value), "d"(msr_value >> 32));
+}
+
 void Interrupts::loadVector() {
-  if (idt == nullptr) {
-    init();
-    return;
-  }
   DTREG idtreg = { sizeof(REC64) * 256 -1, &idt[0] };
   uint32_t cpuid = ACPI::getController()->getCPUID();
   uint16_t tr = uint16_t(5 * sizeof(GDT::Entry) + cpuid * sizeof(GDT::SystemEntry));
+
+  wrmsr(0xC0000100, 0); // TODO: FS.base
+  wrmsr(0xC0000101, uintptr_t(glob)); // GS.base
+  wrmsr(0xC0000102, uintptr_t(glob)); // GS.kbase
+
   asm volatile(
       "lidtq %0;"
       "ltr %w1;"

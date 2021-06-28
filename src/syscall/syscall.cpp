@@ -79,39 +79,17 @@ uint64_t Syscall::callByName(const char *name) {
 
 void __attribute((naked)) Syscall::wrapper() {
   asm volatile(
-      // Save registers
-      "push %rbx;"
-      "push %r11;"
-      "push %r12;"
-      "push %r13;"
-      "push %r14;"
-      "push %r15;"
+      "swapgs;"
+      "str %bx; movzwq %bx, %rbx;" // TR=rbx
+      "sub $40, %rbx; shr $1, %rbx;" // CPUID=rbx/8
+      "movq %gs:8(%rbx), %r12;" // SCSTK=r12
+      "xchg %r12, %rsp;"
 
       // Save pagetable
       "mov %cr3, %rbx;"
 
-      "subq $16, %rsp;"
-      "str (%rsp); mov (%rsp), %r12; and $0xFFFF, %r12;" // TR=r12
-      "sgdt (%rsp);"
-
-      "mov 2(%rsp), %r13; add %r12, %r13; mov %r13, (%rsp);" // GDT:SE(TSS64)=r13
-
-      "mov  (%r13), %r12; shr $16, %r12; and $0x00FFFFFF, %r12; mov %r12, 8(%rsp);"
-      "mov  (%r13), %r12; shr $56, %r12; and $0xFF, %r12; shl $24, %r12; orq %r12, 8(%rsp);"
-      "mov 8(%r13), %r12; shl $32, %r12; orq 8(%rsp), %r12;" // TSS64=r12
-      "mov 36(%r12), %r12;" // IST=r12
-
-      "add $16, %rsp;"
-      "xchg %r12, %rsp;"
-
       // Set kernel pagetable
-      "_wrapper_mov_cr3: movabsq $0, %r13; mov %r13, %cr3;"
-
-      // Align stack
-      "and $(~0x0F), %rsp;"
-
-      "sub $0x200, %rsp;"
-      "fxsave (%rsp);"
+      "movq %gs:0, %r13; mov %r13, %cr3;"
 
       // Find syscall handler
       "lea _ZL11syscall_map(%rip), %r13;"
@@ -126,30 +104,17 @@ void __attribute((naked)) Syscall::wrapper() {
       "1:"
       "mov %rcx, %r14; callq *8(%r13); mov %r14, %rcx;"
 
-      "fxrstor (%rsp);"
-
       // Restore process stack & pagetable
       "mov %r12, %rsp; mov %rbx, %cr3;"
 
-      // Restore registers
-      "pop %r15;"
-      "pop %r14;"
-      "pop %r13;"
-      "pop %r12;"
-      "pop %r11;"
-      "pop %rbx;"
-
       // Return to ring3
+      "swapgs;"
       "sysretq;"
       "2: ud2;"
   );
 }
 
 void Syscall::setup() {
-  // Patch kernel CR3 address
-  Pagetable::map(reinterpret_cast<const void*>(wrapper), Pagetable::MemoryType::CODE_RW);
-  asm volatile("mov %%cr3, %%rax; mov %%rax, 2 + _wrapper_mov_cr3(%%rip)":::"rax");
-  Pagetable::map(reinterpret_cast<const void*>(wrapper), Pagetable::MemoryType::CODE_RX);
   wrmsr(MSR_STAR, uint64_t(0x10) << 48 | uint64_t(0x8) << 32);
   wrmsr(MSR_LSTAR, uintptr_t(wrapper));
   wrmsr(MSR_SFMASK, MSR_SFMASK_IE);
