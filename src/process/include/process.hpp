@@ -4,6 +4,7 @@
 #pragma once
 #include "pagetable.hpp"
 #include "list.hpp"
+#include "heap.hpp"
 
 enum SectionType: uint8_t {
   SectionTypeCode,

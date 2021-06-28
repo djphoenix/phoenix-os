@@ -144,39 +144,6 @@ void Heap::free(void* addr) {
     t = t->next;
   }
 }
-void *Heap::realloc(void *addr, size_t size, size_t align) {
-  if (size == 0) {
-    free(addr);
-    return nullptr;
-  }
-  if (addr == nullptr) return alloc(size, align);
-  size_t oldsize = 0;
-  {
-    Mutex::Lock lock(heap_mutex);
-    AllocTable *t = allocs;
-    while (t != nullptr) {
-      for (int i = 0; i < 255; i++) {
-        if (t->allocs[i].addr == addr) {
-          oldsize = t->allocs[i].size;
-          if (oldsize >= size) {
-            t->allocs[i].size = size;
-            return addr;
-          }
-          break;
-        }
-      }
-      if (oldsize != 0)
-        break;
-      t = t->next;
-    }
-  }
-  if (oldsize == 0)
-    return nullptr;
-  void *newptr = alloc(size, align);
-  Memory::copy(newptr, addr, oldsize);
-  free(addr);
-  return newptr;
-}
 
 void* operator new(size_t a) { return Heap::alloc(a); }
 void* operator new[](size_t a) __attribute__((alias("_Znwm")));

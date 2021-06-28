@@ -1,1 +1,1 @@
-target_link_libraries(kernlink PRIVATE heap syscall acpi process interrupts rand memop)
+target_link_libraries(kernlink PRIVATE dynlist syscall acpi process interrupts rand memop)

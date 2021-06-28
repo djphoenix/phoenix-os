@@ -5,9 +5,13 @@
 #include "list.hpp"
 
 class Process;
-struct ProcessSymbol;
 class KernelLinker {
 private:
+  struct ProcessSymbol {
+    uintptr_t ptr;
+    char* name;
+  };
+
   Process *const process;
   uintptr_t _syscallPage = 0;
   size_t _syscallNum = 0;

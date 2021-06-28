@@ -29,7 +29,10 @@ void Scheduler::setup() { scheduler.init(); }
 void Scheduler::init() {
   m_pid = 0;
   uint64_t cpus = ACPI::getController()->getCPUCount();
-  cpuThreads = new QueuedThread*[cpus]();
+  cpuThreads = reinterpret_cast<QueuedThread**>(Pagetable::alloc(
+    (sizeof(QueuedThread*) * cpus + 0xFFF) / 0x1000,
+    Pagetable::MemoryType::DATA_RW
+  ));
   Interrupts::addCallback(0x20, &Scheduler::TimerHandler);
   for (uint8_t i = 0; i < 0x20; i++) {
     Interrupts::addCallback(i, &Scheduler::FaultHandler);
@@ -243,11 +246,7 @@ void Scheduler::queueThread(Process *process, Thread *thread) {
   q->thread = thread;
   q->next = nullptr;
   Mutex::CriticalLock lock(processSwitchMutex);
-  if (lastThread) {
-    lastThread = (lastThread->next = q);
-  } else {
-    lastThread = nextThread = q;
-  }
+  lastThread = lastThread ? (lastThread->next = q) : (nextThread = q);
 }
 
 void Scheduler::dequeueThread(Thread *thread) {

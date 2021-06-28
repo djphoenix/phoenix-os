@@ -8,11 +8,6 @@
 #include "memop.hpp"
 #include "rand.hpp"
 
-struct ProcessSymbol {
-  uintptr_t ptr;
-  char* name;
-};
-
 static inline bool streq(const char* a, const char* b) {
   for (;; a++, b++) {
     if (*a != *b) return false;
