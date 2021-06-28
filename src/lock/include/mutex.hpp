@@ -66,3 +66,86 @@ class Mutex {
     ~CriticalLock() { mutex->release(); }
   };
 };
+
+class RWMutex {
+ private:
+  union {
+    uint64_t raw;
+    struct {
+      uint64_t slock:1, wlock:1, rcnt:62;
+    };
+  } state;
+
+  void slock() {
+    asm volatile(
+        "1:"
+        "testw $1, %0; jnz 1b;"
+        "lock btsw $0, %0; jc 1b;"
+        ::"m"(state.raw):"cc","memory");
+  }
+  void srelease() {
+    asm volatile("btcw $0, %0"::"m"(state.raw));
+  }
+ public:
+  constexpr RWMutex(): state { .raw = 0 } {}
+  inline void wlock() { while (!try_wlock()) ; }
+  inline void rlock() { while (!try_rlock()) ; }
+  inline bool try_wlock() {
+    if (state.rcnt != 0 && state.wlock == true) return false;
+    slock();
+    bool res = state.rcnt == 0 && state.wlock == false;
+    if (res) state.wlock = true;
+    srelease();
+    return res;
+  }
+  inline void wrelease() {
+    slock();
+    state.wlock = false;
+    srelease();
+  }
+  inline bool try_rlock() {
+    if (state.wlock == true) return false;
+    slock();
+    bool res = state.wlock == false;
+    if (res) state.rcnt++;
+    srelease();
+    return res;
+  }
+  inline void rrelease() {
+    slock();
+    state.rcnt--;
+    srelease();
+  }
+  class WLock {
+   private:
+    RWMutex *mutex;
+   public:
+    explicit WLock(RWMutex *mutex) : mutex(mutex) { mutex->wlock(); }
+    explicit WLock(RWMutex &mutex) : WLock(&mutex) {}
+    ~WLock() { mutex->wrelease(); }
+  };
+  class CriticalWLock: public CriticalSection {
+   private:
+    RWMutex *mutex;
+   public:
+    explicit CriticalWLock(RWMutex *mutex) : mutex(mutex) { mutex->wlock(); }
+    explicit CriticalWLock(RWMutex &mutex) : CriticalWLock(&mutex) {}
+    ~CriticalWLock() { mutex->wrelease(); }
+  };
+  class RLock {
+   private:
+    RWMutex *mutex;
+   public:
+    explicit RLock(RWMutex *mutex) : mutex(mutex) { mutex->rlock(); }
+    explicit RLock(RWMutex &mutex) : RLock(&mutex) {}
+    ~RLock() { mutex->rrelease(); }
+  };
+  class CriticalRLock: public CriticalSection {
+   private:
+    RWMutex *mutex;
+   public:
+    explicit CriticalRLock(RWMutex *mutex) : mutex(mutex) { mutex->rlock(); }
+    explicit CriticalRLock(RWMutex &mutex) : CriticalRLock(&mutex) {}
+    ~CriticalRLock() { mutex->rrelease(); }
+  };
+};

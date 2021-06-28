@@ -148,7 +148,7 @@ void Scheduler::PrintFault(uint8_t num, Interrupts::CallbackRegs *regs, uint32_t
 bool Scheduler::HandleFault(uint8_t intr, uint32_t code, Interrupts::CallbackRegs *regs) {
   QueuedThread *thread;
   {
-    Mutex::CriticalLock lock(processSwitchMutex);
+    Mutex::Lock lock(processSwitchMutex);
     thread = cpuThreads[regs->cpuid];
     cpuThreads[regs->cpuid] = nullptr;
   }
@@ -162,7 +162,7 @@ bool Scheduler::HandleFault(uint8_t intr, uint32_t code, Interrupts::CallbackReg
   delete thread;
   if (SwitchProcess(regs)) return true;
   {
-    Mutex::CriticalLock lock(processSwitchMutex);
+    Mutex::Lock lock(processSwitchMutex);
     asm volatile("mov %%cr3, %0":"=r"(regs->info->cr3));
     regs->info->rip = uintptr_t(&process_loop);
     regs->sse->sse[3] = 0x0000ffff00001F80llu;
@@ -206,7 +206,7 @@ void __attribute__((noreturn)) Scheduler::exitProcess(Process *process, int code
   (void)code;  // TODO: handle
 
   {
-    Mutex::CriticalLock lock(processSwitchMutex);
+    Mutex::Lock lock(processSwitchMutex);
 
     QueuedThread *next = nextThread, *prev = nullptr;
     while (next != nullptr) {

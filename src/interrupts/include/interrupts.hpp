@@ -158,8 +158,8 @@ class Interrupts {
 
   static uintptr_t eoi_vector;
   static List<Callback*> callbacks[256];
-  static Mutex callback_locks[256];
-  static Mutex fault;
+  static RWMutex callback_locks[256];
+  static RWMutex fault;
   static Handler* handlers;
   static REC64 *idt;
   static GDT *gdt;

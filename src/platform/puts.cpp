@@ -15,7 +15,7 @@ class SerialConsole {
   static SerialConsole instance;
   inline constexpr SerialConsole() {}
   inline void write(const char *str) {
-    Mutex::CriticalLock lock(mutex);
+    Mutex::Lock lock(mutex);
     char c;
     while ((c = *str++) != 0) {
       while ((Port<port + 5>::in8() & (1 << 5)) == 0) ;

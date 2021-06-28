@@ -36,8 +36,8 @@ struct Interrupts::GlobalData {
 Interrupts::REC64 *Interrupts::idt = nullptr;
 GDT *Interrupts::gdt = nullptr;
 List<Interrupts::Callback*> Interrupts::callbacks[256] {};
-Mutex Interrupts::callback_locks[256];
-Mutex Interrupts::fault;
+RWMutex Interrupts::callback_locks[256];
+RWMutex Interrupts::fault;
 Interrupts::Handler* Interrupts::handlers = nullptr;
 __attribute__((used))
 uintptr_t Interrupts::eoi_vector = 0;
@@ -179,7 +179,7 @@ struct int_info {
 void __attribute__((sysv_abi)) __attribute__((used)) Interrupts::handle(
     unsigned char intr, uint64_t stack, uint64_t *pagetable, Thread::SSE *sse) {
   {
-    Mutex::Lock lock(fault);
+    RWMutex::RLock lock(fault);
   }
   uint64_t *const rsp = reinterpret_cast<uint64_t*>(stack);
   Thread::Regs *const regs = reinterpret_cast<Thread::Regs*>(rsp - (12 + 3) - 1);
@@ -208,7 +208,7 @@ void __attribute__((sysv_abi)) __attribute__((used)) Interrupts::handle(
   Callback *cb;
   for (;;) {
     {
-      Mutex::Lock lock(callback_locks[intr]);
+      RWMutex::RLock lock(callback_locks[intr]);
       cb = (callbacks[intr].getCount() > idx) ? callbacks[intr][idx] : nullptr;
       idx++;
     }
@@ -230,7 +230,7 @@ void __attribute__((sysv_abi)) __attribute__((used)) Interrupts::handle(
 
   char printbuf[32];
   if (intr < 0x20) {
-    fault.lock();
+    fault.wlock();
     for (;;) asm volatile("hlt");
   } else if (intr == 0x21) {
     snprintf(printbuf, sizeof(printbuf), "KBD %02xh\n", Port<0x60>::in8());
@@ -365,6 +365,6 @@ uint16_t Interrupts::getIRQmask() {
 }
 
 void Interrupts::addCallback(uint8_t intr, Callback* cb) {
-  Mutex::CriticalLock lock(callback_locks[intr]);
+  RWMutex::CriticalWLock lock(callback_locks[intr]);
   callbacks[intr].add(cb);
 }
