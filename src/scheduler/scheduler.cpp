@@ -178,7 +178,7 @@ uint64_t Scheduler::registerProcess(Process *process) {
   thread->rip = process->entry;
   thread->sse.sse[3] = 0x0000ffff00001F80llu;
   thread->rflags = 0;
-  thread->stack_top = process->addSection(0, SectionTypeStack, 0x1FFFFF) + 0x200000 - 0x10;
+  thread->stack_top = process->addSection(0, SectionTypeStack, 0x1FFFFF) + 0x200000 - 0x8;
   thread->rsp = thread->stack_top;
   thread->suspend_ticks = 0;
 
