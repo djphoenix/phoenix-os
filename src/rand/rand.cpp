@@ -19,12 +19,12 @@ void RAND::setup() {
   if (check_rdseed()) {
     asm volatile(
       "1: rdseed %q0; jnc 1b"
-      :"=r"(seed)
+      :"=X"(seed)
     );
   } else if (check_rdrand()) {
     asm volatile(
       "1: rdrand %q0; jnc 1b"
-      :"=r"(seed)
+      :"=X"(seed)
     );
   } else {
     uint32_t eax, edx;

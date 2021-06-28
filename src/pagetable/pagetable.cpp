@@ -115,7 +115,7 @@ static inline __attribute__((always_inline)) void newkern_relocstack(ptrdiff_t k
     uintptr_t rip;
   } __attribute__((packed));
   struct stackframe *frame;
-  asm volatile("mov %%rbp, %q0":"=r"(frame)::);
+  asm volatile("mov %%rbp, %q0":"=X"(frame)::);
   while (frame != nullptr) {
     frame->rip += uintptr_t(kernreloc);
     frame = frame->rbp;
@@ -185,7 +185,7 @@ void __attribute__((always_inline)) Pagetable::initEFI(const EFI::SystemTable_t 
   efiMapPage(*newpt, nullptr, ST, MemoryType::NULLPAGE);
   efiMapPage(*newpt, *newpt, ST, MemoryType::TABLE);
 
-  const uint8_t *rsp; asm volatile("mov %%rsp, %q0":"=r"(rsp));
+  const uint8_t *rsp; asm volatile("mov %%rsp, %q0":"=X"(rsp));
   efiMapPage(*newpt, rsp, ST, MemoryType::DATA_RW);
   efiMapPage(*newpt, rsp - 0x1000, ST, MemoryType::DATA_RW);
 
@@ -220,7 +220,7 @@ void __attribute__((always_inline)) Pagetable::initEFI(const EFI::SystemTable_t 
 void __attribute__((always_inline)) Pagetable::initMB(Entry **newpt, uint8_t **newbase) {
   const size_t kernsz = size_t(__bss_end__ - __text_start__);
 
-  PTE *pagetable; asm volatile("mov %%cr3, %q0":"=r"(pagetable));
+  PTE *pagetable; asm volatile("mov %%cr3, %q0":"=X"(pagetable));
   PTE::find(nullptr, pagetable)->present = 0;
 
   static constexpr size_t pdpe_num = 64;
@@ -251,7 +251,7 @@ void __attribute__((always_inline)) Pagetable::initMB(Entry **newpt, uint8_t **n
   _map(reinterpret_cast<uint8_t*>(0x0F00000), reinterpret_cast<uint8_t*>(0x1000000), MemoryType::DATA_RO, *newpt);  // Memory hole
 
   static const size_t stack_size = 0x1000;
-  const uint8_t *rsp; asm volatile("mov %%rsp, %q0":"=r"(rsp));
+  const uint8_t *rsp; asm volatile("mov %%rsp, %q0":"=X"(rsp));
   rsp = reinterpret_cast<uint8_t*>((uintptr_t(rsp) + 0xFFF) & (~0xFFFllu));
   _map(rsp - stack_size, rsp, MemoryType::DATA_RW, *newpt);
 
@@ -274,7 +274,7 @@ void Pagetable::init() {
   PTE *newpt;
   ptrdiff_t kernreloc;
 
-  asm volatile("mov $__text_start__, %q0":"=r"(defbase));
+  asm volatile("mov $__text_start__, %q0":"=X"(defbase));
 
   // Initialization of pagetables
 
@@ -294,10 +294,10 @@ void Pagetable::init() {
   kernreloc = newbase - defbase;
 
   asm volatile(
-      "addq $1f, %%rax;"
-      "jmpq *%%rax;1:"
+      "addq $1f, %0;"
+      "jmpq *%0;1:"
       "mov %q1, %%cr3;"
-      :"+a"(kernreloc):"r"(newpt));
+      :"+r"(kernreloc):"X"(newpt));
 
   kernreloc = reinterpret_cast<uint8_t*>(newbase) - __text_start__;
   newkern_relocstack(kernreloc);
@@ -436,7 +436,7 @@ void* Pagetable::_map(const void* low, const void* top, MemoryType type, PTE *pa
 
 void* Pagetable::map(const void* low, const void* top, MemoryType type) {
   Mutex::CriticalLock lock(page_mutex);
-  PTE *pagetable; asm volatile("mov %%cr3, %q0":"=r"(pagetable));
+  PTE *pagetable; asm volatile("mov %%cr3, %q0":"=X"(pagetable));
   void *addr = _map(low, top, type, pagetable);
   _renewRsvd(pagetable);
   return addr;
@@ -496,7 +496,7 @@ void* Pagetable::_halloc(size_t count, MemoryType type, PTE *pagetable) {
 void* Pagetable::alloc(size_t count, MemoryType type) {
   if (count >= 0x200 && (count & 0x1FF) == 0) return halloc(count >> 9, type);
   Mutex::CriticalLock lock(page_mutex);
-  PTE *pagetable; asm volatile("mov %%cr3, %q0":"=r"(pagetable));
+  PTE *pagetable; asm volatile("mov %%cr3, %q0":"=X"(pagetable));
   void *addr = _alloc(false, count, type, pagetable);
   _renewRsvd(pagetable);
   return addr;
@@ -504,7 +504,7 @@ void* Pagetable::alloc(size_t count, MemoryType type) {
 
 void* Pagetable::halloc(size_t count, MemoryType type) {
   Mutex::CriticalLock lock(page_mutex);
-  PTE *pagetable; asm volatile("mov %%cr3, %q0":"=r"(pagetable));
+  PTE *pagetable; asm volatile("mov %%cr3, %q0":"=X"(pagetable));
   void *addr = _halloc(count, type, pagetable);
   _renewRsvd(pagetable);
   return addr;
@@ -512,14 +512,14 @@ void* Pagetable::halloc(size_t count, MemoryType type) {
 
 void* Pagetable::lowalloc(size_t count, MemoryType type) {
   Mutex::CriticalLock lock(page_mutex);
-  PTE *pagetable; asm volatile("mov %%cr3, %q0":"=r"(pagetable));
+  PTE *pagetable; asm volatile("mov %%cr3, %q0":"=X"(pagetable));
   void *addr = _alloc(true, count, type, pagetable);
   _renewRsvd(pagetable);
   return addr;
 }
 
 void Pagetable::free(void* page) {
-  PTE *pagetable; asm volatile("mov %%cr3, %q0":"=r"(pagetable));
+  PTE *pagetable; asm volatile("mov %%cr3, %q0":"=X"(pagetable));
   Mutex::CriticalLock lock(page_mutex);
   PTE *pdata = PTE::find(page, pagetable);
   if ((pdata != nullptr) && pdata->present) {

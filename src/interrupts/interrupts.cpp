@@ -258,7 +258,7 @@ void Interrupts::init() {
     (sizeof(GlobalData) + sizeof(GlobalData::CPUData) * ncpu + 0xFFF) / 0x1000,
     Pagetable::MemoryType::DATA_RW
   ));
-  asm volatile("mov %%cr3, %0;":"=r"(glob->kernel_pt));
+  asm volatile("mov %%cr3, %0;":"=X"(glob->kernel_pt));
 
   size_t tss_size = sizeof(TSS64_ENT) * ncpu;
   size_t tss_size_pad = (tss_size + 0xFFF) & (~0xFFFllu);
@@ -355,7 +355,7 @@ void Interrupts::loadVector() {
   asm volatile(
       "lidtq %0;"
       "ltr %w1;"
-      "sti"::"m"(idtreg), "r"(tr));
+      "sti"::"m"(idtreg), "X"(tr));
 }
 
 uint16_t Interrupts::getIRQmask() {

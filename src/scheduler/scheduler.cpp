@@ -46,7 +46,7 @@ bool Scheduler::FaultHandler(uint8_t intr, uint32_t code, Interrupts::CallbackRe
 }
 bool Scheduler::SwitchProcess(Interrupts::CallbackRegs *regs) {
   uintptr_t loopbase = uintptr_t(&process_loop), looptop;
-  asm volatile("lea process_loop_top(%%rip), %q0":"=r"(looptop));
+  asm volatile("lea process_loop_top(%%rip), %q0":"=X"(looptop));
   Mutex::Lock lock(processSwitchMutex);
   if (regs->info->dpl == 0 && (regs->info->rip < loopbase || regs->info->rip >= looptop)) return false;
   QueuedThread *thread = nextThread;
@@ -84,7 +84,7 @@ bool Scheduler::SwitchProcess(Interrupts::CallbackRegs *regs) {
 void Scheduler::PrintFault(uint8_t num, Interrupts::CallbackRegs *regs, uint32_t code, const Process *process) {
   uint64_t cr2;
   uint64_t base;
-  asm volatile("mov %%cr2, %0":"=r"(cr2));
+  asm volatile("mov %%cr2, %0":"=X"(cr2));
   uint32_t cpuid = ACPI::getController()->getCPUID();
   char rflags_buf[10] = "---------";
   if (regs->info->rflags & (1 <<  0)) rflags_buf[8] = 'C';
@@ -109,7 +109,7 @@ void Scheduler::PrintFault(uint8_t num, Interrupts::CallbackRegs *regs, uint32_t
       "\n%s (%s) ", src, process->getName()
     );
   } else {
-    asm volatile("lea __text_start__(%%rip), %q0":"=r"(base));
+    asm volatile("lea __text_start__(%%rip), %q0":"=X"(base));
     printbuf_ptr += snprintf(
       printbuf_ptr, size_t(printbuf_top - printbuf_ptr),
       "\n%s ", src
@@ -163,7 +163,7 @@ bool Scheduler::HandleFault(uint8_t intr, uint32_t code, Interrupts::CallbackReg
   if (SwitchProcess(regs)) return true;
   {
     Mutex::Lock lock(processSwitchMutex);
-    asm volatile("mov %%cr3, %0":"=r"(regs->info->cr3));
+    asm volatile("mov %%cr3, %0":"=X"(regs->info->cr3));
     regs->info->rip = uintptr_t(&process_loop);
     regs->sse->sse[3] = 0x0000ffff00001F80llu;
     regs->info->cs = 0x08;

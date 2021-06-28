@@ -4,7 +4,7 @@ using namespace kcrypto::hash;
 
 template<typename T>
 inline T revb(T a) {
-  asm volatile("bswap %0":"+r"(a));
+  asm volatile("bswap %0":"+X"(a));
   return a;
 }
 

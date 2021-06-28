@@ -39,7 +39,7 @@ void SMP::init() {
   } __attribute__((packed));
 
   const uint8_t *smp_init, *smp_end;
-  asm volatile("lea _smp_init(%%rip), %q0; lea _smp_end(%%rip), %q1":"=r"(smp_init),"=r"(smp_end));
+  asm volatile("lea _smp_init(%%rip), %q0; lea _smp_end(%%rip), %q1":"=X"(smp_init),"=X"(smp_end));
 
   const size_t smp_init_size = size_t(smp_end - smp_init);
   const size_t cpuids_size = sizeof(uint64_t) * cpuCount;
@@ -59,7 +59,7 @@ void SMP::init() {
   info->stacks = reinterpret_cast<const uint8_t**>(Pagetable::alloc((stacks_size + 0xFFF) >> 12, Pagetable::MemoryType::DATA_RW));
   info->startup = setup;
 
-  asm volatile("mov %%cr3, %q0":"=r"(info->pagetableptr));
+  asm volatile("mov %%cr3, %q0":"=X"(info->pagetableptr));
   asm volatile("sgdtq %0":"+m"(info->gdtptr));
 
   uint32_t nullcpus = 0;

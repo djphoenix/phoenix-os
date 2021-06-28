@@ -252,13 +252,13 @@ size_t Process::print_stacktrace(char *outbuf, size_t bufsz, uintptr_t base, con
   } __attribute__((packed));
 
   Pagetable::Entry *pt;
-  asm volatile("mov %%cr3, %q0":"=r"(pt)::);
+  asm volatile("mov %%cr3, %q0":"=X"(pt)::);
   struct stackframe tmpframe;
   const struct stackframe *frame;
   if (base) {
     frame = reinterpret_cast<struct stackframe*>(base);
   } else {
-    asm volatile("mov %%rbp, %q0":"=r"(frame)::);
+    asm volatile("mov %%rbp, %q0":"=X"(frame)::);
   }
   size_t out = 0;
   while (frame != nullptr && bufsz > out) {

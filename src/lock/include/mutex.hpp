@@ -12,12 +12,12 @@ class CriticalSection {
  public:
   inline static uint64_t __attribute__((always_inline)) enter() {
     uint64_t flags;
-    asm volatile("pushfq; cli; pop %q0":"=r"(flags));
+    asm volatile("pushfq; cli; pop %q0":"=X"(flags));
     return flags;
   }
 
   inline static void leave(uint64_t flags) {
-    asm volatile("push %q0; popfq"::"r"(flags));
+    asm volatile("push %q0; popfq"::"X"(flags));
   }
 
   CriticalSection() : flags(enter()) {}
@@ -43,7 +43,7 @@ class Mutex {
         "lock btsw $0, %1; jc 1f;"
         "mov $1, %0;"
         "1:"
-        :"+r"(ret):"m"(state):"cc","memory");
+        :"+X"(ret):"m"(state):"cc","memory");
     return ret;
   }
   inline void release() {
