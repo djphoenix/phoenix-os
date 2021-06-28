@@ -10,19 +10,15 @@
 
 class SMP {
  private:
-  static Mutex startupMutex;
   static void setup();
   static void init();
 };
-
-Mutex SMP::startupMutex;
 
 void SMP::setup() {
   {
     Interrupts::loadVector();
     ACPI::getController()->activateCPU();
     Syscall::setup();
-    Mutex::Lock lock(startupMutex);
   }
   asm volatile("jmp *%0"::"r"(Scheduler::process_loop));
 }
@@ -79,7 +75,6 @@ void SMP::init() {
     nullcpus--;
 
   {
-    Mutex::Lock lock(startupMutex);
     for (uint32_t i = 0; i < cpuCount; i++) {
       if (info->cpuids[i] != localId) {
         acpi->sendCPUInit(uint32_t(info->cpuids[i]));
